@@ -487,11 +487,172 @@ export default function Dashboard() {
                 title='Dashboard'  
                 backAction={() => { }}
             >
-                <Card>
-                    
+                {/* Welcome Section */}
+                <Card sectioned>
+                    <Box>
+                        <Text variant="headingLg" as="h2">
+                            Welcome James 👋
+                        </Text>
+                        <Box paddingBlockStart="200">
+                            <Text variant="bodyMd" tone="subdued">
+                                Create your first checkout link in seconds. Here are 3 ways you can use your link.
+                            </Text>
+                        </Box>
+                    </Box>
                 </Card>
 
-                
+                {/* Features Section */}
+                <Box paddingBlockStart="400">
+                    <Card>
+                        <Box padding="600">
+                            <InlineStack gap="600" align="stretch">
+                                {/* Pre-built carts */}
+                                <Box minWidth="200px" padding="400">
+                                    <InlineStack gap="300" blockAlign="start">
+                                        <Box>
+                                            <div style={{ 
+                                                width: '24px', 
+                                                height: '24px', 
+                                                backgroundColor: '#000', 
+                                                borderRadius: '4px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}>
+                                                <Text variant="bodyMd" tone="text-inverse">🛒</Text>
+                                            </div>
+                                        </Box>
+                                        <Box>
+                                            <Text variant="headingSm" as="h3">
+                                                Pre-built carts for shoppers
+                                            </Text>
+                                            <Box paddingBlockStart="100">
+                                                <Text variant="bodyMd" tone="subdued">
+                                                    Make the decision for them.
+                                                </Text>
+                                            </Box>
+                                        </Box>
+                                    </InlineStack>
+                                </Box>
+
+                                {/* Turn ad clicks */}
+                                <Box minWidth="200px" padding="400">
+                                    <InlineStack gap="300" blockAlign="start">
+                                        <Box>
+                                            <div style={{ 
+                                                width: '24px', 
+                                                height: '24px', 
+                                                backgroundColor: '#000', 
+                                                borderRadius: '4px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}>
+                                                <Text variant="bodyMd" tone="text-inverse">🔗</Text>
+                                            </div>
+                                        </Box>
+                                        <Box>
+                                            <Text variant="headingSm" as="h3">
+                                                Turn ad clicks into instant sales
+                                            </Text>
+                                            <Box paddingBlockStart="100">
+                                                <Text variant="bodyMd" tone="subdued">
+                                                    Create instant sales funnels with no code
+                                                </Text>
+                                            </Box>
+                                        </Box>
+                                    </InlineStack>
+                                </Box>
+
+                                {/* Plug & play funnel links */}
+                                <Box minWidth="200px" padding="400">
+                                    <InlineStack gap="300" blockAlign="start">
+                                        <Box>
+                                            <div style={{ 
+                                                width: '24px', 
+                                                height: '24px', 
+                                                backgroundColor: '#000', 
+                                                borderRadius: '4px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center'
+                                            }}>
+                                                <Text variant="bodyMd" tone="text-inverse">⚡</Text>
+                                            </div>
+                                        </Box>
+                                        <Box>
+                                            <Text variant="headingSm" as="h3">
+                                                Plug & play funnel links
+                                            </Text>
+                                            <Box paddingBlockStart="100">
+                                                <Text variant="bodyMd" tone="subdued">
+                                                    Use checkout links across quizzes and pages.
+                                                </Text>
+                                            </Box>
+                                        </Box>
+                                    </InlineStack>
+                                </Box>
+                            </InlineStack>
+
+                            {/* Build your first link button */}
+                            <Box paddingBlockStart="600">
+                                <Button variant="primary" size="large" fullWidth>
+                                    🔗 Build your first link
+                                </Button>
+                            </Box>
+                        </Box>
+                    </Card>
+                </Box>
+
+                {/* Bottom Section with How it works and Help */}
+                <Box paddingBlockStart="400">
+                    <InlineStack gap="400" align="stretch">
+                        {/* How it works */}
+                        <Card sectioned>
+                            <Box>
+                                <Text variant="headingMd" as="h3">
+                                    How it works
+                                </Text>
+                                <Box paddingBlockStart="300">
+                                    <Text variant="bodyMd" tone="subdued">
+                                        Get the most out of checkout links by following these simple steps.
+                                    </Text>
+                                </Box>
+                                <Box paddingBlockStart="400">
+                                    <Button variant="secondary">
+                                        Learn more
+                                    </Button>
+                                </Box>
+                            </Box>
+                        </Card>
+
+                        
+                        <Card sectioned>
+                            <Box>
+                                <Text variant="headingMd" as="h3">
+                                    Need a hand? We're here to help
+                                </Text>
+                                <Box paddingBlockStart="300">
+                                    <Box paddingBlockEnd="200">
+                                        <Button variant="plain" textAlign="left" fullWidth>
+                                            💬 Start a live chat
+                                        </Button>
+                                    </Box>
+                                    <Box paddingBlockEnd="200">
+                                        <Button variant="plain" textAlign="left" fullWidth>
+                                            ✉️ Send us an email
+                                        </Button>
+                                    </Box>
+                                    <Box>
+                                        <Button variant="plain" textAlign="left" fullWidth>
+                                            ❓ See our FAQs 
+                                        </Button>
+                                    </Box>
+                                </Box>
+                            </Box>
+                        </Card>
+                    </InlineStack>
+                </Box>
             </Page>
         </Box>
     )
