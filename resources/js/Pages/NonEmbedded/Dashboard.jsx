@@ -7,6 +7,7 @@ import {
     useBreakpoints, useIndexResourceState, useSetIndexFiltersMode
 } from '@shopify/polaris';
 import { useCallback, useEffect, useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import { DeleteIcon, EditIcon } from '@shopify/polaris-icons';
 
 
@@ -97,8 +98,11 @@ export default function Dashboard() {
     const [onFulfillStatusChange, setonFulfillStatusChange] = useState('');
 
     const [queryValue, setQueryValue] = useState('');
-
+    
     const [syncOrders, setSyncOrders] = useState(false);
+
+
+    const { query } = usePage().props.ziggy;
 
 
 
@@ -374,7 +378,7 @@ export default function Dashboard() {
     ]);
     const fetchData = async () => {
         try {
-            const response = await fetch(route('search', { query: queryValue, financial_status: onFiancialStatusChange, fulfillment_status: onFulfillStatusChange  , sync_orders: syncOrders }));
+            const response = await fetch(route('search', { query: queryValue, ...query, financial_status: onFiancialStatusChange, fulfillment_status: onFulfillStatusChange  , sync_orders: syncOrders }));
             const result = await response.json();
             handleData(result)
         } catch (err) {
@@ -399,7 +403,7 @@ export default function Dashboard() {
     useEffect(() => {
         setReload(true)
     }, [onFulfillStatusChange])
-
+    
 
 
 
@@ -495,7 +499,7 @@ export default function Dashboard() {
                     <div>
                         <Button onClick={handleSyncOrders}  disabled={syncOrders} >Sync Orders</Button>
                     </div>
-
+               
                 </div>
 
                 <Card>
