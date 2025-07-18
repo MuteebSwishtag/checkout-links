@@ -484,7 +484,7 @@ export default function Dashboard() {
     return (
         <Box paddingInline={'800'}>
             <Page
-                title='Dashboard'
+                title='Dashboard '
                 fullWidth
                 backAction={() => { }}
             >
