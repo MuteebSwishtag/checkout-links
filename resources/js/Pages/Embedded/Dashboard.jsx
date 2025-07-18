@@ -484,81 +484,14 @@ export default function Dashboard() {
     return (
         <Box paddingInline={'800'}>
             <Page
-                title='Dashboard '
-                fullWidth
+                title='Dashboard'  
                 backAction={() => { }}
             >
-                <div style={{ display: "flex", gap: '10px', justifyContent: "end" }}>
-
-                    <FiancialFilterDropdown onFiancialStatusChange={setonFiancialStatusChange} />
-                    <FulfilledFilterDropdown onFulfillStatusChange={setonFulfillStatusChange} />
-                    <div>
-                        <Button onClick={onHandleCancel} disabled={!onFiancialStatusChange && !onFulfillStatusChange}>Cancel Filter</Button>
-
-                    </div>
-                    <div>
-                        <Button onClick={handleSyncOrders}  disabled={syncOrders} >Sync Orders</Button>
-                    </div>
-               
-                </div>
-
                 <Card>
-                    <IndexFilters
-                        sortOptions={sortOptions}
-                        sortSelected={sortSelected}
-                        queryValue={queryValue}
-                        queryPlaceholder="Searching in all"
-
-                        onQueryChange={SearchFilter}
-
-                        onQueryClear={() => setQueryValue('')}
-                        onSort={setSortSelected}
-                        primaryAction={primaryAction}
-                        cancelAction={{
-                            onAction: onHandleCancel,
-                            disabled: false,
-                            loading: false,
-                        }}
-
-                        tabs={tabs}
-                        selected={selected}
-                        onSelect={setSelected}
-                        canCreateNewView
-                        onCreateNewView={onCreateNewView}
-                        filters={filters}
-                        appliedFilters={appliedFilters}
-                        onClearAll={handleFiltersClearAll}
-                        mode={mode}
-                        setMode={setMode}
-                        loading={reload}
-                    />
-                    <IndexTable
-                        condensed={useBreakpoints().smDown}
-                        resourceName={resourceName}
-                        itemCount={logs.length}
-                        selectable={false}
-                        selectedItemsCount={
-                            allResourcesSelected ? 'All' : selectedResources.length
-                        }
-                        onSelectionChange={handleSelectionChange}
-                        headings={[
-                            { title: 'ID' },
-                            { title: 'Order No' },
-                            { title: 'customer_name' },
-                            { title: 'order_name' },
-                            { title: 'Quantity' },
-                            { title: 'Status  ' },
-                            { title: 'Fullfilment Status', },
-                            { title: 'Total price' },
-                            { title: 'Country' },
-                            { title: 'Action' },
-                        ]}
-                    >
-                        {rowMarkup}
-                    </IndexTable>
-
-
+                    
                 </Card>
+
+                
             </Page>
         </Box>
     )
