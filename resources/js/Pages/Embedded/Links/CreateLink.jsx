@@ -30,6 +30,7 @@ import FormControlLabel from '@mui/material/FormControlLabel'
 import Checkbox from '@mui/material/Checkbox'
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import Discount from './Discount';
+import PopupMessage from './PopupMessage';
 
 export default function CreateLink() {
     const { props } = usePage();
@@ -410,8 +411,8 @@ export default function CreateLink() {
                             open={popupMessageOpen}
                             id="popup-message-content"
                         >
-                            <Box padding="400">
-                                <Text as="p" color="subdued">Popup message configuration will appear here</Text>
+                            <Box padding="">
+                                <PopupMessage/>
                             </Box>
                         </Collapsible>
                     </BlockStack>
@@ -420,7 +421,7 @@ export default function CreateLink() {
 
             </Grid.Cell>
             <Grid.Cell columnSpan={{xs: 12, sm: 6, md: 6, lg:6, xl: 6}}>
-                 {/* Summary Card - Separate from accordion */}
+              <BlockStack gap='400'>
                 <Card>
                     <BlockStack gap="400" padding="400">
                         <InlineStack align="space-between">
@@ -453,7 +454,7 @@ export default function CreateLink() {
                     </BlockStack>
                 </Card>
                 
-                {/* Preview Card - Separate from accordion */}
+              
                 <Card>
                     <BlockStack gap="400" padding="400">
                         <InlineStack align="space-between">
@@ -476,6 +477,7 @@ export default function CreateLink() {
                         </Box>
                     </BlockStack>
                 </Card>
+                </BlockStack>
                 </Grid.Cell>
             </Grid>
             
