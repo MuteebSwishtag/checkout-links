@@ -11,6 +11,9 @@ Route::group(['middleware' => ['verify.embedded', 'verify.shopify']], function (
       Route::get('/links', function () {
         return Inertia::render('Embedded/Links/Links');
     })->name('links');
+    Route::get('/links/create', function () {
+        return Inertia::render('Embedded/Links/CreateLink');
+    })->name('links.create');
     Route::get('/search', [DashboardController::class, 'orderSeacrhfilter'])->name('search');
 
 });
