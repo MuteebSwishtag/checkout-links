@@ -24,7 +24,7 @@ import {
     Avatar,
     Thumbnail,
 } from '@shopify/polaris';
-import { ChevronDownIcon, ChevronUpIcon, SearchIcon, FilterIcon, XIcon, DragHandleIcon } from '@shopify/polaris-icons';
+import { ChevronDownIcon, ChevronUpIcon, SearchIcon, FilterIcon, XIcon, DragHandleIcon, DragDropIcon, CartIcon } from '@shopify/polaris-icons';
 import { Link, router, usePage } from '@inertiajs/react';
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Checkbox from '@mui/material/Checkbox'
@@ -434,8 +434,9 @@ export default function CreateLink() {
                                     open={popupMessageOpen}
                                     id="popup-message-content"
                                 >
-                                    <Box padding="400">
-                                        <Text as="p" color="subdued">Popup message configuration will appear here</Text>
+                                    <Box padding="">
+                                        {/* <Text as="p" color="subdued">Popup message configuration will appear here</Text> */}
+                                        <PopupMessage />
                                     </Box>
                                 </Collapsible>
                             </BlockStack>
@@ -488,14 +489,127 @@ export default function CreateLink() {
                             <Box background="" padding="400" borderRadius="2" border="base">
                                 <BlockStack gap="300" align="center">
                                     <InlineStack blockAlign='center' align='space-between'>
-                                        <Text tone='disabled' icon={() => <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><rect x="5" y="8" width="10" height="8" stroke="currentColor" strokeWidth="1.25" fill="none" /></svg>} disabled>Preview popup message</Text>
-                                        <Text>Preview summary checkout</Text>
+
+                                        <InlineStack gap='050'>
+                                            <Icon source={DragDropIcon} tone="base" />
+                                            <Text tone='disabled' disabled>Preview popup message</Text>
+                                        </InlineStack>
+                                        <InlineStack gap='050'>
+                                            <Icon   source={CartIcon}  tone="base"  />
+                                            <Text>Preview  checkout</Text>
+
+                                        </InlineStack>
                                     </InlineStack>
 
                                     <Box background='bg-fill-disabled' padding={'400'} borderRadius='200' >
+                                        <Text variant="headingSm" as="h3" color="subdued">No products selected</Text>
+                                           {selectedProductItems.length > 0 && (
+                                        <Box background='bg-surface' padding={'400'} borderRadius='200' border="base">
+                                            <BlockStack gap="400">
+                                                {/* Selected Products */}
+                                                {selectedProductItems.map((product, index) => (
+                                                    <InlineStack key={product.id} align="space-between" gap="400">
+                                                        <InlineStack gap="300">
+                                                            <Box 
+                                                                background="bg-surface-secondary" 
+                                                                padding="200" 
+                                                                borderRadius="100"
+                                                                minWidth="40px"
+                                                                minHeight="40px"
+                                                            >
+                                                                <Thumbnail
+                                                                    source={product.image || ""}
+                                                                    alt={product.title}
+                                                                    size="small"
+                                                                />
+                                                                <Box 
+                                                                    position="absolute" 
+                                                                    background="bg-fill-critical"
+                                                                    borderRadius="50%"
+                                                                    padding="025"
+                                                                    minWidth="20px"
+                                                                    minHeight="20px"
+                                                                    style={{
+                                                                        top: '-5px',
+                                                                        right: '-5px',
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        justifyContent: 'center'
+                                                                    }}
+                                                                >
+                                                                    <Text variant="captionMd" color="text-inverse" fontWeight="medium">
+                                                                        {product.quantity || 1}
+                                                                    </Text>
+                                                                </Box>
+                                                            </Box>
+                                                            <Box>
+                                                                <Text fontWeight="medium">{product.title}</Text>
+                                                            </Box>
+                                                        </InlineStack>
+                                                        <Text fontWeight="medium">${product.price || '0.00'}</Text>
+                                                    </InlineStack>
+                                                ))}
 
-                                        <Text as="p" color="subdued">Select products to see preview</Text>
+                                                {/* Gift Card Section */}
+                                                <InlineStack align="space-between" gap="400">
+                                                    <TextField
+                                                        placeholder="Gift card"
+                                                        autoComplete="off"
+                                                        connectedRight={
+                                                            <Button variant="secondary">Apply</Button>
+                                                        }
+                                                    />
+                                                </InlineStack>
+
+                                                {/* Subtotal */}
+                                                <InlineStack align="space-between">
+                                                    <Text>Subtotal • {selectedProductItems.length} item{selectedProductItems.length !== 1 ? 's' : ''}</Text>
+                                                    <Text fontWeight="medium">
+                                                        ${selectedProductItems.reduce((total, product) => {
+                                                            const price = parseFloat(product.price?.replace('$', '') || '0');
+                                                            const quantity = parseInt(product.quantity || '1');
+                                                            return total + (price * quantity);
+                                                        }, 0).toFixed(2)}
+                                                    </Text>
+                                                </InlineStack>
+
+                                                {/* Order Discount */}
+                                                <InlineStack align="space-between">
+                                                    <Text color="subdued">Order discount</Text>
+                                                    <Text color="subdued">-</Text>
+                                                </InlineStack>
+
+                                                {/* Shipping */}
+                                                <InlineStack align="space-between">
+                                                    <Text color="subdued">Shipping</Text>
+                                                    <Text color="subdued">Enter shipping address</Text>
+                                                </InlineStack>
+
+                                                {/* Divider */}
+                                                <Box borderBlockStart="base" />
+
+                                                {/* Total */}
+                                                <InlineStack align="space-between">
+                                                    <Text variant="headingMd" fontWeight="bold">Total</Text>
+                                                    <BlockStack align="end" gap="0">
+                                                        <Text variant="captionMd" color="subdued">AUD</Text>
+                                                        <Text variant="headingLg" fontWeight="bold">
+                                                            ${selectedProductItems.reduce((total, product) => {
+                                                                const price = parseFloat(product.price?.replace('$', '') || '0');
+                                                                const quantity = parseInt(product.quantity || '1');
+                                                                return total + (price * quantity);
+                                                            }, 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",")}
+                                                        </Text>
+                                                    </BlockStack>
+                                                </InlineStack>
+                                            </BlockStack>
+                                        </Box>
+                                    )}
+
                                     </Box>
+
+                                    {/* Checkout Preview - Shows when products are selected */}
+                                 
                                 </BlockStack>
                             </Box>
                         </BlockStack>
