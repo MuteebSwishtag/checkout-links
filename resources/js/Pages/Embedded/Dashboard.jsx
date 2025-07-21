@@ -128,7 +128,7 @@ export default function Dashboard() {
                                 Create your first checkout link in seconds. Here are 3 ways you can use your link.
                             </Text>
                         </Box>
-                    </Box>
+                    </Box>  
 
                     <Box paddingBlockStart="400">
                         <Box padding="300">
