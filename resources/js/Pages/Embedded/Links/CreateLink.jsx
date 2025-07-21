@@ -29,6 +29,7 @@ import { Link, router, usePage } from '@inertiajs/react';
 import FormControlLabel from '@mui/material/FormControlLabel'
 import Checkbox from '@mui/material/Checkbox'
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import Discount from './Discount';
 
 export default function CreateLink() {
     const { props } = usePage();
@@ -384,8 +385,8 @@ export default function CreateLink() {
                             open={discountsOpen}
                             id="discounts-content"
                         >
-                            <Box padding="400">
-                                <Text as="p" color="subdued">Discount options will be configured here</Text>
+                            <Box padding="">
+                                <Discount/>
                             </Box>
                         </Collapsible>
                     </BlockStack>
