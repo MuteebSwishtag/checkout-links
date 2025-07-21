@@ -1,8 +1,9 @@
 import Toggle from '@/Components/Toggle'
 import { Box, Card, InlineStack, Text, TextField, BlockStack } from '@shopify/polaris'
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 
-export default function PopupMessage() {
+export default function PopupMessage({ onPopupMessageChange }) {
+    const [isActive, setIsActive] = useState(false);
     const [headingText, setHeadingText] = useState('Order summary');
     const [messageText, setMessageText] = useState('I hope you enjoy your 20% discount this order that I built for you, I look forward to sending them out to you!');
     const [countdownActive, setCountdownActive] = useState(false);
@@ -19,12 +20,35 @@ export default function PopupMessage() {
     const handleAllowDeselectToggle = () => setAllowDeselect(!allowDeselect);
     const handleShowPriceToggle = () => setShowPrice(!showPrice);
     const handleShowOrderTotalToggle = () => setShowOrderTotal(!showOrderTotal);
+    const handleActiveToggle = () => setIsActive(!isActive);
+
+    // Update parent component whenever any data changes
+    React.useEffect(() => {
+        if (onPopupMessageChange) {
+            onPopupMessageChange({
+                isActive,
+                headingText,
+                messageText,
+                countdownActive,
+                timerText,
+                copyText,
+                allowDeselect,
+                showPrice,
+                showOrderTotal,
+                checkoutButtonText,
+                closeButtonText,
+                closeButtonLink
+            });
+        }
+    }, [isActive, headingText, messageText, countdownActive, timerText, copyText, 
+        allowDeselect, showPrice, showOrderTotal, checkoutButtonText, closeButtonText, 
+        closeButtonLink, onPopupMessageChange]);
 
     return (
         <div>
 
-
-            {/* <Box padding="">
+           
+            <Box  paddingBlockEnd='300'>
                     <InlineStack align="space-between" blockAlign="start">
                         <Box>
                             <Text variant="bodyMd" fontWeight="medium">
@@ -37,9 +61,12 @@ export default function PopupMessage() {
                             </Box>
                         </Box>
 
-                        <Toggle />
+                        <Toggle
+                            toggled={isActive}
+                            onClick={handleActiveToggle}
+                        />
                     </InlineStack>
-                </Box> */}
+                </Box>
 
             {/* Content Section */}
             <Box paddingBlockStart=''>
@@ -240,6 +267,7 @@ export default function PopupMessage() {
                     </Box>
                 </Card>
             </Box>
+           
 
         </div>
     )
