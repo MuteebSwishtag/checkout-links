@@ -38,11 +38,7 @@ export default function Discount() {
                 </Text>
               </Box>
             </Box>
-            {/* <Checkbox
-              checked={freeShipping}
-              onChange={setFreeShipping}
-              ariaLabel="Enable free shipping"
-            /> */}
+           
              <Toggle
                toggled={freeShipping}
                onClick={handleFreeShippingToggle}

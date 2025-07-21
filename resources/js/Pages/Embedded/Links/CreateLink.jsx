@@ -30,6 +30,7 @@ import FormControlLabel from '@mui/material/FormControlLabel'
 import Checkbox from '@mui/material/Checkbox'
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import Discount from './Discount';
+import PopupMessage from './PopupMessage';
 
 export default function CreateLink() {
     const { props } = usePage();
