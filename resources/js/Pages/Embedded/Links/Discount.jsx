@@ -8,11 +8,11 @@ import {
   TextField, 
   Checkbox 
 } from '@shopify/polaris'
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 
-export default function Discount({ onDiscountChange }) {
+export default function Discount({ onDiscountChange, discountData }) {
   const [freeShipping, setFreeShipping] = useState(false);
-  const [orderDiscount, setOrderDiscount] = useState(false);
+  const [orderDiscount, setOrderDiscount] = useState(discountData);
   const [discountCode, setDiscountCode] = useState(false);
   const [discountValue, setDiscountValue] = useState('20');
   const [discountCodeValue, setDiscountCodeValue] = useState('');
@@ -24,12 +24,17 @@ export default function Discount({ onDiscountChange }) {
     updateParent(newValue, orderDiscount, discountValue, discountCode, discountCodeValue);
   };
   
+  // const handleOrderDiscountToggle = () => {
+  //   const newValue = !orderDiscount;
+  //   setOrderDiscount(newValue);
+  //   updateParent(freeShipping, newValue, discountValue, discountCode, discountCodeValue);
+  // };
   const handleOrderDiscountToggle = () => {
-    const newValue = !orderDiscount;
-    setOrderDiscount(newValue);
-    updateParent(freeShipping, newValue, discountValue, discountCode, discountCodeValue);
+    onDiscountChange({
+      orderDiscount: !discountData.orderDiscount,
+    });
+     updateParent(freeShipping, newValue, discountValue, discountCode, discountCodeValue);
   };
-  
   const handleDiscountCodeToggle = () => {
     const newValue = !discountCode;
     setDiscountCode(newValue);
@@ -101,7 +106,7 @@ export default function Discount({ onDiscountChange }) {
               </Box>
              
               <Toggle
-                toggled={orderDiscount}
+                toggled={discountData.discountCode}
                 onClick={handleOrderDiscountToggle}
               />
             </InlineStack>

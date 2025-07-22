@@ -26,7 +26,7 @@ import {
     Checkbox,
     Tooltip,
 } from '@shopify/polaris';
-import { ChevronDownIcon, ChevronUpIcon, SearchIcon, FilterIcon, XIcon, DragHandleIcon, DragDropIcon, CartIcon } from '@shopify/polaris-icons';
+import { ChevronDownIcon, ChevronUpIcon, SearchIcon, FilterIcon, XIcon, DragHandleIcon, DragDropIcon, CartIcon,StatusActiveIcon } from '@shopify/polaris-icons';
 import { Link, router, usePage } from '@inertiajs/react';
 import FormControlLabel from '@mui/material/FormControlLabel'
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
@@ -535,7 +535,7 @@ export default function CreateLink() {
                                     id="discounts-content"
                                 >
                                     <Box padding="">
-                                        <Discount onDiscountChange={handleDiscountChange} />
+                                        <Discount discountData={discountData}  onDiscountChange={handleDiscountChange} />
                                     </Box>
                                 </Collapsible>
                             </BlockStack>
@@ -560,7 +560,7 @@ export default function CreateLink() {
                                     id="popup-message-content"
                                 >
                                     <Box padding="">
-                                        <PopupMessage onPopupMessageChange={handlePopupMessageChange} />
+                                        <PopupMessage active1={popupMessageData.isActive} onPopupMessageChange={handlePopupMessageChange} />
                                     </Box>
                                 </Collapsible>
                             </BlockStack>
@@ -569,332 +569,210 @@ export default function CreateLink() {
 
                 </Grid.Cell>
                 <Grid.Cell columnSpan={{ xs: 12, sm: 6, md: 6, lg: 6, xl: 6 }}>
+                    <BlockStack gap="300">
 
-                    <Card>
-                        <BlockStack gap="400" padding="400">
-                            <InlineStack align="space-between">
-                                <Text variant="bodyMd">Summary</Text>
-                                <Button variant='plain'>Test</Button>
-                            </InlineStack>
+                        <Card>
+                            <BlockStack gap="400" padding="400">
+                                <InlineStack align="space-between">
+                                    <Text variant="bodyMd">Summary</Text>
+                                    <Button variant='plain'>Test</Button>
+                                </InlineStack>
 
-                            <Box background="bg-surface-secondary" padding="400" borderRadius="2" border="base">
-                                <BlockStack gap="300">
-                                    <InlineStack gap="200" align="start">
-                                        <div style={{ marginTop: "2px" }}>
-                                            <Icon source={() => <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><circle cx="10" cy="10" r="8" stroke="currentColor" strokeWidth="2" fill="none" /></svg>} color="subdued" />
-                                        </div>
-                                        <Text as="span" color="subdued">Pre-filled cart: {selectedProducts} products selected</Text>
-                                    </InlineStack>
-
-                                    <InlineStack gap="400">
-                                        <Box width='80%'>
-                                            <TextField
-                                                value="https://examplewebsite.com/3n49sjw3..."
-                                                readOnly
-                                                autoComplete="off"
-                                            />
-
-                                        </Box>
-                                        <Button>Copy</Button>
-                                    </InlineStack>
-                                </BlockStack>
-                            </Box>
-                        </BlockStack>
-                    </Card>
-
-
-                    <Card>
-                        <BlockStack gap="400" padding="400">
-                            <InlineStack align="space-between">
-                                <Text variant="bodyMd">Preview </Text>
-                                <Button variant='plain'>Test</Button>
-                            </InlineStack>
-
-                            <Box background="" padding="400" borderRadius="2" border="base">
-                                <BlockStack gap="300" align="center">
-                                    <InlineStack blockAlign='center' align='space-between'>
-
-                                        <InlineStack gap='050'>
-                                            <Icon source={DragDropIcon} tone="base" />
-                                            <Text tone={popupMessageData.isActive ? 'base' : 'disabled'}
-                                                variant={popupMessageData.isActive ? 'bodyMd' : 'bodySm'}
-                                                fontWeight={popupMessageData.isActive ? 'semibold' : 'regular'}>
-                                                Preview popup message
-                                            </Text>
+                                <Box background="bg-surface-secondary" padding="400" borderRadius="2" border="base">
+                                    <BlockStack gap="300">
+                                       {selectedProducts > 0 &&
+                                       <InlineStack gap="200" align="start">
+                                            <div style={{ marginTop: "2px" }}>
+                                                <Icon source={StatusActiveIcon} tone='subdued' />
+                                            </div>
+                                            <Text as="span" color="subdued">Pre-filled cart: {selectedProducts} products selected</Text>
                                         </InlineStack>
-                                        <InlineStack gap='050'>
-                                            <Icon source={CartIcon} tone={popupMessageData.isActive ? 'disabled' : 'base'} />
-                                            <Text tone={popupMessageData.isActive ? 'disabled' : 'base'} fontWeight={popupMessageData.isActive ? 'regular' : 'semibold'}>Preview  checkout</Text>
 
+
+                                       } 
+                                       
+
+                                       {discountData.orderDiscount &&
+
+                                        <InlineStack gap="200" align="start">
+                                            <div style={{ marginTop: "2px" }}>
+                                                <Icon source={StatusActiveIcon} tone='subdued' />
+                                            </div>
+                                            <Text as="span" color="subdued"> Order Discount: {discountData.discountValue}% </Text>
                                         </InlineStack>
-                                    </InlineStack>
-                                    {!popupMessageData.isActive && (
-                                        <Box background='bg-fill-disabled' padding={'400'} borderRadius='200' >
-                                            {selectedProductItems.length === 0 ? (
-                                                <Text variant="headingSm" as="h3" color="subdued">No products selected</Text>
-                                            ) : (
+                                       } 
 
-                                                <Box background='' padding={'400'} borderRadius='200' border="base">
-                                                    <BlockStack gap="400">
+                                        <InlineStack gap="400">
+                                            <Box width='80%'>
+                                                <TextField
+                                                    value="https://examplewebsite.com/3n49sjw3..."
+                                                    readOnly
+                                                    autoComplete="off"
+                                                />
 
-                                                        {selectedProductItems.map((product, index) => (
-                                                            <InlineStack key={product.id} align="space-between" gap="400" blockAlign='center' padding="200" borderRadius="2" border="base">
-                                                                <InlineStack gap="300" blockAlign='center' align='start'>
-                                                                    <div style={{ position: 'relative', display: 'inline-block' }}>
-                                                                        <Box
-                                                                            background="bg-surface"
-                                                                            padding="200"
-                                                                            borderRadius="100"
-                                                                            minWidth="40px"
-                                                                            minHeight="40px"
-                                                                        >
-                                                                            <Thumbnail
-                                                                                source={product.image || ""}
-                                                                                alt={product.title}
-                                                                                size="small"
-                                                                            />
-                                                                        </Box>
-                                                                        <div
-                                                                            style={{
-                                                                                position: "absolute",
-                                                                                top: '-3px',
-                                                                                right: '-8px',
-                                                                                zIndex: 1,
-                                                                                backgroundColor: '#666666',
-                                                                                color: 'white',
-                                                                                borderRadius: '50%',
-                                                                                minWidth: '22px',
-                                                                                minHeight: '20px',
+                                            </Box>
+                                            <Button>Copy</Button>
+                                        </InlineStack>
+                                    </BlockStack>
+                                </Box>
+                            </BlockStack>
+                        </Card>
 
-                                                                                display: 'flex',
-                                                                                alignItems: 'center',
-                                                                                justifyContent: 'center',
-                                                                                border: '2px solid white'
-                                                                            }}
-                                                                        >
-                                                                            <Text variant="captionMd" color="text-inverse" fontWeight="medium">
-                                                                                {product.quantity || 1}
-                                                                            </Text>
-                                                                        </div>
-                                                                    </div>
-                                                                        <InlineStack align='center' blockAlign='center' >
-                                                                    <Box maxWidth='180px'>
-                                                                            <div title={product.title}>
-                                                                                <Text
-                                                                                    fontWeight="medium"
-                                                                                    alignment="center"
-                                                                                    truncate
-                                                                                >
-                                                                                    {product.title}
+
+                        <Card>
+                            <BlockStack gap="400" padding="400">
+                                <InlineStack align="space-between">
+                                    <Text variant="bodyMd">Preview </Text>
+                                    <Button variant='plain'>Test</Button>
+                                </InlineStack>
+
+                                <Box background="" padding="400" borderRadius="2" border="base">
+                                    <BlockStack gap="300" align="center">
+                                        <InlineStack blockAlign='center' align='space-between'>
+
+                                            <InlineStack gap='050'>
+                                                <Icon source={DragDropIcon} tone="base" />
+                                                <div onClick={()=>{setPopupMessageData(prev => ({ ...prev, isActive: !prev.isActive }))}} style={{ cursor: 'pointer' }}>
+                                                <Text tone={popupMessageData.isActive ? 'base' : 'disabled'}
+                                                    variant={popupMessageData.isActive ? 'bodyMd' : 'bodySm'}
+                                                    fontWeight={popupMessageData.isActive ? 'semibold' : 'regular'}>
+                                                    Preview popup message
+                                                </Text>
+                                                    
+                                                </div>
+                                            </InlineStack>
+                                            <InlineStack gap='050'>
+                                                <Icon source={CartIcon} tone={popupMessageData.isActive ? 'disabled' : 'base'} />
+                                               <div onClick={()=>{setPopupMessageData(prev => ({ ...prev, isActive: !prev.isActive }))}} style={{ cursor: 'pointer' }}>
+                                                <Text tone={popupMessageData.isActive ? 'disabled' : 'base'} fontWeight={popupMessageData.isActive ? 'regular' : 'semibold'}>Preview  checkout</Text>
+
+                                                </div>
+
+                                            </InlineStack>
+                                        </InlineStack>
+                                        {!popupMessageData.isActive && (
+                                            <Box background='bg-fill-disabled' padding={'400'} borderRadius='200' >
+                                                {selectedProductItems.length === 0 ? (
+                                                    <Text variant="headingSm" as="h3" color="subdued">No products selected</Text>
+                                                ) : (
+
+                                                    <Box background='' padding={'400'} borderRadius='200' border="base">
+                                                        <BlockStack gap="400">
+
+                                                            {selectedProductItems.map((product, index) => (
+                                                                <InlineStack key={product.id} align="space-between" gap="400" blockAlign='center' padding="200" borderRadius="2" border="base">
+                                                                    <InlineStack gap="300" blockAlign='center' align='start'>
+                                                                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                                                                            <Box
+                                                                                background="bg-surface"
+                                                                                padding="200"
+                                                                                borderRadius="100"
+                                                                                minWidth="40px"
+                                                                                minHeight="40px"
+                                                                            >
+                                                                                <Thumbnail
+                                                                                    source={product.image || ""}
+                                                                                    alt={product.title}
+                                                                                    size="small"
+                                                                                />
+                                                                            </Box>
+                                                                            <div
+                                                                                style={{
+                                                                                    position: "absolute",
+                                                                                    top: '-3px',
+                                                                                    right: '-8px',
+                                                                                    zIndex: 1,
+                                                                                    backgroundColor: '#666666',
+                                                                                    color: 'white',
+                                                                                    borderRadius: '50%',
+                                                                                    minWidth: '22px',
+                                                                                    minHeight: '20px',
+
+                                                                                    display: 'flex',
+                                                                                    alignItems: 'center',
+                                                                                    justifyContent: 'center',
+                                                                                    border: '2px solid white'
+                                                                                }}
+                                                                            >
+                                                                                <Text variant="captionMd" color="text-inverse" fontWeight="medium">
+                                                                                    {product.quantity || 1}
                                                                                 </Text>
                                                                             </div>
+                                                                        </div>
+                                                                        <InlineStack align='center' blockAlign='center' >
+                                                                            <Box maxWidth='180px'>
+                                                                                <div title={product.title}>
+                                                                                    <Text
+                                                                                        fontWeight="medium"
+                                                                                        alignment="center"
+                                                                                        truncate
+                                                                                    >
+                                                                                        {product.title}
+                                                                                    </Text>
+                                                                                </div>
 
-                                                                    </Box>
+                                                                            </Box>
                                                                         </InlineStack>
+                                                                    </InlineStack>
+                                                                    <Text fontWeight="medium" alignment="center">${product.price || '0.00'}</Text>
                                                                 </InlineStack>
-                                                                <Text fontWeight="medium" alignment="center">${product.price || '0.00'}</Text>
+                                                            ))}
+
+
+                                                            <InlineStack align="space-between" gap="">
+                                                                <TextField
+                                                                    placeholder="Gift card"
+                                                                    autoComplete="off"
+                                                                // connectedRight={
+                                                                //     <Button variant="secondary">Apply</Button>
+                                                                // }
+                                                                />
+                                                                <Button variant="secondary" >Apply</Button>
                                                             </InlineStack>
-                                                        ))}
 
 
-                                                        <InlineStack align="space-between" gap="">
-                                                            <TextField
-                                                                placeholder="Gift card"
-                                                                autoComplete="off"
-                                                            // connectedRight={
-                                                            //     <Button variant="secondary">Apply</Button>
-                                                            // }
-                                                            />
-                                                            <Button variant="secondary" >Apply</Button>
-                                                        </InlineStack>
-
-
-                                                        <InlineStack align="space-between">
-                                                            <Text variant="headingXs" as="p">Subtotal • {selectedProductItems.length} item{selectedProductItems.length !== 1 ? 's' : ''}</Text>
-                                                            <Text fontWeight="medium">
-                                                                ${selectedProductItems.reduce((total, product) => {
-                                                                    const price = parseFloat(product.price || 0);
-                                                                    const quantity = parseInt(product.quantity || 1);
-                                                                    return total + (price * quantity);
-                                                                }, 0).toFixed(2)}
-                                                            </Text>
-                                                        </InlineStack>
-
-
-                                                        <InlineStack align="space-between">
-                                                            <Text color="subdued" variant="headingXs" as="p">Order discount</Text>
-                                                            <Text color="subdued">
-                                                                {discountData.orderDiscount ?
-                                                                    `-${discountData.discountValue}%`
-                                                                    : '-'
-                                                                }
-                                                            </Text>
-                                                        </InlineStack>
-
-
-                                                        <InlineStack align="space-between">
-                                                            <Text color="subdued" variant="headingXs" as="p">Shipping</Text>
-                                                            <Text color="subdued" variant="headingXs" as="p">Enter shipping address</Text>
-                                                        </InlineStack>
-
-
-                                                        <Box borderBlockStart="base" />
-
-                                                        <InlineStack align="space-between">
-                                                            <Text variant="headingLg" fontWeight="bold">Total</Text>
-                                                            <InlineStack align="end" gap="200" blockAlign='center'>
-                                                                <Text variant="headingXs" tone="subdued">AUD</Text>
-                                                                <Text variant="headingLg" fontWeight="bold">
-                                                                    ${(() => {
-                                                                        const subtotal = selectedProductItems.reduce((total, product) => {
-                                                                            const price = parseFloat(product.price || 0);
-                                                                            const quantity = parseInt(product.quantity || 1);
-                                                                            return total + (price * quantity);
-                                                                        }, 0);
-
-                                                                        const discount = discountData.orderDiscount ?
-                                                                            subtotal * (parseFloat(discountData.discountValue) / 100) : 0;
-
-                                                                        return (subtotal - discount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-                                                                    })()}
+                                                            <InlineStack align="space-between">
+                                                                <Text variant="headingXs" as="p">Subtotal • {selectedProductItems.length} item{selectedProductItems.length !== 1 ? 's' : ''}</Text>
+                                                                <Text fontWeight="medium">
+                                                                    ${selectedProductItems.reduce((total, product) => {
+                                                                        const price = parseFloat(product.price || 0);
+                                                                        const quantity = parseInt(product.quantity || 1);
+                                                                        return total + (price * quantity);
+                                                                    }, 0).toFixed(2)}
                                                                 </Text>
                                                             </InlineStack>
-                                                        </InlineStack>
-                                                    </BlockStack>
-                                                </Box>
 
-                                            )}
 
-                                        </Box>
-                                    )}
-
-                                    {/* Popup Message Preview */}
-                                    {popupMessageData.isActive && (
-                                        <Box background='bg-fill-disabled' padding={'400'} borderRadius='200' >
-                                            <Box background='' padding={'400'} borderRadius='200' border="base">
-                                                <BlockStack gap="400">
-                                                    {/* Popup Header */}
-                                                    <InlineStack align="center">
-                                                        <Text variant="headingLg" fontWeight="bold">{popupMessageData.headingText}</Text>
-                                                    </InlineStack>
-
-                                                    {/* Message Text */}
-                                                    {popupMessageData.messageText && (
-                                                        <Text variant="bodySm" alignment="center" tone="subdued">
-                                                            {popupMessageData.messageText}
-                                                        </Text>
-                                                    )}
-
-                                                    {/* Countdown Timer */}
-                                                    {popupMessageData.countdownActive && (
-                                                        <InlineStack align="center" gap="200">
-                                                            <Text variant="bodyMd" tone="subdued">{popupMessageData.copyText}</Text>
-                                                            <Text variant="bodyMd" fontWeight="bold" tone="critical">
-                                                                {formatTime(timerSeconds)}
-                                                            </Text>
-                                                            {timerSeconds === 0 && (
-                                                                <Button variant="plain" size="slim" onClick={restartTimer}>
-                                                                    Restart
-                                                                </Button>
-                                                            )}
-                                                        </InlineStack>
-                                                    )}
-
-                                                    {/* Products List */}
-                                                    {selectedProductItems
-                                                        .filter(product => popupProductChecked[product.id] !== false)
-                                                        .map((product, index) => (
-                                                            <InlineStack key={product.id} align="space-between" gap="400" blockAlign='center' padding="200" borderRadius="2" border="base">
-                                                                <InlineStack gap="300" blockAlign='center' align='start'>
-                                                                    <div style={{ position: 'relative', display: 'inline-block' }}>
-                                                                        <Box
-                                                                            background="bg-surface"
-                                                                            padding="200"
-                                                                            borderRadius="100"
-                                                                            minWidth="40px"
-                                                                            minHeight="40px"
-                                                                        >
-                                                                            <Thumbnail
-                                                                                source={product.image || ""}
-                                                                                alt={product.title}
-                                                                                size="small"
-                                                                            />
-                                                                        </Box>
-                                                                        <div
-                                                                            style={{
-                                                                                position: "absolute",
-                                                                                top: '-3px',
-                                                                                right: '-8px',
-                                                                                zIndex: 1,
-                                                                                backgroundColor: '#666666',
-                                                                                color: 'white',
-                                                                                borderRadius: '50%',
-                                                                                minWidth: '22px',
-                                                                                minHeight: '20px',
-                                                                                display: 'flex',
-                                                                                alignItems: 'center',
-                                                                                justifyContent: 'center',
-                                                                                border: '2px solid white'
-                                                                            }}
-                                                                        >
-                                                                            <Text variant="captionMd" color="text-inverse" fontWeight="medium">
-                                                                                {product.quantity || 1}
-                                                                            </Text>
-                                                                        </div>
-                                                                    </div>
-                                                                    <Box title={product.title}>
-                                                                        <InlineStack align='space-between' blockAlign='center' >
-                                                                            <InlineStack align='center' blockAlign='center' >
-                                                                                <Box maxWidth='120px'>
-                                                                                    <div title={product.title}>
-                                                                                <Text fontWeight="medium" alignment='center' truncate>{product.title}</Text>
-
-                                                                                    </div>
-
-                                                                                </Box>
-                                                                            </InlineStack>
-
-                                                                        </InlineStack>
-                                                                    </Box>
-                                                                </InlineStack>
-                                                                <InlineStack gap='300'>
-                                                                    {popupMessageData.showPrice && (
-                                                                        <Text fontWeight="medium" alignment="center">${product.price || '0.00'}</Text>
-                                                                    )}
-
-                                                                    {popupMessageData.allowDeselect && (
-                                                                        <Box paddingBlockStart="100">
-
-                                                                            <Checkbox
-                                                                                label=""
-                                                                                checked={popupProductChecked[product.id] !== false}
-                                                                                onChange={(checked) => handlePopupProductCheck(product.id, checked)}
-
-                                                                            />
-
-                                                                        </Box>
-                                                                    )}
-                                                                </InlineStack>
-                                                            </InlineStack>
-                                                        ))}
-
-                                                    {/* Order Total */}
-                                                    {popupMessageData.showOrderTotal && (
-                                                        <>
-                                                            <Box borderBlockStart="base" />
                                                             <InlineStack align="space-between">
-                                                                <Text variant="headingLg" fontWeight="bold">Total </Text>
+                                                                <Text color="subdued" variant="headingXs" as="p">Order discount</Text>
+                                                                <Text color="subdued">
+                                                                    {discountData.orderDiscount ?
+                                                                        `-${discountData.discountValue}%`
+                                                                        : '-'
+                                                                    }
+                                                                </Text>
+                                                            </InlineStack>
+
+
+                                                            <InlineStack align="space-between">
+                                                                <Text color="subdued" variant="headingXs" as="p">Shipping</Text>
+                                                                <Text color="subdued" variant="headingXs" as="p">Enter shipping address</Text>
+                                                            </InlineStack>
+
+
+                                                            <Box borderBlockStart="base" />
+
+                                                            <InlineStack align="space-between">
+                                                                <Text variant="headingLg" fontWeight="bold">Total</Text>
                                                                 <InlineStack align="end" gap="200" blockAlign='center'>
                                                                     <Text variant="headingXs" tone="subdued">AUD</Text>
                                                                     <Text variant="headingLg" fontWeight="bold">
                                                                         ${(() => {
-                                                                            const subtotal = selectedProductItems
-                                                                                .filter(product => popupProductChecked[product.id] !== false)
-                                                                                .reduce((total, product) => {
-                                                                                    const price = parseFloat(product.price || 0);
-                                                                                    const quantity = parseInt(product.quantity || 1);
-                                                                                    return total + (price * quantity);
-                                                                                }, 0);
+                                                                            const subtotal = selectedProductItems.reduce((total, product) => {
+                                                                                const price = parseFloat(product.price || 0);
+                                                                                const quantity = parseInt(product.quantity || 1);
+                                                                                return total + (price * quantity);
+                                                                            }, 0);
 
                                                                             const discount = discountData.orderDiscount ?
                                                                                 subtotal * (parseFloat(discountData.discountValue) / 100) : 0;
@@ -904,31 +782,176 @@ export default function CreateLink() {
                                                                     </Text>
                                                                 </InlineStack>
                                                             </InlineStack>
-                                                        </>
-                                                    )}
+                                                        </BlockStack>
+                                                    </Box>
 
-                                                    {/* Action Buttons */}
-                                                    <BlockStack gap="300">
-                                                        <Button variant="primary" size="large" fullWidth>
-                                                            {popupMessageData.checkoutButtonText}
-                                                        </Button>
-                                                        <InlineStack align="center">
-                                                            <Button variant="plain">
-                                                                {popupMessageData.closeButtonText}
-                                                            </Button>
-                                                        </InlineStack>
-                                                    </BlockStack>
-                                                </BlockStack>
+                                                )}
+
                                             </Box>
-                                        </Box>
-                                    )}
+                                        )}
+
+                                        {/* Popup Message Preview */}
+                                        {popupMessageData.isActive && (
+                                            <Box background='bg-fill-disabled' padding={'400'} borderRadius='200' >
+                                                <Box background='' padding={'400'} borderRadius='200' border="base">
+                                                    <BlockStack gap="400">
+                                                        {/* Popup Header */}
+                                                        <InlineStack align="center">
+                                                            <Text variant="headingLg" fontWeight="bold">{popupMessageData.headingText}</Text>
+                                                        </InlineStack>
+
+                                                        {/* Message Text */}
+                                                        {popupMessageData.messageText && (
+                                                            <Text variant="bodySm" alignment="center" tone="subdued">
+                                                                {popupMessageData.messageText}
+                                                            </Text>
+                                                        )}
+
+                                                        {/* Countdown Timer */}
+                                                        {popupMessageData.countdownActive && (
+                                                            <InlineStack align="center" gap="200">
+                                                                <Text variant="bodyMd" tone="subdued">{popupMessageData.copyText}</Text>
+                                                                <Text variant="bodyMd" fontWeight="bold" tone="critical">
+                                                                    {formatTime(timerSeconds)}
+                                                                </Text>
+                                                                {timerSeconds === 0 && (
+                                                                    <Button variant="plain" size="slim" onClick={restartTimer}>
+                                                                        Restart
+                                                                    </Button>
+                                                                )}
+                                                            </InlineStack>
+                                                        )}
+
+                                                        {/* Products List */}
+                                                        {selectedProductItems
+                                                            .filter(product => popupProductChecked[product.id] !== false)
+                                                            .map((product, index) => (
+                                                                <InlineStack key={product.id} align="space-between" gap="400" blockAlign='center' padding="200" borderRadius="2" border="base">
+                                                                    <InlineStack gap="300" blockAlign='center' align='start'>
+                                                                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                                                                            <Box
+                                                                                background="bg-surface"
+                                                                                padding="200"
+                                                                                borderRadius="100"
+                                                                                minWidth="40px"
+                                                                                minHeight="40px"
+                                                                            >
+                                                                                <Thumbnail
+                                                                                    source={product.image || ""}
+                                                                                    alt={product.title}
+                                                                                    size="small"
+                                                                                />
+                                                                            </Box>
+                                                                            <div
+                                                                                style={{
+                                                                                    position: "absolute",
+                                                                                    top: '-3px',
+                                                                                    right: '-8px',
+                                                                                    zIndex: 1,
+                                                                                    backgroundColor: '#666666',
+                                                                                    color: 'white',
+                                                                                    borderRadius: '50%',
+                                                                                    minWidth: '22px',
+                                                                                    minHeight: '20px',
+                                                                                    display: 'flex',
+                                                                                    alignItems: 'center',
+                                                                                    justifyContent: 'center',
+                                                                                    border: '2px solid white'
+                                                                                }}
+                                                                            >
+                                                                                <Text variant="captionMd" color="text-inverse" fontWeight="medium">
+                                                                                    {product.quantity || 1}
+                                                                                </Text>
+                                                                            </div>
+                                                                        </div>
+                                                                        <Box title={product.title}>
+                                                                            <InlineStack align='space-between' blockAlign='center' >
+                                                                                <InlineStack align='center' blockAlign='center' >
+                                                                                    <Box maxWidth='120px'>
+                                                                                        <div title={product.title}>
+                                                                                            <Text fontWeight="medium" alignment='center' truncate>{product.title}</Text>
+
+                                                                                        </div>
+
+                                                                                    </Box>
+                                                                                </InlineStack>
+
+                                                                            </InlineStack>
+                                                                        </Box>
+                                                                    </InlineStack>
+                                                                    <InlineStack gap='300'>
+                                                                        {popupMessageData.showPrice && (
+                                                                            <Text fontWeight="medium" alignment="center">${product.price || '0.00'}</Text>
+                                                                        )}
+
+                                                                        {popupMessageData.allowDeselect && (
+                                                                            <Box paddingBlockStart="100">
+
+                                                                                <Checkbox
+                                                                                    label=""
+                                                                                    checked={popupProductChecked[product.id] !== false}
+                                                                                    onChange={(checked) => handlePopupProductCheck(product.id, checked)}
+
+                                                                                />
+
+                                                                            </Box>
+                                                                        )}
+                                                                    </InlineStack>
+                                                                </InlineStack>
+                                                            ))}
+
+                                                        {/* Order Total */}
+                                                        {popupMessageData.showOrderTotal && (
+                                                            <>
+                                                                <Box borderBlockStart="base" />
+                                                                <InlineStack align="space-between">
+                                                                    <Text variant="headingLg" fontWeight="bold">Total </Text>
+                                                                    <InlineStack align="end" gap="200" blockAlign='center'>
+                                                                        <Text variant="headingXs" tone="subdued">AUD</Text>
+                                                                        <Text variant="headingLg" fontWeight="bold">
+                                                                            ${(() => {
+                                                                                const subtotal = selectedProductItems
+                                                                                    .filter(product => popupProductChecked[product.id] !== false)
+                                                                                    .reduce((total, product) => {
+                                                                                        const price = parseFloat(product.price || 0);
+                                                                                        const quantity = parseInt(product.quantity || 1);
+                                                                                        return total + (price * quantity);
+                                                                                    }, 0);
+
+                                                                                const discount = discountData.orderDiscount ?
+                                                                                    subtotal * (parseFloat(discountData.discountValue) / 100) : 0;
+
+                                                                                return (subtotal - discount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                                                                            })()}
+                                                                        </Text>
+                                                                    </InlineStack>
+                                                                </InlineStack>
+                                                            </>
+                                                        )}
+
+                                                        {/* Action Buttons */}
+                                                        <BlockStack gap="300">
+                                                            <Button variant="primary" size="large" fullWidth>
+                                                                {popupMessageData.checkoutButtonText}
+                                                            </Button>
+                                                            <InlineStack align="center">
+                                                                <Button variant="plain">
+                                                                    {popupMessageData.closeButtonText}
+                                                                </Button>
+                                                            </InlineStack>
+                                                        </BlockStack>
+                                                    </BlockStack>
+                                                </Box>
+                                            </Box>
+                                        )}
 
 
 
-                                </BlockStack>
-                            </Box>
-                        </BlockStack>
-                    </Card>
+                                    </BlockStack>
+                                </Box>
+                            </BlockStack>
+                        </Card>
+                    </BlockStack>
                 </Grid.Cell>
             </Grid>
 

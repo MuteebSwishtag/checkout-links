@@ -2,8 +2,8 @@ import Toggle from '@/Components/Toggle'
 import { Box, Card, InlineStack, Text, TextField, BlockStack } from '@shopify/polaris'
 import React, { useState, useEffect } from 'react'
 
-export default function PopupMessage({ onPopupMessageChange }) {
-    const [isActive, setIsActive] = useState(false);
+export default function PopupMessage({ onPopupMessageChange, active1 }) {
+    const [isActive, setIsActive] = useState(true);
     const [headingText, setHeadingText] = useState('Order summary');
     const [messageText, setMessageText] = useState('I hope you enjoy your 20% discount this order that I built for you, I look forward to sending them out to you!');
     const [countdownActive, setCountdownActive] = useState(false);
@@ -40,6 +40,7 @@ export default function PopupMessage({ onPopupMessageChange }) {
                 closeButtonLink
             });
         }
+       
     }, [isActive, headingText, messageText, countdownActive, timerText, copyText, 
         allowDeselect, showPrice, showOrderTotal, checkoutButtonText, closeButtonText, 
         closeButtonLink, onPopupMessageChange]);
@@ -48,7 +49,7 @@ export default function PopupMessage({ onPopupMessageChange }) {
         <div>
 
            
-            <Box  paddingBlockEnd='300'>
+            {/* <Box  paddingBlockEnd='300'>
                     <InlineStack align="space-between" blockAlign="start">
                         <Box>
                             <Text variant="bodyMd" fontWeight="medium">
@@ -66,7 +67,7 @@ export default function PopupMessage({ onPopupMessageChange }) {
                             onClick={handleActiveToggle}
                         />
                     </InlineStack>
-                </Box>
+                </Box> */}
 
             {/* Content Section */}
             <Box paddingBlockStart=''>
