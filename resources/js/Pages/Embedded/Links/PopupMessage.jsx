@@ -1,55 +1,34 @@
 import Toggle from '@/Components/Toggle'
 import { Box, Card, InlineStack, Text, TextField, BlockStack } from '@shopify/polaris'
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 
-export default function PopupMessage({ onPopupMessageChange, active1 }) {
-    const [isActive, setIsActive] = useState(true);
-    const [headingText, setHeadingText] = useState('Order summary');
-    const [messageText, setMessageText] = useState('I hope you enjoy your 20% discount this order that I built for you, I look forward to sending them out to you!');
-    const [countdownActive, setCountdownActive] = useState(false);
-    const [timerText, setTimerText] = useState('1 minute');
-    const [copyText, setCopyText] = useState('This offer will expire in');
-    const [allowDeselect, setAllowDeselect] = useState(true);
-    const [showPrice, setShowPrice] = useState(false);
-    const [showOrderTotal, setShowOrderTotal] = useState(true);
-    const [checkoutButtonText, setCheckoutButtonText] = useState('Confirm');
-    const [closeButtonText, setCloseButtonText] = useState('No thanks');
-    const [closeButtonLink, setCloseButtonLink] = useState('#');
+export default function PopupMessage({ 
+    popupMessageData,
+    onActiveToggle,
+    onHeadingTextChange,
+    onMessageTextChange,
+    onCountdownToggle,
+    onTimerTextChange,
+    onCopyTextChange,
+    onAllowDeselectToggle,
+    onShowPriceToggle,
+    onShowOrderTotalToggle,
+    onCheckoutButtonTextChange,
+    onCloseButtonTextChange,
+    onCloseButtonLinkChange
+}) {
 
-    const handleCountdownToggle = () => setCountdownActive(!countdownActive);
-    const handleAllowDeselectToggle = () => setAllowDeselect(!allowDeselect);
-    const handleShowPriceToggle = () => setShowPrice(!showPrice);
-    const handleShowOrderTotalToggle = () => setShowOrderTotal(!showOrderTotal);
-    const handleActiveToggle = () => setIsActive(!isActive);
-
-    // Update parent component whenever any data changes
-    React.useEffect(() => {
-        if (onPopupMessageChange) {
-            onPopupMessageChange({
-                isActive,
-                headingText,
-                messageText,
-                countdownActive,
-                timerText,
-                copyText,
-                allowDeselect,
-                showPrice,
-                showOrderTotal,
-                checkoutButtonText,
-                closeButtonText,
-                closeButtonLink
-            });
-        }
-       
-    }, [isActive, headingText, messageText, countdownActive, timerText, copyText, 
-        allowDeselect, showPrice, showOrderTotal, checkoutButtonText, closeButtonText, 
-        closeButtonLink, onPopupMessageChange]);
+    const handleActiveToggle = () => onActiveToggle(!popupMessageData.isActive);
+    const handleCountdownToggle = () => onCountdownToggle(!popupMessageData.countdownActive);
+    const handleAllowDeselectToggle = () => onAllowDeselectToggle(!popupMessageData.allowDeselect);
+    const handleShowPriceToggle = () => onShowPriceToggle(!popupMessageData.showPrice);
+    const handleShowOrderTotalToggle = () => onShowOrderTotalToggle(!popupMessageData.showOrderTotal);
 
     return (
         <div>
 
            
-            {/* <Box  paddingBlockEnd='300'>
+            <Box  paddingBlockEnd='300'>
                     <InlineStack align="space-between" blockAlign="start">
                         <Box>
                             <Text variant="bodyMd" fontWeight="medium">
@@ -63,11 +42,11 @@ export default function PopupMessage({ onPopupMessageChange, active1 }) {
                         </Box>
 
                         <Toggle
-                            toggled={isActive}
+                            toggled={popupMessageData.isActive}
                             onClick={handleActiveToggle}
                         />
                     </InlineStack>
-                </Box> */}
+                </Box>
 
             {/* Content Section */}
             <Box paddingBlockStart=''>
@@ -86,8 +65,8 @@ export default function PopupMessage({ onPopupMessageChange, active1 }) {
                             </Text>
                             <Box paddingBlockStart="200">
                                 <TextField
-                                    value={headingText}
-                                    onChange={setHeadingText}
+                                    value={popupMessageData.headingText}
+                                    onChange={onHeadingTextChange}
                                     autoComplete="off"
                                 />
                             </Box>
@@ -100,8 +79,8 @@ export default function PopupMessage({ onPopupMessageChange, active1 }) {
                             </Text>
                             <Box paddingBlockStart="200">
                                 <TextField
-                                    value={messageText}
-                                    onChange={setMessageText}
+                                    value={popupMessageData.messageText}
+                                    onChange={onMessageTextChange}
                                     multiline={4}
                                     autoComplete="off"
                                 />
@@ -128,17 +107,17 @@ export default function PopupMessage({ onPopupMessageChange, active1 }) {
                                 </Box>
 
                                 <Toggle
-                                    toggled={countdownActive}
+                                    toggled={popupMessageData.countdownActive}
                                     onClick={handleCountdownToggle}
                                 />
                             </InlineStack>
-                            {countdownActive && (
+                            {popupMessageData.countdownActive && (
                                 <BlockStack gap="400">
 
                                     <Box>
                                         <TextField
-                                            value={timerText}
-                                            onChange={setTimerText}
+                                            value={popupMessageData.timerText}
+                                            onChange={onTimerTextChange}
                                             autoComplete="off"
                                         />
                                     </Box>
@@ -150,8 +129,8 @@ export default function PopupMessage({ onPopupMessageChange, active1 }) {
                                         </Text>
                                         <Box paddingBlockStart="200">
                                             <TextField
-                                                value={copyText}
-                                                onChange={setCopyText}
+                                                value={popupMessageData.copyText}
+                                                onChange={onCopyTextChange}
                                                 autoComplete="off"
                                             />
                                         </Box>
@@ -179,7 +158,7 @@ export default function PopupMessage({ onPopupMessageChange, active1 }) {
                                     </Text>
                                 </Box>
                                 <Toggle
-                                    toggled={allowDeselect}
+                                    toggled={popupMessageData.allowDeselect}
                                     onClick={handleAllowDeselectToggle}
                                 />
                             </InlineStack>
@@ -191,7 +170,7 @@ export default function PopupMessage({ onPopupMessageChange, active1 }) {
                                     </Text>
                                 </Box>
                                 <Toggle
-                                    toggled={showPrice}
+                                    toggled={popupMessageData.showPrice}
                                     onClick={handleShowPriceToggle}
                                 />
                             </InlineStack>
@@ -203,7 +182,7 @@ export default function PopupMessage({ onPopupMessageChange, active1 }) {
                                     </Text>
                                 </Box>
                                 <Toggle
-                                    toggled={showOrderTotal}
+                                    toggled={popupMessageData.showOrderTotal}
                                     onClick={handleShowOrderTotalToggle}
                                 />
                             </InlineStack>
@@ -230,8 +209,8 @@ export default function PopupMessage({ onPopupMessageChange, active1 }) {
                                 </Text>
                                 <Box paddingBlockStart="200">
                                     <TextField
-                                        value={checkoutButtonText}
-                                        onChange={setCheckoutButtonText}
+                                        value={popupMessageData.checkoutButtonText}
+                                        onChange={onCheckoutButtonTextChange}
                                         autoComplete="off"
                                     />
                                 </Box>
@@ -244,8 +223,8 @@ export default function PopupMessage({ onPopupMessageChange, active1 }) {
                                 </Text>
                                 <Box paddingBlockStart="200">
                                     <TextField
-                                        value={closeButtonText}
-                                        onChange={setCloseButtonText}
+                                        value={popupMessageData.closeButtonText}
+                                        onChange={onCloseButtonTextChange}
                                         autoComplete="off"
                                     />
                                 </Box>
@@ -258,8 +237,8 @@ export default function PopupMessage({ onPopupMessageChange, active1 }) {
                                 </Text>
                                 <Box paddingBlockStart="200">
                                     <TextField
-                                        value={closeButtonLink}
-                                        onChange={setCloseButtonLink}
+                                        value={popupMessageData.closeButtonLink}
+                                        onChange={onCloseButtonLinkChange}
                                         autoComplete="off"
                                     />
                                 </Box>

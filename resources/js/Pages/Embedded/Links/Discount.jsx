@@ -8,60 +8,29 @@ import {
   TextField, 
   Checkbox 
 } from '@shopify/polaris'
-import React, { useEffect, useState } from 'react'
+import React from 'react'
 
-export default function Discount({ onDiscountChange, discountData }) {
-  const [freeShipping, setFreeShipping] = useState(false);
-  const [orderDiscount, setOrderDiscount] = useState(discountData);
-  const [discountCode, setDiscountCode] = useState(false);
-  const [discountValue, setDiscountValue] = useState('20');
-  const [discountCodeValue, setDiscountCodeValue] = useState('');
-
-  // Toggle handlers that properly flip the boolean values
+export default function Discount({ discountData, onFreeShippingChange, onOrderDiscountChange, onDiscountValueChange, onDiscountCodeChange, onDiscountCodeValueChange }) {
+  
+  // Toggle handlers that call parent functions
   const handleFreeShippingToggle = () => {
-    const newValue = !freeShipping;
-    setFreeShipping(newValue);
-    updateParent(newValue, orderDiscount, discountValue, discountCode, discountCodeValue);
+    onFreeShippingChange(!discountData.freeShipping);
   };
   
-  // const handleOrderDiscountToggle = () => {
-  //   const newValue = !orderDiscount;
-  //   setOrderDiscount(newValue);
-  //   updateParent(freeShipping, newValue, discountValue, discountCode, discountCodeValue);
-  // };
   const handleOrderDiscountToggle = () => {
-    onDiscountChange({
-      orderDiscount: !discountData.orderDiscount,
-    });
-     updateParent(freeShipping, newValue, discountValue, discountCode, discountCodeValue);
+    onOrderDiscountChange(!discountData.orderDiscount);
   };
+
   const handleDiscountCodeToggle = () => {
-    const newValue = !discountCode;
-    setDiscountCode(newValue);
-    updateParent(freeShipping, orderDiscount, discountValue, newValue, discountCodeValue);
+    onDiscountCodeChange(!discountData.discountCode);
   };
 
   const handleDiscountValueChange = (value) => {
-    setDiscountValue(value);
-    updateParent(freeShipping, orderDiscount, value, discountCode, discountCodeValue);
+    onDiscountValueChange(value);
   };
 
   const handleDiscountCodeValueChange = (value) => {
-    setDiscountCodeValue(value);
-    updateParent(freeShipping, orderDiscount, discountValue, discountCode, value);
-  };
-
-  // Function to update parent component with discount data
-  const updateParent = (freeShip, orderDisc, discValue, discCode, discCodeValue) => {
-    if (onDiscountChange) {
-      onDiscountChange({
-        freeShipping: freeShip,
-        orderDiscount: orderDisc,
-        discountValue: discValue,
-        discountCode: discCode,
-        discountCodeValue: discCodeValue
-      });
-    }
+    onDiscountCodeValueChange(value);
   };
 
   return (
@@ -82,7 +51,7 @@ export default function Discount({ onDiscountChange, discountData }) {
             </Box>
            
              <Toggle
-               toggled={freeShipping}
+               toggled={discountData.freeShipping}
                onClick={handleFreeShippingToggle}
              />
           </InlineStack>
@@ -106,16 +75,16 @@ export default function Discount({ onDiscountChange, discountData }) {
               </Box>
              
               <Toggle
-                toggled={discountData.discountCode}
+                toggled={discountData.orderDiscount}
                 onClick={handleOrderDiscountToggle}
               />
             </InlineStack>
 
            
-            {orderDiscount && (
+            {discountData.orderDiscount && (
               <Box>
                 <TextField
-                  value={discountValue}
+                  value={discountData.discountValue}
                   onChange={handleDiscountValueChange}
                   suffix="%"
                   type="number"
@@ -145,7 +114,7 @@ export default function Discount({ onDiscountChange, discountData }) {
             </Box>
            
             <Toggle
-              toggled={discountCode}
+              toggled={discountData.discountCode}
               onClick={handleDiscountCodeToggle}
             />
 
@@ -153,10 +122,10 @@ export default function Discount({ onDiscountChange, discountData }) {
           </InlineStack>
 
           
-          {discountCode && (
+          {discountData.discountCode && (
             <Box>
               <TextField
-                value={discountCodeValue}
+                value={discountData.discountCodeValue}
                 onChange={handleDiscountCodeValueChange}
                 placeholder="Enter discount code"
                 autoComplete="off"
