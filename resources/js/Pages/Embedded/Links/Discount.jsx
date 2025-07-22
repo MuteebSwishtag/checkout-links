@@ -12,17 +12,41 @@ import React from 'react'
 
 export default function Discount({ discountData, onFreeShippingChange, onOrderDiscountChange, onDiscountValueChange, onDiscountCodeChange, onDiscountCodeValueChange }) {
   
-  // Toggle handlers that call parent functions
+  // Toggle handlers that call parent functions with mutual exclusivity
   const handleFreeShippingToggle = () => {
-    onFreeShippingChange(!discountData.freeShipping);
+    if (!discountData.freeShipping) {
+      // Turn on free shipping and turn off others
+      onFreeShippingChange(true);
+      onOrderDiscountChange(false);
+      onDiscountCodeChange(false);
+    } else {
+      // Turn off free shipping
+      onFreeShippingChange(false);
+    }
   };
   
   const handleOrderDiscountToggle = () => {
-    onOrderDiscountChange(!discountData.orderDiscount);
+    if (!discountData.orderDiscount) {
+      // Turn on order discount and turn off others
+      onOrderDiscountChange(true);
+      onFreeShippingChange(false);
+      onDiscountCodeChange(false);
+    } else {
+      // Turn off order discount
+      onOrderDiscountChange(false);
+    }
   };
 
   const handleDiscountCodeToggle = () => {
-    onDiscountCodeChange(!discountData.discountCode);
+    if (!discountData.discountCode) {
+      // Turn on discount code and turn off others
+      onDiscountCodeChange(true);
+      onFreeShippingChange(false);
+      onOrderDiscountChange(false);
+    } else {
+      // Turn off discount code
+      onDiscountCodeChange(false);
+    }
   };
 
   const handleDiscountValueChange = (value) => {

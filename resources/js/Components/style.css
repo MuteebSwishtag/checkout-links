@@ -1,0 +1,35 @@
+.scroll-wrapper {
+  height: 89dvh;
+  overflow: hidden;
+  display: flex;
+}
+ 
+
+.custom-scroll {
+  width: 60%;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 0px; /* reserve space for scrollbar */
+  box-sizing: content-box; /* so padding doesn't shrink content */
+  scrollbar-gutter: stable; /* prevent shift when scrollbar appears */
+}
+
+/* Fancy vertical scrollbar */
+.custom-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(#636363, #5b548a);
+  border-radius: 10px;
+}
+
+.custom-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Firefox support */
+.custom-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #636363 transparent;
+}

@@ -9,7 +9,7 @@ import {
     Icon
 } from '@shopify/polaris';
 import { useCallback, useEffect, useState } from 'react';
-import { usePage } from '@inertiajs/react';
+import { router, usePage } from '@inertiajs/react';
 import {CartIcon , LogoMetaIcon, SandboxIcon } from '@shopify/polaris-icons';
 import bundle from  '@/Pages/Images/Bundlo.png';
 import progressify from '@/Pages/Images/Progressify.png'
@@ -50,7 +50,7 @@ export default function Dashboard() {
             icon: '',
             backgroundColor: '#E0E0E0',
             buttonVariant: 'secondary',
-            buttonText: '✓ Installed',
+            buttonText: '✓ Installed ',
             isDisabled: true,
             minHeight: '270px'
         },
@@ -130,30 +130,19 @@ export default function Dashboard() {
                         </Box>
                     </Box>  
 
-                    <Box paddingBlockStart="400">
-                        <Box padding="300">
+                    <Box paddingBlockStart="400" background='disable'>
+                        <Box padding="300" >
 
                             <InlineStack gap="400" align="start" wrap={false}>
                                 {featuresData.map((feature, index) => (
-                                    <Box key={index} minWidth="0" maxWidth="none" padding="200">
+                                    <Box key={index}  minWidth="0" maxWidth="none" background='bg-fill-disabled' borderRadius='200' padding="200">
                                         <InlineStack gap="200" blockAlign="start">
-                                            {/* <Box>
-                                                <div style={{
-                                                    width: '20px',
-                                                    height: '20px',
-                                                    borderRadius: '4px',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center'
-                                                }}>
-                                                    <Text variant="bodySm" tone="text-inverse">{feature.icon}</Text>
-                                                </div>
-                                            </Box> */}
+                                            
                                             <InlineStack>
                                             <Icon source={feature.icon} tone="base" />
 
                                             </InlineStack>
-                                            <Box>
+                                            <Box >
                                                 <Text variant="headingSm" as="h3">
                                                     {feature.title}
                                                 </Text>
@@ -170,7 +159,7 @@ export default function Dashboard() {
 
 
                             <Box paddingBlockStart="600">
-                                <Button variant="primary" size="large" fullWidth>
+                                <Button variant="primary" size="large" fullWidth onClick={() => {console.log(router.get(route('links.create', query) ))}}>
                                     🔗 Build your first link
                                 </Button>
                             </Box>
@@ -297,6 +286,7 @@ export default function Dashboard() {
                                                         </BlockStack>
 
                                                         <Box width="100%">
+                                                          <InlineStack>
                                                             <Button
                                                                 variant={app.buttonVariant}
                                                                 fullWidth
@@ -304,7 +294,20 @@ export default function Dashboard() {
                                                             >
                                                                 {app.buttonText}
                                                             </Button>
+                                                            </InlineStack>
                                                         </Box>
+                                                          <Box>
+                                                                {/* <div className='flex justify-end '>
+                                                             <button
+                                                             className='bg-slate-500 w-full text-white px-4 py-2 rounded-md'
+                                                                variant={app.buttonVariant}
+                                                                fullWidth
+                                                                disabled={app.isDisabled}
+                                                            >
+                                                                {app.buttonText}
+                                                            </button>
+                                                            </div> */}
+                                                            </Box>
                                                     </BlockStack>
                                                 </Box>
                                             </Card>

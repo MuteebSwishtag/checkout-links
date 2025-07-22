@@ -31,7 +31,7 @@ import FormControlLabel from '@mui/material/FormControlLabel'
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import Discount from './Discount';
 import PopupMessage from './PopupMessage';
-
+import '@/Components/style.css'; 
 export default function CreateLink() {
     const { props } = usePage();
     const query = props.query || {};
@@ -451,15 +451,32 @@ export default function CreateLink() {
     }, [popupMessageData.isActive, popupMessageData.countdownActive, popupMessageData.timerText]);
 
     return (
+        
         <Page
+              
             title='Create Link'
             backAction={{
                 content: 'Links',
                 onAction: () => router.visit(route('links', query))
+                
+            }}
+            primaryAction={{
+                content: 'Save',
+                onAction: () => {
+                    // Handle save logic here
+                    console.log('Link Name:', linkName);
+                    console.log('Link ID:', linkId);
+                    console.log('Selected Products:', selectedProductItems);
+                    console.log('Discount Data:', discountData);
+                    console.log('Popup Message Data:', popupMessageData);
+                },
+                disabled: !linkName || !linkId || selectedProductItems.length === 0
             }}
         >
-            <div style={{ display: 'flex', gap: '1rem', height: '89dvh' }}>
+            
+            <div className='scroll-wrapper'>
                 {/* Left side - Scrollable */}
+                <div className='custom-scroll' >
                 <div style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
                     <BlockStack gap="500">
 
@@ -503,7 +520,7 @@ export default function CreateLink() {
                                     open={productsOpen}
                                     id="products-content"
                                 >
-                                    <Box padding="400">
+                                    <Box>
                                         <BlockStack gap="400">
                                             <InlineStack align="space-between" gap="400">
                                                 <div style={{ flexGrow: 1 }}>
@@ -663,7 +680,7 @@ export default function CreateLink() {
                         </Card>
                     </BlockStack>
                 </div>
-
+</div>
                
                 <div style={{ flex: 1, position: 'sticky', top: '1rem', height: 'fit-content', paddingLeft: '0.5rem' }}>
                     <BlockStack gap="300">
@@ -689,13 +706,30 @@ export default function CreateLink() {
                                        } 
                                        
 
-                                       {discountData.orderDiscount &&
+                                       {discountData.freeShipping &&
+                                        <InlineStack gap="200" align="start">
+                                            <div style={{ marginTop: "2px" }}>
+                                                <Icon source={StatusActiveIcon} tone='subdued' />
+                                            </div>
+                                            <Text as="span" color="subdued">Free shipping applied</Text>
+                                        </InlineStack>
+                                       }
 
+                                       {discountData.orderDiscount &&
                                         <InlineStack gap="200" align="start">
                                             <div style={{ marginTop: "2px" }}>
                                                 <Icon source={StatusActiveIcon} tone='subdued' />
                                             </div>
                                             <Text as="span" color="subdued"> Order Discount: {discountData.discountValue}% </Text>
+                                        </InlineStack>
+                                       }
+
+                                       {discountData.discountCode &&
+                                        <InlineStack gap="200" align="start">
+                                            <div style={{ marginTop: "2px" }}>
+                                                <Icon source={StatusActiveIcon} tone='subdued' />
+                                            </div>
+                                            <Text as="span" color="subdued">Discount code: {discountData.discountCodeValue}</Text>
                                         </InlineStack>
                                        } 
                                        {popupMessageData.isActive  &&
@@ -725,13 +759,13 @@ export default function CreateLink() {
 
 
                         <Card>
-                            <BlockStack gap="400" padding="400">
+                            <BlockStack gap="400" >
                                 <InlineStack align="space-between">
                                     <Text variant="bodyMd">Preview </Text>
                                     <Button variant='plain'>Test</Button>
                                 </InlineStack>
 
-                                <Box background="" padding="400" borderRadius="2" border="base">
+                                <Box background=""  borderRadius="2" border="base">
                                     <BlockStack gap="300" align="center">
                                         <InlineStack blockAlign='center' align='space-between'>
 
@@ -756,7 +790,7 @@ export default function CreateLink() {
                                             </InlineStack>
                                         </InlineStack>
                                         {!popupMessageData.isActive && (
-                                            <Box background='bg-fill-disabled' padding={'400'} borderRadius='200' >
+                                            <Box background='bg-fill-disabled'  borderRadius='200' >
                                                 {selectedProductItems.length === 0 ? (
                                                     <Text variant="headingSm" as="h3" color="subdued">No products selected</Text>
                                                 ) : (
@@ -856,20 +890,34 @@ export default function CreateLink() {
                                                             </InlineStack>
 
 
-                                                            <InlineStack align="space-between">
-                                                                <Text color="subdued" variant="headingXs" as="p"> Order discount</Text>
-                                                                <Text color="subdued">
-                                                                    {discountData.orderDiscount ?
-                                                                        `-${discountData.discountValue}%`
-                                                                        : '-'
-                                                                    }
-                                                                </Text>
-                                                            </InlineStack>
+                                                            {/* Discount Section */}
+                                                            {discountData.freeShipping && (
+                                                                <InlineStack align="space-between">
+                                                                    <Text color="subdued" variant="headingXs" as="p">Free shipping</Text>
+                                                                    <Text color="subdued">Free</Text>
+                                                                </InlineStack>
+                                                            )}
+
+                                                            {discountData.orderDiscount && (
+                                                                <InlineStack align="space-between">
+                                                                    <Text color="subdued" variant="headingXs" as="p">Order discount</Text>
+                                                                    <Text color="subdued">-{discountData.discountValue}%</Text>
+                                                                </InlineStack>
+                                                            )}
+
+                                                            {discountData.discountCode && (
+                                                                <InlineStack align="space-between">
+                                                                    <Text color="subdued" variant="headingXs" as="p">Discount code</Text>
+                                                                    <Text color="subdued">{discountData.discountCodeValue}</Text>
+                                                                </InlineStack>
+                                                            )}
 
 
                                                             <InlineStack align="space-between">
                                                                 <Text color="subdued" variant="headingXs" as="p">Shipping</Text>
-                                                                <Text color="subdued" variant="headingXs" as="p">Enter shipping address</Text>
+                                                                <Text color="subdued" variant="headingXs" as="p">
+                                                                    {discountData.freeShipping ? 'Free' : 'Enter shipping address'}
+                                                                </Text>
                                                             </InlineStack>
 
 
@@ -887,8 +935,15 @@ export default function CreateLink() {
                                                                                 return total + (price * quantity);
                                                                             }, 0);
 
-                                                                            const discount = discountData.orderDiscount ?
-                                                                                subtotal * (parseFloat(discountData.discountValue) / 100) : 0;
+                                                                            let discount = 0;
+                                                                            if (discountData.orderDiscount) {
+                                                                                discount = subtotal * (parseFloat(discountData.discountValue) / 100);
+                                                                            } else if (discountData.discountCode) {
+                                                                                // Assuming discount code value represents a percentage
+                                                                                const codeValue = parseFloat(discountData.discountCodeValue) || 0;
+                                                                                discount = subtotal * (codeValue / 100);
+                                                                            }
+                                                                            // Free shipping doesn't affect the product total, only shipping cost
 
                                                                             return (subtotal - discount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
                                                                         })()}
@@ -1039,8 +1094,15 @@ export default function CreateLink() {
                                                                                         return total + (price * quantity);
                                                                                     }, 0);
 
-                                                                                const discount = discountData.orderDiscount ?
-                                                                                    subtotal * (parseFloat(discountData.discountValue) / 100) : 0;
+                                                                                let discount = 0;
+                                                                                if (discountData.orderDiscount) {
+                                                                                    discount = subtotal * (parseFloat(discountData.discountValue) / 100);
+                                                                                } else if (discountData.discountCode) {
+                                                                                    // Assuming discount code value represents a percentage
+                                                                                    const codeValue = parseFloat(discountData.discountCodeValue) || 0;
+                                                                                    discount = subtotal * (codeValue / 100);
+                                                                                }
+                                                                                // Free shipping doesn't affect the product total, only shipping cost
 
                                                                                 return (subtotal - discount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
                                                                             })()}
