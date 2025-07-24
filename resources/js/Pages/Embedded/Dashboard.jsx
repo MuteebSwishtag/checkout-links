@@ -10,8 +10,8 @@ import {
 } from '@shopify/polaris';
 import { useCallback, useEffect, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
-import {CartIcon , LogoMetaIcon, SandboxIcon } from '@shopify/polaris-icons';
-import bundle from  '@/Pages/Images/Bundlo.png';
+import { CartIcon, LogoMetaIcon, SandboxIcon } from '@shopify/polaris-icons';
+import bundle from '@/Pages/Images/Bundlo.png';
 import progressify from '@/Pages/Images/Progressify.png'
 
 
@@ -31,12 +31,12 @@ export default function Dashboard() {
             description: 'Make the decision for them.'
         },
         {
-            icon:  LogoMetaIcon,
+            icon: LogoMetaIcon,
             title: 'Turn ad clicks into instant sales',
             description: 'Create instant sales funnels with no code'
         },
         {
-            icon:  SandboxIcon,
+            icon: SandboxIcon,
             title: 'Plug & play funnel links',
             description: 'Use checkout links across quizzes and pages.'
         }
@@ -59,7 +59,7 @@ export default function Dashboard() {
             description: 'Create full-page, guided bundle experiences that convert',
             // icon: '📦',
             // backgroundColor: '',
-            img:bundle,
+            img: bundle,
             price: '$8.99/mo',
             trial: '7-day free trial',
             buttonVariant: 'primary',
@@ -128,18 +128,18 @@ export default function Dashboard() {
                                 Create your first checkout link in seconds. Here are 3 ways you can use your link.
                             </Text>
                         </Box>
-                    </Box>  
+                    </Box>
 
                     <Box paddingBlockStart="400" background='disable'>
                         <Box padding="300" >
 
                             <InlineStack gap="400" align="start" wrap={false}>
                                 {featuresData.map((feature, index) => (
-                                    <Box key={index}  minWidth="0" maxWidth="none" background='bg-fill-disabled' borderRadius='200' padding="200">
+                                    <Box key={index} minWidth="0" maxWidth="none" background='bg-fill-disabled' borderRadius='200' padding="200">
                                         <InlineStack gap="200" blockAlign="start">
-                                            
+
                                             <InlineStack>
-                                            <Icon source={feature.icon} tone="base" />
+                                                <Icon source={feature.icon} tone="base" />
 
                                             </InlineStack>
                                             <Box >
@@ -159,7 +159,7 @@ export default function Dashboard() {
 
 
                             <Box paddingBlockStart="600">
-                                <Button variant="primary" size="large" fullWidth onClick={() => {console.log(router.get(route('links.create', query) ))}}>
+                                <Button variant="primary" size="large" fullWidth onClick={() => { console.log(router.get(route('links.create', query))) }}>
                                     🔗 Build your first link
                                 </Button>
                             </Box>
@@ -248,9 +248,9 @@ export default function Dashboard() {
                                                                 justifyContent: 'center'
                                                             }}>
                                                                 {app.img ? (
-                                                                    <img 
-                                                                        src={app.img} 
-                                                                        alt={app.name} 
+                                                                    <img
+                                                                        src={app.img}
+                                                                        alt={app.name}
                                                                         style={{
                                                                             width: '64px',
                                                                             height: '64px',
@@ -286,18 +286,18 @@ export default function Dashboard() {
                                                         </BlockStack>
 
                                                         <Box width="100%">
-                                                          <InlineStack>
-                                                            <Button
-                                                                variant={app.buttonVariant}
-                                                                fullWidth
-                                                                disabled={app.isDisabled}
-                                                            >
-                                                                {app.buttonText}
-                                                            </Button>
+                                                            <InlineStack>
+                                                                <Button
+                                                                    variant={app.buttonVariant}
+                                                                    fullWidth
+                                                                    disabled={app.isDisabled}
+                                                                >
+                                                                    {app.buttonText}
+                                                                </Button>
                                                             </InlineStack>
                                                         </Box>
-                                                          <Box>
-                                                                {/* <div className='flex justify-end '>
+                                                        <Box>
+                                                            {/* <div className='flex justify-end '>
                                                              <button
                                                              className='bg-slate-500 w-full text-white px-4 py-2 rounded-md'
                                                                 variant={app.buttonVariant}
@@ -307,7 +307,7 @@ export default function Dashboard() {
                                                                 {app.buttonText}
                                                             </button>
                                                             </div> */}
-                                                            </Box>
+                                                        </Box>
                                                     </BlockStack>
                                                 </Box>
                                             </Card>

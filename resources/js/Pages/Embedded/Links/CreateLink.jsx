@@ -25,13 +25,13 @@ import {
     Checkbox,
     Tooltip,
 } from '@shopify/polaris';
-import { ChevronDownIcon, ChevronUpIcon, SearchIcon, FilterIcon, XIcon, DragHandleIcon, DragDropIcon, CartIcon,StatusActiveIcon } from '@shopify/polaris-icons';
+import { ChevronDownIcon, ChevronUpIcon, SearchIcon, FilterIcon, XIcon, DragHandleIcon, DragDropIcon, CartIcon, StatusActiveIcon } from '@shopify/polaris-icons';
 import { Link, router, usePage } from '@inertiajs/react';
 import FormControlLabel from '@mui/material/FormControlLabel'
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import Discount from './Discount';
 import PopupMessage from './PopupMessage';
-import '@/Components/style.css'; 
+import '@/Components/style.css';
 export default function CreateLink() {
     const { props } = usePage();
     const query = props.query || {};
@@ -315,7 +315,7 @@ export default function CreateLink() {
     // Individual popup message handlers
     const handlePopupActiveToggle = useCallback((value) => {
         setPopupMessageData(prev => ({ ...prev, isActive: value }));
-        
+
         // Parse timer and start countdown when popup is active and countdown is enabled
         if (value && popupMessageData.countdownActive && popupMessageData.timerText) {
             const timeInSeconds = parseTimeToSeconds(popupMessageData.timerText);
@@ -336,7 +336,7 @@ export default function CreateLink() {
 
     const handlePopupCountdownToggle = useCallback((value) => {
         setPopupMessageData(prev => ({ ...prev, countdownActive: value }));
-        
+
         // Start timer if countdown is enabled and popup is active
         if (value && popupMessageData.isActive && popupMessageData.timerText) {
             const timeInSeconds = parseTimeToSeconds(popupMessageData.timerText);
@@ -349,7 +349,7 @@ export default function CreateLink() {
 
     const handlePopupTimerTextChange = useCallback((value) => {
         setPopupMessageData(prev => ({ ...prev, timerText: value }));
-        
+
         // Restart timer if countdown is active and popup is active
         if (popupMessageData.countdownActive && popupMessageData.isActive) {
             const timeInSeconds = parseTimeToSeconds(value);
@@ -451,14 +451,14 @@ export default function CreateLink() {
     }, [popupMessageData.isActive, popupMessageData.countdownActive, popupMessageData.timerText]);
 
     return (
-        
+
         <Page
-              
+
             title='Create Link'
             backAction={{
                 content: 'Links',
                 onAction: () => router.visit(route('links', query))
-                
+
             }}
             primaryAction={{
                 content: 'Save',
@@ -473,215 +473,215 @@ export default function CreateLink() {
                 disabled: !linkName || !linkId || selectedProductItems.length === 0
             }}
         >
-            
+
             <div className='scroll-wrapper'>
                 {/* Left side - Scrollable */}
                 <div className='custom-scroll' >
-                <div style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
-                    <BlockStack gap="500">
+                    <div style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
+                        <BlockStack gap="500">
 
-                        <Card>
-                            <BlockStack gap="400" padding="400">
-                                <Text variant="bodyMd">Link Name</Text>
-                                <TextField
-                                    label=""
-                                    value={linkName}
-                                    onChange={handleLinkNameChange}
-                                    placeholder="Test Link"
-                                    autoComplete="off"
-                                />
-
-                                <Text variant="bodyMd">Link ID</Text>
-                                <TextField
-                                    label=""
-                                    value={linkId}
-                                    onChange={handleLinkIdChange}
-                                    placeholder="https://www.example.com/ 3n49sjw3"
-                                    autoComplete="off"
-                                />
-                            </BlockStack>
-                        </Card>
-
-
-                        <Card>
-                            <BlockStack gap="400">
-                                <InlineStack align="space-between" padding="400">
-                                    <Text variant="bodyMd">Products</Text>
-                                    <Button
-                                        onClick={handleProductsToggle}
-                                        ariaExpanded={productsOpen}
-                                        ariaControls="products-content"
-                                        plain
-                                        icon={productsOpen ? ChevronUpIcon : ChevronDownIcon}
+                            <Card>
+                                <BlockStack gap="400" padding="400">
+                                    <Text variant="bodyMd">Link Name</Text>
+                                    <TextField
+                                        label=""
+                                        value={linkName}
+                                        onChange={handleLinkNameChange}
+                                        placeholder="Test Link"
+                                        autoComplete="off"
                                     />
-                                </InlineStack>
 
-                                <Collapsible
-                                    open={productsOpen}
-                                    id="products-content"
-                                >
-                                    <Box>
-                                        <BlockStack gap="400">
-                                            <InlineStack align="space-between" gap="400">
-                                                <div style={{ flexGrow: 1 }}>
-                                                    <TextField
-                                                        prefix={<Icon source={() => <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm9.707 4.293-4.82-4.82A5.968 5.968 0 0 0 14 8 6 6 0 0 0 2 8a6 6 0 0 0 6 6 5.968 5.968 0 0 0 3.473-1.113l4.82 4.82a.997.997 0 0 0 1.414 0 .999.999 0 0 0 0-1.414z" fill="currentColor" /></svg>} />}
-                                                        placeholder="Search products "
-                                                        fullWidth
-                                                    />
-                                                </div>
-                                                <Button onClick={handleProductModalOpen}>Browse</Button>
-                                            </InlineStack>
+                                    <Text variant="bodyMd">Link ID</Text>
+                                    <TextField
+                                        label=""
+                                        value={linkId}
+                                        onChange={handleLinkIdChange}
+                                        placeholder="https://www.example.com/ 3n49sjw3"
+                                        autoComplete="off"
+                                    />
+                                </BlockStack>
+                            </Card>
 
-                                            {selectedProductItems.length > 0 && (
-                                                <DragDropContext onDragEnd={handleDragEnd}>
-                                                    <Droppable droppableId="selected-products">
-                                                        {(provided) => (
-                                                            <div
-                                                                {...provided.droppableProps}
-                                                                ref={provided.innerRef}
-                                                            >
-                                                                {selectedProductItems.map((product, index) => {
-                                                                    if (!product) return null;
 
-                                                                    return (
-                                                                        <Draggable key={product.id} draggableId={product.id} index={index}>
-                                                                            {(provided) => (
-                                                                                <div
-                                                                                    ref={provided.innerRef}
-                                                                                    {...provided.draggableProps}
-                                                                                    style={{
-                                                                                        ...provided.draggableProps.style,
-                                                                                        marginBottom: '8px',
-                                                                                        padding: '10px',
-                                                                                        borderBottom: '1px solid #e1e3e5',
-                                                                                        display: 'flex',
-                                                                                        alignItems: 'center',
-                                                                                        justifyContent: 'space-between',
-                                                                                    }}
-                                                                                >
-                                                                                    <InlineStack gap="400" >
-                                                                                        <div {...provided.dragHandleProps} style={{ color: '#6d7175', display: 'flex', alignItems: 'center' }}>
-                                                                                            <Icon source={DragHandleIcon} tone='base' />
-                                                                                        </div>
-                                                                                        <Thumbnail
-                                                                                            source={product.image}
-                                                                                            alt={product.name}
-                                                                                            size="small"
-                                                                                        />
-                                                                                        <Box maxWidth="180px">
-                                                                                            <div
-                                                                                                style={{ display: 'inline-block', width: '100%' }}
-                                                                                                title={product.title + (product.variant ? ` (${product.variant})` : '')}
-                                                                                            >
-                                                                                                <Text fontWeight="medium" truncate as="span">
-                                                                                                    {product.title}
+                            <Card>
+                                <BlockStack gap="400">
+                                    <InlineStack align="space-between" padding="400">
+                                        <Text variant="bodyMd">Products</Text>
+                                        <Button
+                                            onClick={handleProductsToggle}
+                                            ariaExpanded={productsOpen}
+                                            ariaControls="products-content"
+                                            plain
+                                            icon={productsOpen ? ChevronUpIcon : ChevronDownIcon}
+                                        />
+                                    </InlineStack>
 
-                                                                                                    {product.variant && ` (${product.variant})`}
-                                                                                                </Text>
+                                    <Collapsible
+                                        open={productsOpen}
+                                        id="products-content"
+                                    >
+                                        <Box>
+                                            <BlockStack gap="400">
+                                                <InlineStack align="space-between" gap="400">
+                                                    <div style={{ flexGrow: 1 }}>
+                                                        <TextField
+                                                            prefix={<Icon source={() => <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm9.707 4.293-4.82-4.82A5.968 5.968 0 0 0 14 8 6 6 0 0 0 2 8a6 6 0 0 0 6 6 5.968 5.968 0 0 0 3.473-1.113l4.82 4.82a.997.997 0 0 0 1.414 0 .999.999 0 0 0 0-1.414z" fill="currentColor" /></svg>} />}
+                                                            placeholder="Search products "
+                                                            fullWidth
+                                                        />
+                                                    </div>
+                                                    <Button onClick={handleProductModalOpen}>Browse</Button>
+                                                </InlineStack>
+
+                                                {selectedProductItems.length > 0 && (
+                                                    <DragDropContext onDragEnd={handleDragEnd}>
+                                                        <Droppable droppableId="selected-products">
+                                                            {(provided) => (
+                                                                <div
+                                                                    {...provided.droppableProps}
+                                                                    ref={provided.innerRef}
+                                                                >
+                                                                    {selectedProductItems.map((product, index) => {
+                                                                        if (!product) return null;
+
+                                                                        return (
+                                                                            <Draggable key={product.id} draggableId={product.id} index={index}>
+                                                                                {(provided) => (
+                                                                                    <div
+                                                                                        ref={provided.innerRef}
+                                                                                        {...provided.draggableProps}
+                                                                                        style={{
+                                                                                            ...provided.draggableProps.style,
+                                                                                            marginBottom: '8px',
+                                                                                            padding: '10px',
+                                                                                            borderBottom: '1px solid #e1e3e5',
+                                                                                            display: 'flex',
+                                                                                            alignItems: 'center',
+                                                                                            justifyContent: 'space-between',
+                                                                                        }}
+                                                                                    >
+                                                                                        <InlineStack gap="400" >
+                                                                                            <div {...provided.dragHandleProps} style={{ color: '#6d7175', display: 'flex', alignItems: 'center' }}>
+                                                                                                <Icon source={DragHandleIcon} tone='base' />
                                                                                             </div>
-                                                                                            <Text variant="bodySm" tone="subdued">Quantity: {product.quantity} </Text>
-                                                                                        </Box>
-                                                                                    </InlineStack>
-                                                                                    <InlineStack gap="200">
-                                                                                        <Button variant="plain" onClick={() => handleRemoveProduct(product.id)}>
-                                                                                            <Icon source={XIcon} tone='base' />
-                                                                                        </Button>
-                                                                                        {/* <Button variant="plain" size="slim">Edit</Button> */}
-                                                                                    </InlineStack>
-                                                                                </div>
-                                                                            )}
-                                                                        </Draggable>
-                                                                    );
-                                                                })}
-                                                                {provided.placeholder}
-                                                            </div>
-                                                        )}
-                                                    </Droppable>
-                                                </DragDropContext>
-                                            )}
-                                        </BlockStack>
-                                    </Box>
-                                </Collapsible>
-                            </BlockStack>
-                        </Card>
+                                                                                            <Thumbnail
+                                                                                                source={product.image}
+                                                                                                alt={product.name}
+                                                                                                size="small"
+                                                                                            />
+                                                                                            <Box maxWidth="180px">
+                                                                                                <div
+                                                                                                    style={{ display: 'inline-block', width: '100%' }}
+                                                                                                    title={product.title + (product.variant ? ` (${product.variant})` : '')}
+                                                                                                >
+                                                                                                    <Text fontWeight="medium" truncate as="span">
+                                                                                                        {product.title}
+
+                                                                                                        {product.variant && ` (${product.variant})`}
+                                                                                                    </Text>
+                                                                                                </div>
+                                                                                                <Text variant="bodySm" tone="subdued">Quantity: {product.quantity} </Text>
+                                                                                            </Box>
+                                                                                        </InlineStack>
+                                                                                        <InlineStack gap="200">
+                                                                                            <Button variant="plain" onClick={() => handleRemoveProduct(product.id)}>
+                                                                                                <Icon source={XIcon} tone='base' />
+                                                                                            </Button>
+                                                                                            {/* <Button variant="plain" size="slim">Edit</Button> */}
+                                                                                        </InlineStack>
+                                                                                    </div>
+                                                                                )}
+                                                                            </Draggable>
+                                                                        );
+                                                                    })}
+                                                                    {provided.placeholder}
+                                                                </div>
+                                                            )}
+                                                        </Droppable>
+                                                    </DragDropContext>
+                                                )}
+                                            </BlockStack>
+                                        </Box>
+                                    </Collapsible>
+                                </BlockStack>
+                            </Card>
 
 
 
 
-                        <Card>
-                            <BlockStack gap="400">
-                                <InlineStack align="space-between" padding="400">
-                                    <Text variant="bodyMd">Discounts</Text>
-                                    <Button
-                                        onClick={handleDiscountsToggle}
-                                        ariaExpanded={discountsOpen}
-                                        ariaControls="discounts-content"
-                                        plain
-                                        icon={discountsOpen ? ChevronUpIcon : ChevronDownIcon}
-                                    />
-                                </InlineStack>
-
-                                <Collapsible
-                                    open={discountsOpen}
-                                    id="discounts-content"
-                                >
-                                    <Box padding="">
-                                        <Discount 
-                                            discountData={discountData}
-                                            onFreeShippingChange={handleFreeShippingChange}
-                                            onOrderDiscountChange={handleOrderDiscountChange}
-                                            onDiscountValueChange={handleDiscountValueChange}
-                                            onDiscountCodeChange={handleDiscountCodeChange}
-                                            onDiscountCodeValueChange={handleDiscountCodeValueChange}
+                            <Card>
+                                <BlockStack gap="400">
+                                    <InlineStack align="space-between" padding="400">
+                                        <Text variant="bodyMd">Discounts</Text>
+                                        <Button
+                                            onClick={handleDiscountsToggle}
+                                            ariaExpanded={discountsOpen}
+                                            ariaControls="discounts-content"
+                                            plain
+                                            icon={discountsOpen ? ChevronUpIcon : ChevronDownIcon}
                                         />
-                                    </Box>
-                                </Collapsible>
-                            </BlockStack>
-                        </Card>
+                                    </InlineStack>
+
+                                    <Collapsible
+                                        open={discountsOpen}
+                                        id="discounts-content"
+                                    >
+                                        <Box padding="">
+                                            <Discount
+                                                discountData={discountData}
+                                                onFreeShippingChange={handleFreeShippingChange}
+                                                onOrderDiscountChange={handleOrderDiscountChange}
+                                                onDiscountValueChange={handleDiscountValueChange}
+                                                onDiscountCodeChange={handleDiscountCodeChange}
+                                                onDiscountCodeValueChange={handleDiscountCodeValueChange}
+                                            />
+                                        </Box>
+                                    </Collapsible>
+                                </BlockStack>
+                            </Card>
 
 
-                        <Card>
-                            <BlockStack gap="400">
-                                <InlineStack align="space-between" padding="400">
-                                    <Text variant="bodyMd">Popup Message</Text>
-                                    <Button
-                                        onClick={handlePopupMessageToggle}
-                                        ariaExpanded={popupMessageOpen}
-                                        ariaControls="popup-message-content"
-                                        plain
-                                        icon={popupMessageOpen ? ChevronUpIcon : ChevronDownIcon}
-                                    />
-                                </InlineStack>
-
-                                <Collapsible
-                                    open={popupMessageOpen}
-                                    id="popup-message-content"
-                                >
-                                    <Box padding="">
-                                        <PopupMessage 
-                                            popupMessageData={popupMessageData}
-                                            onActiveToggle={handlePopupActiveToggle}
-                                            onHeadingTextChange={handlePopupHeadingTextChange}
-                                            onMessageTextChange={handlePopupMessageTextChange}
-                                            onCountdownToggle={handlePopupCountdownToggle}
-                                            onTimerTextChange={handlePopupTimerTextChange}
-                                            onCopyTextChange={handlePopupCopyTextChange}
-                                            onAllowDeselectToggle={handlePopupAllowDeselectToggle}
-                                            onShowPriceToggle={handlePopupShowPriceToggle}
-                                            onShowOrderTotalToggle={handlePopupShowOrderTotalToggle}
-                                            onCheckoutButtonTextChange={handlePopupCheckoutButtonTextChange}
-                                            onCloseButtonTextChange={handlePopupCloseButtonTextChange}
-                                            onCloseButtonLinkChange={handlePopupCloseButtonLinkChange}
+                            <Card>
+                                <BlockStack gap="400">
+                                    <InlineStack align="space-between" padding="400">
+                                        <Text variant="bodyMd">Popup Message</Text>
+                                        <Button
+                                            onClick={handlePopupMessageToggle}
+                                            ariaExpanded={popupMessageOpen}
+                                            ariaControls="popup-message-content"
+                                            plain
+                                            icon={popupMessageOpen ? ChevronUpIcon : ChevronDownIcon}
                                         />
-                                    </Box>
-                                </Collapsible>
-                            </BlockStack>
-                        </Card>
-                    </BlockStack>
+                                    </InlineStack>
+
+                                    <Collapsible
+                                        open={popupMessageOpen}
+                                        id="popup-message-content"
+                                    >
+                                        <Box padding="">
+                                            <PopupMessage
+                                                popupMessageData={popupMessageData}
+                                                onActiveToggle={handlePopupActiveToggle}
+                                                onHeadingTextChange={handlePopupHeadingTextChange}
+                                                onMessageTextChange={handlePopupMessageTextChange}
+                                                onCountdownToggle={handlePopupCountdownToggle}
+                                                onTimerTextChange={handlePopupTimerTextChange}
+                                                onCopyTextChange={handlePopupCopyTextChange}
+                                                onAllowDeselectToggle={handlePopupAllowDeselectToggle}
+                                                onShowPriceToggle={handlePopupShowPriceToggle}
+                                                onShowOrderTotalToggle={handlePopupShowOrderTotalToggle}
+                                                onCheckoutButtonTextChange={handlePopupCheckoutButtonTextChange}
+                                                onCloseButtonTextChange={handlePopupCloseButtonTextChange}
+                                                onCloseButtonLinkChange={handlePopupCloseButtonLinkChange}
+                                            />
+                                        </Box>
+                                    </Collapsible>
+                                </BlockStack>
+                            </Card>
+                        </BlockStack>
+                    </div>
                 </div>
-</div>
-               
+
                 <div style={{ flex: 1, position: 'sticky', top: '1rem', height: 'fit-content', paddingLeft: '0.5rem' }}>
                     <BlockStack gap="300">
 
@@ -694,54 +694,54 @@ export default function CreateLink() {
 
                                 <Box background="bg-surface-secondary" padding="400" borderRadius="2" border="base">
                                     <BlockStack gap="300">
-                                       {selectedProducts > 0 &&
-                                       <InlineStack gap="200" align="start">
-                                            <div style={{ marginTop: "2px" }}>
-                                                <Icon source={StatusActiveIcon} tone='subdued' />
-                                            </div>
-                                            <Text as="span" color="subdued">Pre-filled cart: {selectedProducts} products selected</Text>
-                                        </InlineStack>
+                                        {selectedProducts > 0 &&
+                                            <InlineStack gap="200" align="start">
+                                                <div style={{ marginTop: "2px" }}>
+                                                    <Icon source={StatusActiveIcon} tone='subdued' />
+                                                </div>
+                                                <Text as="span" color="subdued">Pre-filled cart: {selectedProducts} products selected</Text>
+                                            </InlineStack>
 
 
-                                       } 
-                                       
+                                        }
 
-                                       {discountData.freeShipping &&
-                                        <InlineStack gap="200" align="start">
-                                            <div style={{ marginTop: "2px" }}>
-                                                <Icon source={StatusActiveIcon} tone='subdued' />
-                                            </div>
-                                            <Text as="span" color="subdued">Free shipping applied</Text>
-                                        </InlineStack>
-                                       }
 
-                                       {discountData.orderDiscount &&
-                                        <InlineStack gap="200" align="start">
-                                            <div style={{ marginTop: "2px" }}>
-                                                <Icon source={StatusActiveIcon} tone='subdued' />
-                                            </div>
-                                            <Text as="span" color="subdued"> Order Discount: {discountData.discountValue}% </Text>
-                                        </InlineStack>
-                                       }
+                                        {discountData.freeShipping &&
+                                            <InlineStack gap="200" align="start">
+                                                <div style={{ marginTop: "2px" }}>
+                                                    <Icon source={StatusActiveIcon} tone='subdued' />
+                                                </div>
+                                                <Text as="span" color="subdued">Free shipping applied</Text>
+                                            </InlineStack>
+                                        }
 
-                                       {discountData.discountCode &&
-                                        <InlineStack gap="200" align="start">
-                                            <div style={{ marginTop: "2px" }}>
-                                                <Icon source={StatusActiveIcon} tone='subdued' />
-                                            </div>
-                                            <Text as="span" color="subdued">Discount code: {discountData.discountCodeValue}</Text>
-                                        </InlineStack>
-                                       } 
-                                       {popupMessageData.isActive  &&
+                                        {discountData.orderDiscount &&
+                                            <InlineStack gap="200" align="start">
+                                                <div style={{ marginTop: "2px" }}>
+                                                    <Icon source={StatusActiveIcon} tone='subdued' />
+                                                </div>
+                                                <Text as="span" color="subdued"> Order Discount: {discountData.discountValue}% </Text>
+                                            </InlineStack>
+                                        }
 
-                                        <InlineStack gap="200" align="start">
-                                            <div style={{ marginTop: "2px" }}>
-                                                <Icon source={StatusActiveIcon} tone='subdued' />
-                                            </div>
-                                            <Text as="span" color="subdued"> User is prompted with popup message before checkout </Text>
-                                        </InlineStack>
-                                       } 
-                                       <InlineStack gap="400">
+                                        {discountData.discountCode &&
+                                            <InlineStack gap="200" align="start">
+                                                <div style={{ marginTop: "2px" }}>
+                                                    <Icon source={StatusActiveIcon} tone='subdued' />
+                                                </div>
+                                                <Text as="span" color="subdued">Discount code: {discountData.discountCodeValue}</Text>
+                                            </InlineStack>
+                                        }
+                                        {popupMessageData.isActive &&
+
+                                            <InlineStack gap="200" align="start">
+                                                <div style={{ marginTop: "2px" }}>
+                                                    <Icon source={StatusActiveIcon} tone='subdued' />
+                                                </div>
+                                                <Text as="span" color="subdued"> User is prompted with popup message before checkout </Text>
+                                            </InlineStack>
+                                        }
+                                        <InlineStack gap="400">
                                             <Box width='80%'>
                                                 <TextField
                                                     value="https://examplewebsite.com/3n49sjw3..."
@@ -765,40 +765,40 @@ export default function CreateLink() {
                                     <Button variant='plain'>Test</Button>
                                 </InlineStack>
 
-                                <Box background=""  borderRadius="2" border="base">
+                                <Box background="" borderRadius="2" border="base">
                                     <BlockStack gap="300" align="center">
                                         <InlineStack blockAlign='center' align='space-between'>
 
                                             <InlineStack gap='050'>
                                                 <Icon source={DragDropIcon} tone="base" />
-                                                <div onClick={()=>{setPopupMessageData(prev => ({ ...prev, isActive: !prev.isActive }))}} style={{ cursor: 'pointer' }}>
-                                                <Text tone={popupMessageData.isActive ? 'base' : 'disabled'}
-                                                    variant={popupMessageData.isActive ? 'bodyMd' : 'bodySm'}
-                                                    fontWeight={popupMessageData.isActive ? 'semibold' : 'regular'}>
-                                                    Preview popup message
-                                                </Text>
-                                                    
+                                                <div onClick={() => { setPopupMessageData(prev => ({ ...prev, isActive: !prev.isActive })) }} style={{ cursor: 'pointer' }}>
+                                                    <Text tone={popupMessageData.isActive ? 'base' : 'disabled'}
+                                                        variant={popupMessageData.isActive ? 'bodyMd' : 'bodySm'}
+                                                        fontWeight={popupMessageData.isActive ? 'semibold' : 'regular'}>
+                                                        Preview popup message
+                                                    </Text>
+
                                                 </div>
                                             </InlineStack>
                                             <InlineStack gap='050'>
                                                 <Icon source={CartIcon} tone={popupMessageData.isActive ? 'disabled' : 'base'} />
-                                               <div onClick={()=>{setPopupMessageData(prev => ({ ...prev, isActive: !prev.isActive }))}} style={{ cursor: 'pointer' }}>
-                                                <Text tone={popupMessageData.isActive ? 'disabled' : 'base'} fontWeight={popupMessageData.isActive ? 'regular' : 'semibold'}>Preview  checkout</Text>
+                                                <div onClick={() => { setPopupMessageData(prev => ({ ...prev, isActive: !prev.isActive })) }} style={{ cursor: 'pointer' }}>
+                                                    <Text tone={popupMessageData.isActive ? 'disabled' : 'base'} fontWeight={popupMessageData.isActive ? 'regular' : 'semibold'}>Preview  checkout</Text>
 
                                                 </div>
 
                                             </InlineStack>
                                         </InlineStack>
                                         {!popupMessageData.isActive && (
-                                            <Box background='bg-fill-disabled'  borderRadius='200' >
+                                            <Box background='bg-fill-disabled' borderRadius='200' >
                                                 {selectedProductItems.length === 0 ? (
                                                     <Text variant="headingSm" as="h3" color="subdued">No products selected</Text>
                                                 ) : (
 
                                                     <Box background='' padding={'400'} borderRadius='200' border="base">
                                                         <BlockStack gap="400">
-                                                           
-                                                            <div style={{ 
+
+                                                            <div style={{
                                                                 maxHeight: selectedProductItems.length > 4 ? '100px' : 'auto',
                                                                 overflowY: selectedProductItems.length > 4 ? 'auto' : 'visible',
                                                                 paddingRight: selectedProductItems.length > 4 ? '8px' : '0'
@@ -991,7 +991,7 @@ export default function CreateLink() {
                                                         )}
 
                                                         {/* Products List with Scrollable Container */}
-                                                        <div style={{ 
+                                                        <div style={{
                                                             maxHeight: selectedProductItems.filter(product => popupProductChecked[product.id] !== false).length > 4 ? '100px' : 'auto',
                                                             overflowY: selectedProductItems.filter(product => popupProductChecked[product.id] !== false).length > 4 ? 'auto' : 'visible',
                                                             paddingRight: selectedProductItems.filter(product => popupProductChecked[product.id] !== false).length > 4 ? '8px' : '0'
@@ -1138,7 +1138,7 @@ export default function CreateLink() {
                 </div>
             </div>
 
-          
+
             <Modal
                 open={isProductModalOpen}
                 onClose={handleProductModalClose}
@@ -1308,3 +1308,4 @@ export default function CreateLink() {
         </Page>
     );
 }
+  
