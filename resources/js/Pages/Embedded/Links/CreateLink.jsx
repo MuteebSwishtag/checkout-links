@@ -25,7 +25,7 @@ import {
     Checkbox,
     Tooltip,
 } from '@shopify/polaris';
-import { ChevronDownIcon, ChevronUpIcon, SearchIcon, FilterIcon, XIcon, DragHandleIcon, DragDropIcon, CartIcon, StatusActiveIcon } from '@shopify/polaris-icons';
+import { ChevronDownIcon, ChevronUpIcon, SearchIcon, FilterIcon, XIcon, DragHandleIcon, DragDropIcon, CartIcon, StatusActiveIcon, ProductAddIcon, SettingsIcon, ClipboardIcon } from '@shopify/polaris-icons';
 import { Link, router, usePage } from '@inertiajs/react';
 import FormControlLabel from '@mui/material/FormControlLabel'
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
@@ -487,7 +487,7 @@ export default function CreateLink() {
                                         label=""
                                         value={linkName}
                                         onChange={handleLinkNameChange}
-                                        placeholder="Test Link"
+                                        placeholder="Enter your Link Name"
                                         autoComplete="off"
                                     />
 
@@ -505,8 +505,19 @@ export default function CreateLink() {
 
                             <Card>
                                 <BlockStack gap="400">
+                                    
                                     <InlineStack align="space-between" padding="400">
-                                        <Text variant="bodyMd">Products</Text>
+                                        <InlineStack align="center" gap='050'>
+                                        <Box>
+                                        <Icon
+                                            source={ProductAddIcon}
+                                            tone="base"
+                                        /> 
+                                            
+                                        </Box>
+                                        <Text variant="bodyMd"  fontWeight='bold'> Products</Text>
+
+                                        </InlineStack>
                                         <Button
                                             onClick={handleProductsToggle}
                                             ariaExpanded={productsOpen}
@@ -612,7 +623,17 @@ export default function CreateLink() {
                             <Card>
                                 <BlockStack gap="400">
                                     <InlineStack align="space-between" padding="400">
-                                        <Text variant="bodyMd">Discounts</Text>
+                                            <InlineStack align="center" gap='050'>
+                                        <Box>
+                                        <Icon
+                                            source={SettingsIcon}
+                                            tone="base"
+                                        /> 
+                                            
+                                        </Box>
+                                        <Text variant="bodyMd"  fontWeight='bold'> Discounts</Text>
+
+                                        </InlineStack>
                                         <Button
                                             onClick={handleDiscountsToggle}
                                             ariaExpanded={discountsOpen}
@@ -644,7 +665,17 @@ export default function CreateLink() {
                             <Card>
                                 <BlockStack gap="400">
                                     <InlineStack align="space-between" padding="400">
-                                        <Text variant="bodyMd">Popup Message</Text>
+                                           <InlineStack align="center" gap='050'>
+                                        <Box>
+                                        <Icon
+                                            source={StatusActiveIcon}
+                                            tone="base"
+                                        /> 
+                                            
+                                        </Box>
+                                        <Text variant="bodyMd"  fontWeight='bold'> Popup Message</Text>
+
+                                        </InlineStack>
                                         <Button
                                             onClick={handlePopupMessageToggle}
                                             ariaExpanded={popupMessageOpen}
@@ -742,7 +773,7 @@ export default function CreateLink() {
                                             </InlineStack>
                                         }
                                         <InlineStack gap="400">
-                                            <Box width='80%'>
+                                            <Box width='70%'>
                                                 <TextField
                                                     value="https://examplewebsite.com/3n49sjw3..."
                                                     readOnly
@@ -750,7 +781,7 @@ export default function CreateLink() {
                                                 />
 
                                             </Box>
-                                            <Button>Copy</Button>
+                                            <Button icon={ClipboardIcon}>Copy</Button>
                                         </InlineStack>
                                     </BlockStack>
                                 </Box>
@@ -1308,4 +1339,4 @@ export default function CreateLink() {
         </Page>
     );
 }
-  
+

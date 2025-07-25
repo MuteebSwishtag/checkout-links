@@ -28,7 +28,7 @@ export default function Dashboard() {
         {
             icon: CartIcon,
             title: 'Pre-built carts for shoppers',
-            description: 'Make the decision for them.'
+            description: 'Make the decision for them'
         },
         {
             icon: LogoMetaIcon,
@@ -38,7 +38,7 @@ export default function Dashboard() {
         {
             icon: SandboxIcon,
             title: 'Plug & play funnel links',
-            description: 'Use checkout links across quizzes and pages.'
+            description: 'Use checkout links across quizzes and pages'
         }
     ];
 
@@ -52,10 +52,12 @@ export default function Dashboard() {
             buttonVariant: 'secondary',
             buttonText: '✓ Installed ',
             isDisabled: true,
-            minHeight: '270px'
+            minHeight: '280px',
+            price: '', // Empty price to maintain structure
+            trial: '', // Empty trial to maintain structure
         },
         {
-            name: 'Bundlo',
+            name: 'Bundilo',
             description: 'Create full-page, guided bundle experiences that convert',
             // icon: '📦',
             // backgroundColor: '',
@@ -65,11 +67,11 @@ export default function Dashboard() {
             buttonVariant: 'primary',
             buttonText: 'Install app',
             isDisabled: false,
-            minHeight: '200px'
+            minHeight: '280px'
         },
         {
             name: 'Progressify',
-            description: 'Increase AOV With A Free Shipping Progress Bar & GWP Upsell',
+            description: 'Increase AOV with a free shipping progress bar & GWP Upsell',
             // icon: '📊',
             // backgroundColor: '#50C878',
             img: progressify,
@@ -78,7 +80,7 @@ export default function Dashboard() {
             buttonVariant: 'primary',
             buttonText: 'Install app',
             isDisabled: false,
-            minHeight: '200px'
+            minHeight: '280px'
         }
     ];
 
@@ -116,7 +118,12 @@ export default function Dashboard() {
 
     return (
         <Box paddingInline={'800'}>
-            <Page title='Dashboard' >
+            <Page title='Dashboard'
+                primaryAction={{
+                    content: 'Create checkout link',
+                    onAction: () => router.get(route('links.create', query)),
+                }}
+            >
 
                 <Card sectioned>
                     <Box>
@@ -234,38 +241,38 @@ export default function Dashboard() {
                                     {appsData.map((app, index) => (
                                         <Grid.Cell key={index} columnSpan={{ xs: 12, sm: 6, md: 4, lg: 4, xl: 4 }}>
                                             <Card>
-                                                <Box padding="400" minHeight={app.minHeight}>
-                                                    <BlockStack gap="400" align="center">
-                                                        <Box textAlign="center">
-                                                            <div style={{
-                                                                width: '64px',
-                                                                height: '64px',
-                                                                backgroundColor: app.img ? 'transparent' : app.backgroundColor,
-                                                                borderRadius: '12px',
-                                                                margin: '0 auto',
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                justifyContent: 'center'
-                                                            }}>
-                                                                {app.img ? (
-                                                                    <img
-                                                                        src={app.img}
-                                                                        alt={app.name}
-                                                                        style={{
-                                                                            width: '64px',
-                                                                            height: '64px',
-                                                                            borderRadius: '12px',
-                                                                            objectFit: 'cover'
-                                                                        }}
-                                                                    />
-                                                                ) : app.icon ? (
-                                                                    <Text variant="headingMd" tone="text-inverse">
-                                                                        {app.icon}
-                                                                    </Text>
-                                                                ) : null}
-                                                            </div>
-                                                        </Box>
+                                                <Box padding="400" minHeight={app.minHeight} style={{ display: 'flex', flexDirection: 'column' }}>
+                                                    <Box textAlign="center" paddingBlockEnd="400">
+                                                        <div style={{
+                                                            width: '64px',
+                                                            height: '64px',
+                                                            backgroundColor: app.img ? 'transparent' : app.backgroundColor,
+                                                            borderRadius: '12px',
+                                                            margin: '0 auto',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center'
+                                                        }}>
+                                                            {app.img ? (
+                                                                <img
+                                                                    src={app.img}
+                                                                    alt={app.name}
+                                                                    style={{
+                                                                        width: '64px',
+                                                                        height: '64px',
+                                                                        borderRadius: '12px',
+                                                                        objectFit: 'cover'
+                                                                    }}
+                                                                />
+                                                            ) : app.icon ? (
+                                                                <Text variant="headingMd" tone="text-inverse">
+                                                                    {app.icon}
+                                                                </Text>
+                                                            ) : null}
+                                                        </div>
+                                                    </Box>
 
+                                                    <Box style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                                                         <BlockStack gap="200" align="center">
                                                             <Text variant="headingMd" as="h3" alignment="center">
                                                                 {app.name}
@@ -273,42 +280,34 @@ export default function Dashboard() {
                                                             <Text variant="bodyMd" tone="subdued" alignment="center">
                                                                 {app.description}
                                                             </Text>
-                                                            {app.price && (
-                                                                <BlockStack gap="100" align="center">
+                                                            <BlockStack gap="100" align="center">
+                                                                {app.price ? (
                                                                     <Text variant="headingMd" as="h4" alignment="center">
                                                                         {app.price}
                                                                     </Text>
+                                                                ) : (
+                                                                    <Box minHeight="24px" /> // Placeholder space
+                                                                )}
+                                                                {app.trial ? (
                                                                     <Text variant="bodyMd" tone="subdued" alignment="center">
                                                                         {app.trial}
                                                                     </Text>
-                                                                </BlockStack>
-                                                            )}
+                                                                ) : (
+                                                                    <Box minHeight="20px" /> // Placeholder space
+                                                                )}
+                                                            </BlockStack>
                                                         </BlockStack>
 
-                                                        <Box width="100%">
-                                                            <InlineStack>
-                                                                <Button
-                                                                    variant={app.buttonVariant}
-                                                                    fullWidth
-                                                                    disabled={app.isDisabled}
-                                                                >
-                                                                    {app.buttonText}
-                                                                </Button>
-                                                            </InlineStack>
-                                                        </Box>
-                                                        <Box>
-                                                            {/* <div className='flex justify-end '>
-                                                             <button
-                                                             className='bg-slate-500 w-full text-white px-4 py-2 rounded-md'
+                                                        <Box width="100%" paddingBlockStart="400">
+                                                            <Button
                                                                 variant={app.buttonVariant}
                                                                 fullWidth
                                                                 disabled={app.isDisabled}
                                                             >
                                                                 {app.buttonText}
-                                                            </button>
-                                                            </div> */}
+                                                            </Button>
                                                         </Box>
-                                                    </BlockStack>
+                                                    </Box>
                                                 </Box>
                                             </Card>
                                         </Grid.Cell>
