@@ -25,16 +25,20 @@ import {
     Checkbox,
     Tooltip,
 } from '@shopify/polaris';
-import { ChevronDownIcon, ChevronUpIcon, SearchIcon, FilterIcon, XIcon, DragHandleIcon, DragDropIcon, CartIcon, StatusActiveIcon, ProductAddIcon, SettingsIcon, ClipboardIcon } from '@shopify/polaris-icons';
+import { ChevronDownIcon, ChevronUpIcon, SearchIcon, FilterIcon, XIcon, DragHandleIcon, DragDropIcon, CartIcon, StatusActiveIcon, ProductAddIcon, SettingsIcon, ClipboardIcon, ProductIcon, ProductListIcon } from '@shopify/polaris-icons';
 import { Link, router, usePage } from '@inertiajs/react';
+import { useAppBridge } from '@shopify/app-bridge-react';
 import FormControlLabel from '@mui/material/FormControlLabel'
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import Discount from './Discount';
 import PopupMessage from './PopupMessage';
 import '@/Components/style.css';
+import '../../../../css/links.css'
+
 export default function CreateLink() {
     const { props } = usePage();
-    const query = props.query || {};
+    const query = props.ziggy.query;
+    const app = useAppBridge();
 
     const [linkName, setLinkName] = useState('');
     const [linkId, setLinkId] = useState('');
@@ -44,15 +48,17 @@ export default function CreateLink() {
     const [selectedProducts, setSelectedProducts] = useState(0);
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [productSearchValue, setProductSearchValue] = useState('');
+    const [productSearch, setProductSearch] = useState('');
     const [filterPopoverActive, setFilterPopoverActive] = useState(false);
     const [selectedProductItems, setSelectedProductItems] = useState([]);
+    const [tempSelectedProductItems, setTempSelectedProductItems] = useState([]);
     const [popupProductChecked, setPopupProductChecked] = useState({});
     const [timerSeconds, setTimerSeconds] = useState(0);
     const [isTimerActive, setIsTimerActive] = useState(false);
     const [discountData, setDiscountData] = useState({
         freeShipping: false,
         orderDiscount: false,
-        discountValue: '20',
+        discountValue: '',
         discountCode: false,
         discountCodeValue: ''
     });
@@ -222,10 +228,71 @@ export default function CreateLink() {
     const handleDiscountsToggle = useCallback(() => setDiscountsOpen(!discountsOpen), [discountsOpen]);
     const handlePopupMessageToggle = useCallback(() => setPopupMessageOpen(!popupMessageOpen), [popupMessageOpen]);
 
-    const handleProductModalOpen = useCallback(() => setIsProductModalOpen(true), []);
-    const handleProductModalClose = useCallback(() => setIsProductModalOpen(false), []);
+    const handleProductModalOpen = useCallback(() => {
+        // Initialize temp selection with current selection
+        setTempSelectedProductItems([...selectedProductItems]);
+        setIsProductModalOpen(true);
+    }, [selectedProductItems]);
+
+    const handleProductModalClose = useCallback(() => {
+        // Reset temp selection when modal is closed/cancelled
+        setTempSelectedProductItems([]);
+        setIsProductModalOpen(false);
+    }, []);
+
+    const handleProductModalDone = useCallback(() => {
+        // Apply temp selection to actual selection
+        setSelectedProductItems(tempSelectedProductItems);
+        setSelectedProducts(tempSelectedProductItems.length);
+
+        // Initialize all products as checked in popup
+        const checkedState = {};
+        tempSelectedProductItems.forEach(product => {
+            checkedState[product.id] = true;
+        });
+        setPopupProductChecked(checkedState);
+
+        // Close modal
+        setIsProductModalOpen(false);
+        setTempSelectedProductItems([]);
+    }, [tempSelectedProductItems]);
     const handleProductSearchChange = useCallback((value) => setProductSearchValue(value), []);
     const toggleFilterPopover = useCallback(() => setFilterPopoverActive(!filterPopoverActive), [filterPopoverActive]);
+
+    // Copy to clipboard handler
+    const handleCopyLink = useCallback(async () => {
+        const linkUrl = "https://examplewebsite.com/3n49sjw3...";
+
+        try {
+            await navigator.clipboard.writeText(linkUrl);
+
+            // Show App Bridge toast
+            if (app) {
+                app.toast.show('Link copied to clipboard!', {
+                    isError: false,
+                    duration: 3000
+                });
+            }
+        } catch (error) {
+            console.error('Failed to copy link:', error);
+
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = linkUrl;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+
+            // Show App Bridge toast
+            if (app) {
+                app.toast.show('Link copied to clipboard!', {
+                    isError: false,
+                    duration: 3000
+                });
+            }
+        }
+    }, [app]);
 
 
     const handleProductSelection = useCallback((newSelectedItems) => {
@@ -254,16 +321,8 @@ export default function CreateLink() {
             };
         });
 
-        setSelectedProductItems(selectedProducts);
-        // Update the selected products count
-        setSelectedProducts(selectedProducts.length);
-
-        // Initialize all products as checked in popup
-        const checkedState = {};
-        selectedProducts.forEach(product => {
-            checkedState[product.id] = true;
-        });
-        setPopupProductChecked(checkedState);
+        // Update temporary selection (not the actual selection)
+        setTempSelectedProductItems(selectedProducts);
     }, [productData]);
 
     // Handle drag and drop reordering of selected products
@@ -505,17 +564,17 @@ export default function CreateLink() {
 
                             <Card>
                                 <BlockStack gap="400">
-                                    
+
                                     <InlineStack align="space-between" padding="400">
                                         <InlineStack align="center" gap='050'>
-                                        <Box>
-                                        <Icon
-                                            source={ProductAddIcon}
-                                            tone="base"
-                                        /> 
-                                            
-                                        </Box>
-                                        <Text variant="bodyMd"  fontWeight='bold'> Products</Text>
+                                            <Box>
+                                                <Icon
+                                                    source={ProductAddIcon}
+                                                    tone="base"
+                                                />
+
+                                            </Box>
+                                            <Text variant="bodyMd" fontWeight='bold'> Products</Text>
 
                                         </InlineStack>
                                         <Button
@@ -536,10 +595,11 @@ export default function CreateLink() {
                                                 <InlineStack align="space-between" gap="400">
                                                     <div style={{ flexGrow: 1 }}>
                                                         <TextField
-                                                            prefix={<Icon source={() => <svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M8 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm9.707 4.293-4.82-4.82A5.968 5.968 0 0 0 14 8 6 6 0 0 0 2 8a6 6 0 0 0 6 6 5.968 5.968 0 0 0 3.473-1.113l4.82 4.82a.997.997 0 0 0 1.414 0 .999.999 0 0 0 0-1.414z" fill="currentColor" /></svg>} />}
+                                                            prefix={<Icon source={SearchIcon} />}
                                                             placeholder="Search products "
                                                             fullWidth
-                                                        />
+                                                            value={productSearch}
+                                                            onChange={(value) => { setProductSearch(value) }} />
                                                     </div>
                                                     <Button onClick={handleProductModalOpen}>Browse</Button>
                                                 </InlineStack>
@@ -623,15 +683,15 @@ export default function CreateLink() {
                             <Card>
                                 <BlockStack gap="400">
                                     <InlineStack align="space-between" padding="400">
-                                            <InlineStack align="center" gap='050'>
-                                        <Box>
-                                        <Icon
-                                            source={SettingsIcon}
-                                            tone="base"
-                                        /> 
-                                            
-                                        </Box>
-                                        <Text variant="bodyMd"  fontWeight='bold'> Discounts</Text>
+                                        <InlineStack align="center" gap='050'>
+                                            <Box>
+                                                <Icon
+                                                    source={SettingsIcon}
+                                                    tone="base"
+                                                />
+
+                                            </Box>
+                                            <Text variant="bodyMd" fontWeight='bold'> Discounts</Text>
 
                                         </InlineStack>
                                         <Button
@@ -665,15 +725,15 @@ export default function CreateLink() {
                             <Card>
                                 <BlockStack gap="400">
                                     <InlineStack align="space-between" padding="400">
-                                           <InlineStack align="center" gap='050'>
-                                        <Box>
-                                        <Icon
-                                            source={StatusActiveIcon}
-                                            tone="base"
-                                        /> 
-                                            
-                                        </Box>
-                                        <Text variant="bodyMd"  fontWeight='bold'> Popup Message</Text>
+                                        <InlineStack align="center" gap='050'>
+                                            <Box>
+                                                <Icon
+                                                    source={StatusActiveIcon}
+                                                    tone="base"
+                                                />
+
+                                            </Box>
+                                            <Text variant="bodyMd" fontWeight='bold'> Popup Message</Text>
 
                                         </InlineStack>
                                         <Button
@@ -713,14 +773,14 @@ export default function CreateLink() {
                     </div>
                 </div>
 
-                <div style={{ flex: 1, position: 'sticky', top: '1rem', height: 'fit-content', paddingLeft: '0.5rem' }}>
+                <div style={{ flex: 1, position: 'sticky', top: '1rem', height: 'fit-content', paddingLeft: '0.5rem', overflow: 'auto' }}>
                     <BlockStack gap="300">
 
                         <Card>
                             <BlockStack gap="400" padding="400">
                                 <InlineStack align="space-between">
                                     <Text variant="bodyMd">Summary</Text>
-                                    <Button variant='plain'>Test</Button>
+                                    {/* <Button variant='plain'>Test</Button> */}
                                 </InlineStack>
 
                                 <Box background="bg-surface-secondary" padding="400" borderRadius="2" border="base">
@@ -746,12 +806,12 @@ export default function CreateLink() {
                                             </InlineStack>
                                         }
 
-                                        {discountData.orderDiscount &&
+                                        {discountData.orderDiscount && discountData.discountValue != '' &&
                                             <InlineStack gap="200" align="start">
                                                 <div style={{ marginTop: "2px" }}>
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
-                                                <Text as="span" color="subdued"> Order Discount: {discountData.discountValue}% </Text>
+                                                <Text as="span" color="subdued" > Order Discount: {discountData.discountValue}% Off</Text>
                                             </InlineStack>
                                         }
 
@@ -766,10 +826,13 @@ export default function CreateLink() {
                                         {popupMessageData.isActive &&
 
                                             <InlineStack gap="200" align="start">
-                                                <div style={{ marginTop: "2px" }}>
+                                                <div style={{ marginTop: "2px", }}>
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
-                                                <Text as="span" color="subdued"> User is prompted with popup message before checkout </Text>
+                                                <Box maxWidth='260px'>
+                                                    <Text as="span" color="subdued"> User is prompted with popup message before checkout </Text>
+
+                                                </Box>
                                             </InlineStack>
                                         }
                                         <InlineStack gap="400">
@@ -781,7 +844,7 @@ export default function CreateLink() {
                                                 />
 
                                             </Box>
-                                            <Button icon={ClipboardIcon}>Copy</Button>
+                                            <Button icon={ClipboardIcon} onClick={handleCopyLink}>Copy</Button>
                                         </InlineStack>
                                     </BlockStack>
                                 </Box>
@@ -793,7 +856,7 @@ export default function CreateLink() {
                             <BlockStack gap="400" >
                                 <InlineStack align="space-between">
                                     <Text variant="bodyMd">Preview </Text>
-                                    <Button variant='plain'>Test</Button>
+                                    {/* <Button variant='plain'>Test</Button> */}
                                 </InlineStack>
 
                                 <Box background="" borderRadius="2" border="base">
@@ -801,8 +864,8 @@ export default function CreateLink() {
                                         <InlineStack blockAlign='center' align='space-between'>
 
                                             <InlineStack gap='050'>
-                                                <Icon source={DragDropIcon} tone="base" />
-                                                <div onClick={() => { setPopupMessageData(prev => ({ ...prev, isActive: !prev.isActive })) }} style={{ cursor: 'pointer' }}>
+                                                <Icon source={DragDropIcon} tone={popupMessageData.isActive ? 'base' : 'subdued'} />
+                                                <div onClick={() => { setPopupMessageData(prev => ({ ...prev, isActive: true })) }} style={{ cursor: 'pointer' }}>
                                                     <Text tone={popupMessageData.isActive ? 'base' : 'disabled'}
                                                         variant={popupMessageData.isActive ? 'bodyMd' : 'bodySm'}
                                                         fontWeight={popupMessageData.isActive ? 'semibold' : 'regular'}>
@@ -812,8 +875,8 @@ export default function CreateLink() {
                                                 </div>
                                             </InlineStack>
                                             <InlineStack gap='050'>
-                                                <Icon source={CartIcon} tone={popupMessageData.isActive ? 'disabled' : 'base'} />
-                                                <div onClick={() => { setPopupMessageData(prev => ({ ...prev, isActive: !prev.isActive })) }} style={{ cursor: 'pointer' }}>
+                                                <Icon source={CartIcon} tone={popupMessageData.isActive ? 'subdued' : 'base'} />
+                                                <div onClick={() => { setPopupMessageData(prev => ({ ...prev, isActive: false })) }} style={{ cursor: 'pointer' }}>
                                                     <Text tone={popupMessageData.isActive ? 'disabled' : 'base'} fontWeight={popupMessageData.isActive ? 'regular' : 'semibold'}>Preview  checkout</Text>
 
                                                 </div>
@@ -821,9 +884,9 @@ export default function CreateLink() {
                                             </InlineStack>
                                         </InlineStack>
                                         {!popupMessageData.isActive && (
-                                            <Box background='bg-fill-disabled' borderRadius='200' >
+                                            <Box background='bg-fill-disabled' borderRadius='200' padding={'300'}>
                                                 {selectedProductItems.length === 0 ? (
-                                                    <Text variant="headingSm" as="h3" color="subdued">No products selected</Text>
+                                                    <Text variant="headingSm" as="h3" alignment='center' color="subdued">No products selected</Text>
                                                 ) : (
 
                                                     <Box background='' padding={'400'} borderRadius='200' border="base">
@@ -898,13 +961,16 @@ export default function CreateLink() {
 
 
                                                             <InlineStack align="space-between" gap="">
-                                                                <TextField
-                                                                    placeholder="Gift card"
-                                                                    autoComplete="off"
-                                                                // connectedRight={
-                                                                //     <Button variant="secondary">Apply</Button>
-                                                                // }
-                                                                />
+                                                                <Box minWidth='220px'>
+                                                                    <TextField
+                                                                        placeholder="Gift card"
+                                                                        autoComplete="off"
+                                                                    // connectedRight={
+                                                                    //     <Button variant="secondary">Apply</Button>
+                                                                    // }
+                                                                    />
+
+                                                                </Box>
                                                                 <Button variant="secondary" >Apply</Button>
                                                             </InlineStack>
 
@@ -929,10 +995,32 @@ export default function CreateLink() {
                                                                 </InlineStack>
                                                             )}
 
-                                                            {discountData.orderDiscount && (
+                                                            {discountData.orderDiscount && discountData.discountValue != '' && (
                                                                 <InlineStack align="space-between">
-                                                                    <Text color="subdued" variant="headingXs" as="p">Order discount</Text>
-                                                                    <Text color="subdued">-{discountData.discountValue}%</Text>
+                                                                    <BlockStack gap='100'>
+                                                                        <Text color="subdued" variant="headingXs" as="p">Order discount</Text>
+
+                                                                        <InlineStack>
+                                                                            <Box>
+                                                                                <Icon
+                                                                                    source={ProductIcon}
+                                                                                    tone="subdued"
+                                                                                />
+                                                                            </Box>
+                                                                            <Text tone='subdued'>{discountData.discountValue}% OFF ORDER</Text>
+                                                                        </InlineStack>
+                                                                    </BlockStack>
+                                                                    <Text color="critical">
+                                                                        {(() => {
+                                                                            const subtotal = selectedProductItems.reduce((total, product) => {
+                                                                                const price = parseFloat(product.price || 0);
+                                                                                const quantity = parseInt(product.quantity || 1);
+                                                                                return total + (price * quantity);
+                                                                            }, 0);
+                                                                            const discount = subtotal * (parseFloat(discountData.discountValue) / 100);
+                                                                            return `- $${discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                                                        })()}
+                                                                    </Text>
                                                                 </InlineStack>
                                                             )}
 
@@ -959,28 +1047,46 @@ export default function CreateLink() {
                                                                 <InlineStack align="end" gap="200" blockAlign='center'>
                                                                     <Text variant="headingXs" tone="subdued">AUD</Text>
                                                                     <Text variant="headingLg" fontWeight="bold">
-                                                                        ${(() => {
+                                                                        {(() => {
                                                                             const subtotal = selectedProductItems.reduce((total, product) => {
                                                                                 const price = parseFloat(product.price || 0);
                                                                                 const quantity = parseInt(product.quantity || 1);
                                                                                 return total + (price * quantity);
                                                                             }, 0);
-
                                                                             let discount = 0;
-                                                                            if (discountData.orderDiscount) {
+                                                                            if (discountData.orderDiscount && discountData.discountValue && !isNaN(parseFloat(discountData.discountValue))) {
                                                                                 discount = subtotal * (parseFloat(discountData.discountValue) / 100);
-                                                                            } else if (discountData.discountCode) {
+                                                                            } else if (discountData.discountCode && discountData.discountCodeValue && !isNaN(parseFloat(discountData.discountCodeValue))) {
                                                                                 // Assuming discount code value represents a percentage
                                                                                 const codeValue = parseFloat(discountData.discountCodeValue) || 0;
                                                                                 discount = subtotal * (codeValue / 100);
                                                                             }
                                                                             // Free shipping doesn't affect the product total, only shipping cost
-
-                                                                            return (subtotal - discount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+                                                                            return `$${(subtotal - discount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                                                                         })()}
                                                                     </Text>
                                                                 </InlineStack>
                                                             </InlineStack>
+                                                            {/* Total Savings Row */}
+                                                            {discountData.orderDiscount && discountData.discountValue != '' && (
+                                                                <InlineStack align="start" gap="050" >
+                                                                    <Box>
+                                                                        <Icon source={ProductListIcon} tone="base"  />
+
+                                                                    </Box>
+                                                                    <Text fontWeight="bold" tone="050" variant="bodyMd">
+                                                                        TOTAL SAVINGS {(() => {
+                                                                            const subtotal = selectedProductItems.reduce((total, product) => {
+                                                                                const price = parseFloat(product.price || 0);
+                                                                                const quantity = parseInt(product.quantity || 1);
+                                                                                return total + (price * quantity);
+                                                                            }, 0);
+                                                                            const discount = subtotal * (parseFloat(discountData.discountValue) / 100);
+                                                                            return `$${discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                                                        })()}
+                                                                    </Text>
+                                                                </InlineStack>
+                                                            )}
                                                         </BlockStack>
                                                     </Box>
 
@@ -1176,7 +1282,7 @@ export default function CreateLink() {
                 title="Select products"
                 primaryAction={{
                     content: 'Done',
-                    onAction: handleProductModalClose,
+                    onAction: handleProductModalDone,
                 }}
                 secondaryActions={[
                     {
@@ -1186,7 +1292,7 @@ export default function CreateLink() {
                 ]}
                 footer={
                     <div style={{ padding: '12px 16px', textAlign: 'left' }}>
-                        <Text>{selectedProductItems.length} products selected</Text>
+                        <Text>{tempSelectedProductItems.length} products selected</Text>
                     </div>
                 }
             >
@@ -1194,20 +1300,20 @@ export default function CreateLink() {
                     <BlockStack gap="400">
                         {/* Search and Filter Section */}
                         <InlineStack gap="400" align="start">
-                            <div style={{ flexGrow: 1 }}>
+                            <div style={{ flexGrow: 1 }} className="product-search-container">
                                 <TextField
                                     label=""
                                     value={productSearchValue}
                                     onChange={handleProductSearchChange}
-                                    prefix={<Icon source={SearchIcon} />}
-                                    placeholder="Search products"
+
+                                    placeholder="Search product"
                                     clearButton
                                     onClearButtonClick={() => setProductSearchValue('')}
                                     autoComplete="off"
                                 />
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                            {/* <div style={{ display: 'flex', alignItems: 'flex-end' }}>
                                 <Popover
                                     active={filterPopoverActive}
                                     activator={
@@ -1221,7 +1327,7 @@ export default function CreateLink() {
                                         <Text variant="headingSm" as="h3">Filter options</Text>
                                     </Box>
                                 </Popover>
-                            </div>
+                            </div> */}
                         </InlineStack>
 
                         {/* Product List using ResourceList */}
@@ -1253,7 +1359,7 @@ export default function CreateLink() {
                                         image: item.image,
                                     }))
                                 ]}
-                                selectedItems={selectedProductItems.map(item => item.id)}
+                                selectedItems={tempSelectedProductItems.map(item => item.id)}
                                 onSelectionChange={handleProductSelection}
                                 selectable
                                 renderItem={(item) => {

@@ -1,0 +1,27 @@
+/* Fix for IndexFilters search input blue border */
+.Polaris-IndexFilters .Polaris-TextField__Input:focus {
+    border-color: transparent !important;
+    box-shadow: none !important;
+}
+
+.Polaris-IndexFilters .Polaris-TextField__Input {
+    /* border: 1px solid #d1d5db !important; */
+    border-radius: 8px !important;
+}
+
+.Polaris-IndexFilters .Polaris-TextField__Input:focus {
+    border-color: #ffffff !important;
+    box-shadow: 0 0 0 1px #ffffff !important;
+}
+
+/* Remove outline on focus */
+.Polaris-IndexFilters .Polaris-TextField__Input:focus-visible {
+    outline: none !important;
+    --tw-ring-shadow:none !important;
+}
+.Polaris-TextField:focus-within > .Polaris-TextField__Input ~ .Polaris-TextField__Backdrop{
+    outline: none !important;
+}
+.Polaris-TextField:focus-within > .Polaris-TextField__Input{
+    --tw-ring-shadow:black !important;
+}

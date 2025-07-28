@@ -1,17 +1,17 @@
 import Toggle from '@/Components/Toggle';
-import { 
-  Text, 
-  Card, 
-  Box, 
-  BlockStack, 
-  InlineStack, 
-  TextField, 
-  Checkbox 
+import {
+  Text,
+  Card,
+  Box,
+  BlockStack,
+  InlineStack,
+  TextField,
+  Checkbox
 } from '@shopify/polaris'
 import React from 'react'
 
 export default function Discount({ discountData, onFreeShippingChange, onOrderDiscountChange, onDiscountValueChange, onDiscountCodeChange, onDiscountCodeValueChange }) {
-  
+
   // Toggle handlers that call parent functions with mutual exclusivity
   const handleFreeShippingToggle = () => {
     if (!discountData.freeShipping) {
@@ -24,7 +24,7 @@ export default function Discount({ discountData, onFreeShippingChange, onOrderDi
       onFreeShippingChange(false);
     }
   };
-  
+
   const handleOrderDiscountToggle = () => {
     if (!discountData.orderDiscount) {
       // Turn on order discount and turn off others
@@ -50,8 +50,19 @@ export default function Discount({ discountData, onFreeShippingChange, onOrderDi
   };
 
   const handleDiscountValueChange = (value) => {
-    onDiscountValueChange(value);
+    // Remove dashes
+    let removeDash = value.replace(/-/g, '');
+
+    // Convert to number to validate
+    const numericValue = Number(removeDash);
+
+    // If value is greater than 100, do not update
+    if (numericValue > 100) return;
+
+    // Otherwise, update
+    onDiscountValueChange(removeDash);
   };
+
 
   const handleDiscountCodeValueChange = (value) => {
     onDiscountCodeValueChange(value);
@@ -73,11 +84,11 @@ export default function Discount({ discountData, onFreeShippingChange, onOrderDi
                 </Text>
               </Box>
             </Box>
-           
-             <Toggle
-               toggled={discountData.freeShipping}
-               onClick={handleFreeShippingToggle}
-             />
+
+            <Toggle
+              toggled={discountData.freeShipping}
+              onClick={handleFreeShippingToggle}
+            />
           </InlineStack>
         </Box>
       </Card>
@@ -97,23 +108,25 @@ export default function Discount({ discountData, onFreeShippingChange, onOrderDi
                   </Text>
                 </Box>
               </Box>
-             
+
               <Toggle
                 toggled={discountData.orderDiscount}
                 onClick={handleOrderDiscountToggle}
               />
             </InlineStack>
 
-           
+
             {discountData.orderDiscount && (
               <Box>
                 <TextField
                   value={discountData.discountValue}
                   onChange={handleDiscountValueChange}
                   suffix="%"
+                  placeholder='20'
                   type="number"
                   autoComplete="off"
                   min={0}
+                  max={100}
                 />
               </Box>
             )}
@@ -121,43 +134,43 @@ export default function Discount({ discountData, onFreeShippingChange, onOrderDi
         </Box>
       </Card>
 
-     
+
       <Card>
         <Box padding="100">
-            <BlockStack gap="300">
-          <InlineStack align="space-between" blockAlign="start">
-            <Box>
-              <Text variant="bodyMd" fontWeight="medium">
-                Use a discount code
-              </Text>
-              <Box paddingBlockStart="050">
-                <Text variant="bodyMd" tone="subdued">
-                  Add any existing discount code to order
+          <BlockStack gap="300">
+            <InlineStack align="space-between" blockAlign="start">
+              <Box>
+                <Text variant="bodyMd" fontWeight="medium">
+                  Use a discount code
                 </Text>
+                <Box paddingBlockStart="050">
+                  <Text variant="bodyMd" tone="subdued">
+                    Add any existing discount code to order
+                  </Text>
+                </Box>
               </Box>
-            </Box>
-           
-            <Toggle
-              toggled={discountData.discountCode}
-              onClick={handleDiscountCodeToggle}
-            />
 
-            
-          </InlineStack>
-
-          
-          {discountData.discountCode && (
-            <Box>
-              <TextField
-                value={discountData.discountCodeValue}
-                onChange={handleDiscountCodeValueChange}
-                placeholder="Enter discount code"
-                autoComplete="off"
-                min={0}
+              <Toggle
+                toggled={discountData.discountCode}
+                onClick={handleDiscountCodeToggle}
               />
-            </Box>
-          )}
-            </BlockStack>
+
+
+            </InlineStack>
+
+
+            {discountData.discountCode && (
+              <Box>
+                <TextField
+                  value={discountData.discountCodeValue}
+                  onChange={handleDiscountCodeValueChange}
+                  placeholder="Enter discount code"
+                  autoComplete="off"
+                  min={0}
+                />
+              </Box>
+            )}
+          </BlockStack>
         </Box>
       </Card>
     </BlockStack>

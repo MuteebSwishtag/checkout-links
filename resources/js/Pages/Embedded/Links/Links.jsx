@@ -19,6 +19,7 @@ import {
 import { EditIcon, DeleteIcon, DuplicateIcon } from '@shopify/polaris-icons'
 import React, { useState, useCallback } from 'react'
 import { Link, router, usePage } from '@inertiajs/react'
+import '../../../../css/links.css'
 
 export default function Links() {
     const { props } = usePage();
@@ -64,7 +65,7 @@ export default function Links() {
         },
         {
             id: 'domestic',
-            content: 'Domestic',
+            content: 'Dynamic',
             panelID: 'domestic-links',
         },
         {
@@ -148,7 +149,7 @@ export default function Links() {
                 title="Links"
                 primaryAction={{
                     content: 'Create a new link',
-                    onAction: () => console.log(router.get(route('links.create', query)))
+                    onAction: () => router.get(route('links.create', query))
                 }}
             >
                 <Card>
@@ -157,10 +158,7 @@ export default function Links() {
                         queryPlaceholder="Search links"
                         onQueryChange={handleQueryValueChange}
                         onQueryClear={handleQueryValueRemove}
-                        primaryAction={{
-                            content: 'Create link',
-                            onAction: () => router.visit(route('links.create', query))
-                        }}
+                        cancelAction={{ onAction: handleQueryValueRemove} }
                         tabs={tabs}
                         selected={selectedTab}
                         onSelect={handleTabChange}
@@ -175,8 +173,8 @@ export default function Links() {
                         itemCount={links.length}
                         selectable={false}
                         headings={[
-                            { title: 'Link name' },
-                            { title: 'URL code' },
+                            { title: 'Link Name' },
+                            { title: 'URL Code' },
                             { title: 'Status' },
                             { title: 'Clicks' },
                             { title: 'Placed Order' },

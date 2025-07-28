@@ -137,39 +137,41 @@ export default function Dashboard() {
                         </Box>
                     </Box>
 
-                    <Box paddingBlockStart="400" background='disable'>
-                        <Box padding="300" >
-
-                            <InlineStack gap="400" align="start" wrap={false}>
-                                {featuresData.map((feature, index) => (
-                                    <Box key={index} minWidth="0" maxWidth="none" background='bg-fill-disabled' borderRadius='200' padding="200">
-                                        <InlineStack gap="200" blockAlign="start">
-
-                                            <InlineStack>
-                                                <Icon source={feature.icon} tone="base" />
-
-                                            </InlineStack>
+                    <Box paddingBlockStart="500">
+                        <Grid>
+                            {featuresData.map((feature, index) => (
+                                <Grid.Cell key={index} columnSpan={{ xs: 12, sm: 6, md: 6, lg: 4, xl: 4 }}>
+                                    <Box background='bg-surface-secondary' borderRadius='200' padding="400" height="100%">
+                                        <InlineStack gap="100" blockAlign="start">
                                             <Box >
-                                                <Text variant="headingSm" as="h3">
-                                                    {feature.title}
-                                                </Text>
-                                                <Box paddingBlockStart="100">
-                                                    <Text variant="bodyMd" tone="subdued">
-                                                        {feature.description}
+                                                <Icon source={feature.icon} tone="base" />
+                                            </Box>
+                                            <Box maxWidth='200px'>
+                                                <BlockStack gap="200">
+                                                    <Text variant="headingSm" as="h3">
+                                                        {feature.title}
                                                     </Text>
-                                                </Box>
+                                                </BlockStack>
+
+
                                             </Box>
                                         </InlineStack>
+                                        <Box paddingBlockStart={"200"}>
+
+                                            <Text variant="bodySm" tone="subdued">
+                                                {feature.description}
+                                            </Text>
+
+                                        </Box>
                                     </Box>
-                                ))}
-                            </InlineStack>
+                                </Grid.Cell>
+                            ))}
+                        </Grid>
 
-
-                            <Box paddingBlockStart="600">
-                                <Button variant="primary" size="large" fullWidth onClick={() => { console.log(router.get(route('links.create', query))) }}>
-                                    🔗 Build your first link
-                                </Button>
-                            </Box>
+                        <Box paddingBlockStart="600">
+                            <Button variant="primary" size="large" fullWidth onClick={() => { console.log(router.get(route('links.create', query))) }}>
+                                🔗 Build your first link
+                            </Button>
                         </Box>
                     </Box>
                 </Card>
