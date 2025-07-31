@@ -527,6 +527,13 @@ export default function CreateLink() {
             ...prev,
             [productId]: checked
         }));
+        if (!checked) {
+            // Remove from selectedProductItems and selectedVariantIds
+            setSelectedProductItems(prev => prev.filter(item => item.id !== productId && item.productId !== productId && item.variantId !== productId));
+            setSelectedVariantIds(prev => prev.filter(id => id !== productId));
+        } else {
+            // Optionally, re-add if needed (not required for deselect)
+        }
     }, []);
     const restartTimer = useCallback(() => {
         if (popupMessageData.isActive && popupMessageData.countdownActive && popupMessageData.timerText) {
@@ -676,15 +683,20 @@ export default function CreateLink() {
                                                                     onMouseOut={e => e.currentTarget.style.background = '#fff'}
                                                                 >
                                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                                                        <Checkbox
-                                                                            label=""
-                                                                            checked={product.variants.length > 0
-                                                                                ? product.variants.every(v => selectedVariantIds.includes(v.id))
-                                                                                : selectedVariantIds.includes(product.id)
-                                                                            }
-                                                                            indeterminate={product.variants.length > 0 && product.variants.some(v => selectedVariantIds.includes(v.id)) && !product.variants.every(v => selectedVariantIds.includes(v.id))}
-                                                                            onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
-                                                                        />
+                                                                        {(popupMessageData.allowDeselect || !(product.variants.length > 0
+                                                                            ? product.variants.every(v => selectedVariantIds.includes(v.id))
+                                                                            : selectedVariantIds.includes(product.id)
+                                                                        )) && (
+                                                                            <Checkbox
+                                                                                label=""
+                                                                                checked={product.variants.length > 0
+                                                                                    ? product.variants.every(v => selectedVariantIds.includes(v.id))
+                                                                                    : selectedVariantIds.includes(product.id)
+                                                                                }
+                                                                                indeterminate={product.variants.length > 0 && product.variants.some(v => selectedVariantIds.includes(v.id)) && !product.variants.every(v => selectedVariantIds.includes(v.id))}
+                                                                                onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
+                                                                            />
+                                                                            )}
                                                                         <Thumbnail source={product.image} alt={product.title} size="small" />
                                                                         <div style={{ flex: 1, minWidth: 0 }}>
                                                                             <Text fontWeight="medium" truncate>{product.title}</Text>
@@ -698,11 +710,13 @@ export default function CreateLink() {
                                                                         <div style={{ marginLeft: 44, marginTop: 6 }}>
                                                                             {product.variants.map(variant => (
                                                                                 <div key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2, padding: '2px 0' }}>
-                                                                                    <Checkbox
-                                                                                        label=""
-                                                                                        checked={selectedVariantIds.includes(variant.id)}
-                                                                                        onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
-                                                                                    />
+                                                                                    {(popupMessageData.allowDeselect || !selectedVariantIds.includes(variant.id)) && (
+                                                                                        <Checkbox
+                                                                                            label=""
+                                                                                            checked={selectedVariantIds.includes(variant.id)}
+                                                                                            onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
+                                                                                        />
+                                                                                    )}
                                                                                     <div style={{ flex: 1, minWidth: 0 }}>
                                                                                         <Text fontWeight="medium" truncate>{variant.variantTitle}</Text>
                                                                                         <Text variant="bodySm" color="subdued" style={{ marginLeft: 8 }}>Available: {variant.available}</Text>
@@ -1236,7 +1250,7 @@ export default function CreateLink() {
                                                                     .filter(product => popupProductChecked[product.id] !== false)
                                                                     .map((product, index) => (
                                                                         <InlineStack key={product.id} align="space-between" gap="400" blockAlign='center' padding="200" borderRadius="2" border="base">
-                                                                            <InlineStack gap="300" blockAlign='center' align='start'>
+                                                                            <InlineStack gap="300" blockAlign='center' align='start' style={{ flex: 1, minWidth: 0 }}>
                                                                                 <div style={{ position: 'relative', display: 'inline-block' }}>
                                                                                     <Box
                                                                                         background="bg-surface"
@@ -1279,32 +1293,27 @@ export default function CreateLink() {
                                                                                             <Box maxWidth='120px'>
                                                                                                 <div title={product.title}>
                                                                                                     <Text fontWeight="medium" alignment='center' truncate>{product.title}</Text>
-
+                                                                                                    {popupMessageData.showPrice && (
+                                                                                                        <Text variant="bodyMd" color="subdued" style={{ display: 'flex', marginTop: 1 }}>
+                                                                                                            ${product.price || '0.00'}
+                                                                                                        </Text>
+                                                                                                    )}
                                                                                                 </div>
-
                                                                                             </Box>
                                                                                         </InlineStack>
-
                                                                                     </InlineStack>
                                                                                 </Box>
                                                                             </InlineStack>
-                                                                            <InlineStack gap='300'>
-                                                                                {popupMessageData.showPrice && (
-                                                                                    <Text fontWeight="medium" alignment="center">${product.price || '0.00'}</Text>
-                                                                                )}
-
-                                                                                {popupMessageData.allowDeselect && (
+                                                                            <InlineStack gap='300' style={{ minWidth: 90, justifyContent: 'flex-end', alignItems: 'center' }}>
+                                                                                {popupMessageData.allowDeselect ? (
                                                                                     <Box paddingBlockStart="100">
-
                                                                                         <Checkbox
                                                                                             label=""
                                                                                             checked={popupProductChecked[product.id] !== false}
                                                                                             onChange={(checked) => handlePopupProductCheck(product.id, checked)}
-
                                                                                         />
-
                                                                                     </Box>
-                                                                                )}
+                                                                                ) : null}
                                                                             </InlineStack>
                                                                         </InlineStack>
                                                                     ))}
@@ -1312,7 +1321,7 @@ export default function CreateLink() {
                                                         </div>
 
                                                         {/* Order Total */}
-                                                        {popupMessageData.showOrderTotal && (
+                                                        {popupMessageData.showOrderTotal === true && (
                                                             <>
                                                                 <Box borderBlockStart="base" />
                                                                 <InlineStack align="space-between">
@@ -1413,15 +1422,20 @@ export default function CreateLink() {
                             {productData.map(product => (
                                 <div key={product.id} style={{ borderBottom: '1px solid #eee', padding: '8px 0' }}>
                                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <Checkbox
-                                            label=""
-                                            checked={product.variants.length > 0
-                                                ? product.variants.every(v => selectedVariantIds.includes(v.id))
-                                                : selectedVariantIds.includes(product.id)
-                                            }
-                                            indeterminate={product.variants.length > 0 && product.variants.some(v => selectedVariantIds.includes(v.id)) && !product.variants.every(v => selectedVariantIds.includes(v.id))}
-                                            onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
-                                        />
+                                        {(popupMessageData.allowDeselect || !(product.variants.length > 0
+                                            ? product.variants.every(v => selectedVariantIds.includes(v.id))
+                                            : selectedVariantIds.includes(product.id)
+                                        )) && (
+                                            <Checkbox
+                                                label=""
+                                                checked={product.variants.length > 0
+                                                    ? product.variants.every(v => selectedVariantIds.includes(v.id))
+                                                    : selectedVariantIds.includes(product.id)
+                                                }
+                                                indeterminate={product.variants.length > 0 && product.variants.some(v => selectedVariantIds.includes(v.id)) && !product.variants.every(v => selectedVariantIds.includes(v.id))}
+                                                onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
+                                            />
+                                            )}
                                         <Thumbnail source={product.image} alt={product.title} size="small" />
                                         <div style={{ flex: 1 }}>
                                             <Text fontWeight="medium">{product.title}</Text>
@@ -1434,11 +1448,13 @@ export default function CreateLink() {
                                         <div style={{ marginLeft: 36, marginTop: 4 }}>
                                             {product.variants.map(variant => (
                                                 <div key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                                                    <Checkbox
-                                                        label=""
-                                                        checked={selectedVariantIds.includes(variant.id)}
-                                                        onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
-                                                    />
+                                                    {(popupMessageData.allowDeselect || !selectedVariantIds.includes(variant.id)) && (
+                                                        <Checkbox
+                                                            label=""
+                                                            checked={selectedVariantIds.includes(variant.id)}
+                                                            onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
+                                                        />
+                                                    )}
                                                     {/* <Thumbnail source={variant.image} alt={variant.title} size="small" /> */}
                                                     <div style={{ flex: 1 }}>
                                                         <Text fontWeight="medium">{variant.variantTitle}</Text>
