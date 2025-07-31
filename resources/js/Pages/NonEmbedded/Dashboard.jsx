@@ -99,7 +99,7 @@ export default function Dashboard() {
 
     const [queryValue, setQueryValue] = useState('');
     
-    const [syncOrders, setSyncOrders] = useState(false);
+    // const [syncOrders, setSyncOrders] = useState(false);
 
 
     const { query } = usePage().props.ziggy;
@@ -203,10 +203,10 @@ export default function Dashboard() {
         setReload(true);
 
     };
-    const handleSyncOrders = () => {
-        setSyncOrders(true)
-        setReload(true)
-    }
+    // const handleSyncOrders = () => {
+    //     setSyncOrders(true)
+    //     setReload(true)
+    // }
 
     const onHandleSave = async () => {
         await sleep(1);
@@ -497,7 +497,7 @@ export default function Dashboard() {
 
                     </div>
                     <div>
-                        <Button onClick={handleSyncOrders}  disabled={syncOrders} >Sync Orders</Button>
+                        {/* <Button onClick={handleSyncOrders}  disabled={syncOrders} >Sync Orders</Button> */}
                     </div>
                
                 </div>

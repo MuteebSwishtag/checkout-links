@@ -2,18 +2,14 @@
 
 namespace App\Models\Products;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class ProductMedia extends Model
 {
-    protected $table = 'product_media';
+    use HasFactory;
 
-    protected $fillable = [
-        'shopify_product_media_id',
-        'product_id',
-        'position',
-        'src',
-    ];
+    protected $fillable = ['product_id', 'shopify_product_media_id', 'src'];
 
     public function product()
     {

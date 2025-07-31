@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
     Page,
     Card,
@@ -9,37 +9,101 @@ import {
     BlockStack,
     InlineStack,
     Box,
-    Banner,
     Icon,
-    Divider,
-    Link as PolarisLink,
     Modal,
-    Listbox,
-    Popover,
-    EmptySearchResult,
-    DataTable,
     ResourceList,
     ResourceItem,
-    Avatar,
     Thumbnail,
     Checkbox,
-    Tooltip,
+    Pagination,
 } from '@shopify/polaris';
-import { ChevronDownIcon, ChevronUpIcon, SearchIcon, FilterIcon, XIcon, DragHandleIcon, DragDropIcon, CartIcon, StatusActiveIcon, ProductAddIcon, SettingsIcon, ClipboardIcon, ProductIcon, ProductListIcon } from '@shopify/polaris-icons';
-import { Link, router, usePage } from '@inertiajs/react';
+import {
+    ChevronDownIcon,
+    ChevronUpIcon,
+    SearchIcon,
+    XIcon,
+    DragHandleIcon,
+    ProductAddIcon,
+    SettingsIcon,
+    StatusActiveIcon,
+    ClipboardIcon,
+    ProductIcon,
+    ProductListIcon,
+    DragDropIcon,
+    CartIcon,
+} from '@shopify/polaris-icons';
+import { router, usePage } from '@inertiajs/react';
 import { useAppBridge } from '@shopify/app-bridge-react';
-import FormControlLabel from '@mui/material/FormControlLabel'
+import toast from 'react-hot-toast';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import Discount from './Discount';
 import PopupMessage from './PopupMessage';
 import '@/Components/style.css';
-import '../../../../css/links.css'
+import '../../../../css/links.css';
+
+// Utility for debouncing (for better search experience)
+function useDebouncedValue(value, delay = 300) {
+    const [debounced, setDebounced] = useState(value);
+    useEffect(() => {
+        const handler = setTimeout(() => setDebounced(value), delay);
+        return () => clearTimeout(handler);
+    }, [value, delay]);
+    return debounced;
+}
 
 export default function CreateLink() {
+    // Hydrate state from link prop if editing
     const { props } = usePage();
     const query = props.ziggy.query;
     const app = useAppBridge();
+    const { link } = props;
 
+    useEffect(() => {
+        if (link) {
+            setLinkName(link.link_name || '');
+            setLinkId(link.link_url || '');
+            setDiscountData({
+                freeShipping: !!link.free_shipping,
+                orderDiscount: !!link.order_discount,
+                discountValue: link.discount_value || '',
+                discountCode: !!link.discount_code,
+                discountCodeValue: link.discount_code_value || ''
+            });
+            if (link.popup_message) {
+                setPopupMessageData(prev => ({
+                    ...prev,
+                    ...link.popup_message,
+                    isActive: !!link.popup_message.is_active,
+                    countdownActive: !!link.popup_message.countdown_active,
+                    showOrderTotal: !!link.popup_message.show_order_total,
+                    showPrice: !!link.popup_message.show_price,
+                    allowDeselect: !!link.popup_message.allow_deselect
+                }));
+            }
+            if (Array.isArray(link.linked_variants)) {
+                // Map linked_variants to selectedProductItems structure
+                const selected = link.linked_variants.map(v => {
+                    const product = v.variant && v.variant.product ? v.variant.product : {};
+                    const media = product.media && product.media[0] ? product.media[0].src : '';
+                    return {
+                        id: v.product_id + '_' + v.variant_id,
+                        productId: v.product_id,
+                        variantId: v.variant_id,
+                        title: product.title || '',
+                        variant: v.variant ? v.variant.title : '',
+                        price: v.price || (v.variant ? v.variant.price : ''),
+                        image: media,
+                        quantity: 1
+                    };
+                });
+                setSelectedProductItems(selected);
+                setSelectedProducts(selected.length);
+                setSelectedVariantIds(selected.map(v => v.id));
+            }
+        }
+    }, [link]);
+
+    // -- UI State
     const [linkName, setLinkName] = useState('');
     const [linkId, setLinkId] = useState('');
     const [productsOpen, setProductsOpen] = useState(true);
@@ -48,7 +112,7 @@ export default function CreateLink() {
     const [selectedProducts, setSelectedProducts] = useState(0);
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [productSearchValue, setProductSearchValue] = useState('');
-    const [productSearch, setProductSearch] = useState('');
+    const [mainProductSearch, setMainProductSearch] = useState('');
     const [filterPopoverActive, setFilterPopoverActive] = useState(false);
     const [selectedProductItems, setSelectedProductItems] = useState([]);
     const [tempSelectedProductItems, setTempSelectedProductItems] = useState([]);
@@ -76,273 +140,305 @@ export default function CreateLink() {
         closeButtonText: 'No thanks',
         closeButtonLink: '#'
     });
+    const [products, setProducts] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [perPage] = useState(10);
+    const [totalPages, setTotalPages] = useState(1);
 
-    // Sample product data to match the image
-    const productData = [
-        { id: 'gift-card', title: 'Gift Card', type: 'gift-card', price: 10.00, available: 10, image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSIxMCIgd2lkdGg9IjI0IiBoZWlnaHQ9IjIwIiByeD0iMiIgc3Ryb2tlPSIjODA4NTg5IiBzdHJva2Utd2lkdGg9IjIiLz48L3N2Zz4=' },
-        { id: 'gift-card-10', title: '$10', type: 'gift-card', price: 10.00 },
-        { id: 'gift-card-25', title: '$25', type: 'gift-card', price: 25.00 },
-        { id: 'gift-card-50', title: '$50', type: 'gift-card', price: 50.00 },
-        { id: 'gift-card-100', title: '$100', type: 'gift-card', price: 100.00 },
-        {
-            id: 'selling-plans-ski-wax',
-            title: 'Selling Plans Ski Wax',
-            type: 'product',
-            price: 24.95,
-            available: 10,
-            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSIjRjRCQzUxIi8+PC9zdmc+',
-            variant: 'Default'
-        },
-        {
-            id: 'plans-ski-wax',
-            title: 'Plans Ski Wax',
-            type: 'product',
-            price: 24.95,
-            available: 10,
-            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSIjRjRCQzUxIi8+PC9zdmc+',
-            variant: 'Default'
-        },
-        {
-            id: 'special-selling-plans-ski-wax',
-            title: 'Special Selling Plans Ski Wax',
-            type: 'product',
-            price: 49.95,
-            available: 10,
-            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSIjRjRCQzUxIi8+PC9zdmc+',
-            variant: 'Default'
-        },
-        {
-            id: 'sample-selling-plans-ski-wax',
-            title: 'Sample Selling Plans Ski Wax',
-            type: 'product',
-            price: 9.95,
-            available: 10,
-            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSIjRjRCQzUxIi8+PC9zdmc+',
-            variant: 'Default'
-        },
-        {
-            id: 'fulfilled-snowboard',
-            title: 'The 3p Fulfilled Snowboard',
-            type: 'product',
-            price: 2629.95,
-            available: 20,
-            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSIjNjVCREE4Ii8+PC9zdmc+',
-            variant: 'Default'
-        },
-        {
-            id: 'hydrogen-snowboard',
-            title: 'The Collection Snowboard: Hydrogen',
-            type: 'product',
-            price: 600.00,
-            available: 50,
-            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSIjNjI0REM2Ii8+PC9zdmc+',
-            variant: 'Default'
-        },
-        {
-            id: 'liquid-snowboard',
-            title: 'The Collection Snowboard: Liquid',
-            type: 'product',
-            price: 749.95,
-            available: 50,
-            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSIjMkU3MkQyIi8+PC9zdmc+',
-            variant: 'Default'
-        },
-        {
-            id: 'oxygen-snowboard',
-            title: 'The Collection Snowboard: Oxygen',
-            type: 'product',
-            price: 1025.00,
-            available: 50,
-            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSIjNzQ0RkM2Ii8+PC9zdmc+',
-            variant: 'Default'
-        },
-        {
-            id: 'compare-at-price-snowboard',
-            title: 'The Compare at Price Snowboard',
-            type: 'product',
-            price: 785.95,
-            available: 10,
-            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSIjNjI0REM2Ii8+PC9zdmc+',
-            variant: 'Default'
-        },
-        {
-            id: 'complete-snowboard',
-            title: 'The Complete Snowboard',
-            type: 'product',
-            price: 699.95,
-            available: 10,
-            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSIjNjI0REM2Ii8+PC9zdmc+',
-            variant: 'Default'
-        },
-        {
-            id: 'ice',
-            title: 'Ice',
-            type: 'product',
-            price: 699.95,
-            available: 10,
-            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSIjMkU3MkQyIi8+PC9zdmc+',
-            variant: 'Blue'
-        },
-        {
-            id: 'dawn',
-            title: 'Dawn',
-            type: 'product',
-            price: 699.95,
-            available: 10,
-            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSIjQzA1NzE3Ii8+PC9zdmc+',
-            variant: 'Orange'
-        },
-        {
-            id: 'powder',
-            title: 'Powder',
-            type: 'product',
-            price: 699.95,
-            available: 10,
-            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSIjRkZGRkZGIiBzdHJva2U9IiNFMUUzRTUiLz48L3N2Zz4=',
-            variant: 'White'
-        },
-        {
-            id: 'electric',
-            title: 'Electric',
-            type: 'product',
-            price: 699.95,
-            available: 10,
-            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSIjNUI4MkVFIi8+PC9zdmc+',
-            variant: 'Light Blue'
-        },
-        {
-            id: 'sunset',
-            title: 'Sunset',
-            type: 'product',
-            price: 699.95,
-            available: 10,
-            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB4PSI4IiB5PSI4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHJ4PSIyIiBmaWxsPSIjRUI3NTQxIi8+PC9zdmc+',
-            variant: 'Orange'
-        }
-    ];
+    // -- Debounced search values (for performance)
+    const debouncedMainProductSearch = useDebouncedValue(mainProductSearch, 300);
+    const debouncedProductSearchValue = useDebouncedValue(productSearchValue, 300);
 
+    // --- Fetch products with server-side search and pagination
+    const fetchProducts = useCallback(
+        async (page = 1, search = '') => {
+            try {
+                const response = await fetch(
+                    route('products.all', { ...query, page, per_page: perPage, search })
+                );
+                const data = await response.json();
+                console.log('Fetched products:', data);
+                if (data && Array.isArray(data.data)) {
+
+                    setProducts(data.data);
+
+
+                    setCurrentPage(data.pagination.current_page);
+                    setTotalPages(data.pagination.last_page);
+                } else {
+                    setProducts([]);
+                    setCurrentPage(1);
+                    setTotalPages(1);
+                }
+            } catch (error) {
+                setProducts([]);
+                setCurrentPage(1);
+                setTotalPages(1);
+            }
+        },
+        [perPage, query]
+    );
+
+
+    // -- Product selection handlers
+    // Hierarchical selection state: store selected variant ids
+    const [selectedVariantIds, setSelectedVariantIds] = useState([]);
+
+    // Collect all relevant data from the page
+    const collectAllPageData = () => ({
+        linkName,
+        linkId,
+        selectedProducts,
+        selectedProductItems,
+        discountData,
+        popupMessageData,
+        selectedVariantIds,
+        // Add more fields if needed
+    });
+
+    const saveLinkData = useCallback(async () => {
+        const allData = collectAllPageData();
+        const isEdit = link && link.id;
+        const url = isEdit ? route('links.update', { ...query, id: link.id }) : route('products.save', query);
+        const method = isEdit ? 'PUT' : 'POST';
+        await toast.promise(
+            (async () => {
+                const response = await fetch(url, {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(allData),
+                });
+                const data = await response.json();
+                if (!response.ok || !data.success) {
+                    throw new Error(data.error || 'Failed to save link.');
+                }
+                return data.message || isEdit ? 'Link updated successfully!' : 'Link created successfully!';
+            })(),
+            {
+                loading: isEdit ? 'Updating link...' : 'Saving link...',
+                success: (msg) => msg,
+                error: (err) => err.message || 'Failed to save the link. Please try again.',
+            }
+        );
+    }, [selectedProductItems, linkName, linkId, selectedProducts, discountData, popupMessageData, selectedVariantIds, link]);
+
+    // -- Fetch on mount and when search/page changes
+    useEffect(() => {
+        // Use modal search if open, otherwise main search
+        const searchTerm = isProductModalOpen ? debouncedProductSearchValue : debouncedMainProductSearch;
+        fetchProducts(currentPage, searchTerm);
+        // eslint-disable-next-line
+    }, [fetchProducts, currentPage, debouncedMainProductSearch, debouncedProductSearchValue, isProductModalOpen]);
+
+    // -- Handlers for search bars
+    const handleMainProductSearchChange = (value) => {
+        setMainProductSearch(value);
+        setCurrentPage(1);
+    };
+    const handleProductSearchChange = (value) => {
+        setProductSearchValue(value);
+        setCurrentPage(1);
+    };
+
+    const handleNext = () => {
+        if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+    };
+    const handlePrevious = () => {
+        if (currentPage > 1) setCurrentPage(currentPage - 1);
+    };
+
+    // Structure product data for hierarchical rendering (product + variants), memoized to avoid infinite loop
+    const productData = React.useMemo(() => (
+        Array.isArray(products)
+            ? products.map(product => ({
+                id: `${product.id}`,
+                title: product.title,
+                image:
+                    product.image ||
+                    (product.media && product.media[0]?.src) ||
+                    (product.productMedias && product.productMedias[0]?.src) ||
+                    'https://via.placeholder.com/50',
+                available: product.available !== undefined
+                    ? product.available
+                    : Array.isArray(product.product_varients)
+                        ? product.product_varients.reduce((sum, v) => sum + (v.inventory_quantity || 0), 0)
+                        : 0,
+                price: product.price,
+                variants: Array.isArray(product.variants) ? product.variants.map(variant => ({
+                    id: `${product.id}_${variant.id}`,
+                    productId: product.id,
+                    title: product.title,
+                    variantTitle: variant.title,
+                    price: variant.price,
+                    available: variant.inventory_quantity || 0,
+                    image:
+                        variant.image ||
+                        product.image ||
+                        (product.media && product.media[0]?.src) ||
+                        (product.productMedias && product.productMedias[0]?.src) ||
+                        'https://via.placeholder.com/50',
+                    variantId: variant.id,
+                })) : [],
+            }))
+            : []
+    ), [products]);
+
+    // -- Basic UI Handlers
     const handleLinkNameChange = useCallback((value) => setLinkName(value), []);
     const handleLinkIdChange = useCallback((value) => setLinkId(value), []);
-
     const handleProductsToggle = useCallback(() => setProductsOpen(!productsOpen), [productsOpen]);
     const handleDiscountsToggle = useCallback(() => setDiscountsOpen(!discountsOpen), [discountsOpen]);
     const handlePopupMessageToggle = useCallback(() => setPopupMessageOpen(!popupMessageOpen), [popupMessageOpen]);
-
     const handleProductModalOpen = useCallback(() => {
-        // Initialize temp selection with current selection
-        setTempSelectedProductItems([...selectedProductItems]);
+        const obj = {};
+        selectedProductItems.forEach(item => { obj[item.id] = item; });
+        setTempSelectedProductItems(obj);
         setIsProductModalOpen(true);
+        setProductSearchValue('');
     }, [selectedProductItems]);
-
     const handleProductModalClose = useCallback(() => {
-        // Reset temp selection when modal is closed/cancelled
-        setTempSelectedProductItems([]);
+        setTempSelectedProductItems({});
         setIsProductModalOpen(false);
+        setProductSearchValue('');
     }, []);
 
     const handleProductModalDone = useCallback(() => {
-        // Apply temp selection to actual selection
-        setSelectedProductItems(tempSelectedProductItems);
-        setSelectedProducts(tempSelectedProductItems.length);
-
-        // Initialize all products as checked in popup
+        const selectedArray = Object.values(tempSelectedProductItems);
+        setSelectedProductItems(selectedArray);
+        setSelectedProducts(selectedArray.length);
         const checkedState = {};
-        tempSelectedProductItems.forEach(product => {
+        selectedArray.forEach(product => {
             checkedState[product.id] = true;
         });
         setPopupProductChecked(checkedState);
-
-        // Close modal
         setIsProductModalOpen(false);
-        setTempSelectedProductItems([]);
+        setTempSelectedProductItems({});
+        setProductSearchValue('');
     }, [tempSelectedProductItems]);
-    const handleProductSearchChange = useCallback((value) => setProductSearchValue(value), []);
-    const toggleFilterPopover = useCallback(() => setFilterPopoverActive(!filterPopoverActive), [filterPopoverActive]);
 
-    // Copy to clipboard handler
-    const handleCopyLink = useCallback(async () => {
-        const linkUrl = "https://examplewebsite.com/3n49sjw3...";
+    // Helper: get all variant ids for a product
+    const getAllVariantIds = (product) => product.variants.length > 0 ? product.variants.map(v => v.id) : [product.id];
 
-        try {
-            await navigator.clipboard.writeText(linkUrl);
-
-            // Show App Bridge toast
-            if (app) {
-                app.toast.show('Link copied to clipboard!', {
-                    isError: false,
-                    duration: 3000
-                });
-            }
-        } catch (error) {
-            console.error('Failed to copy link:', error);
-
-            // Fallback for older browsers
-            const textArea = document.createElement('textarea');
-            textArea.value = linkUrl;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-
-            // Show App Bridge toast
-            if (app) {
-                app.toast.show('Link copied to clipboard!', {
-                    isError: false,
-                    duration: 3000
-                });
-            }
+    // Handle product or variant checkbox change
+    const handleProductOrVariantCheck = (id, checked, isProduct, product) => {
+        if (isProduct) {
+            // Product-level: select/deselect all its variants (or itself if no variants)
+            const variantIds = getAllVariantIds(product);
+            setSelectedVariantIds(prev => {
+                let newIds;
+                if (checked) {
+                    newIds = Array.from(new Set([...prev, ...variantIds]));
+                } else {
+                    newIds = prev.filter(vid => !variantIds.includes(vid));
+                }
+                // Update selectedProductItems
+                updateSelectedProductItems(newIds);
+                return newIds;
+            });
+        } else {
+            // Variant-level: toggle only this variant
+            setSelectedVariantIds(prev => {
+                let newIds;
+                if (checked) {
+                    newIds = Array.from(new Set([...prev, id]));
+                } else {
+                    newIds = prev.filter(vid => vid !== id);
+                }
+                // Update selectedProductItems
+                updateSelectedProductItems(newIds);
+                return newIds;
+            });
         }
-    }, [app]);
+    };
 
-
-    const handleProductSelection = useCallback((newSelectedItems) => {
-
-        const selectedProducts = newSelectedItems.map(id => {
-            const product = productData.find(item => item.id === id);
-            let title = '';
-            let variantName = '';
-
-
-            if (product && product.type === 'gift-card' && product.id !== 'gift-card') {
-                title = 'Gift Card';
-                variantName = product.title;
-            } else if (product) {
-                title = product.title;
-                variantName = product.variant || '';
+    // Helper to update selectedProductItems based on selectedVariantIds
+    const updateSelectedProductItems = (variantIds) => {
+        // Flatten all variants and products
+        const allVariants = productData.flatMap(product => product.variants.length > 0 ? product.variants.map(v => ({
+            id: v.id,
+            productId: product.id,
+            title: product.title,
+            variant: v.variantTitle,
+            variantId: v.id,
+            quantity: 1,
+            price: v.price,
+            image: product.image
+        })) : [{
+            id: product.id,
+            productId: product.id,
+            title: product.title,
+            variant: null,
+            variantId: null,
+            quantity: 1,
+            price: product.price,
+            image: product.image
+        }]);
+        const selected = [];
+        const seen = new Set();
+        allVariants.forEach(v => {
+            if (variantIds.includes(v.id) && !seen.has(v.id)) {
+                selected.push(v);
+                seen.add(v.id);
             }
-
-            return {
-                id: id,
-                title: title,
-                variant: variantName,
-                quantity: 1,
-                price: product ? product.price : 0,
-                image: product ? product.image : ''
-            };
         });
+        setSelectedProductItems(selected);
+    };
 
-        // Update temporary selection (not the actual selection)
-        setTempSelectedProductItems(selectedProducts);
-    }, [productData]);
+    // Update tempSelectedProductItems when selectedVariantIds changes
+    useEffect(() => {
+        setTempSelectedProductItems(prev => {
+            const allVariants = productData.flatMap(product => product.variants.length > 0 ? product.variants : [{
+                id: product.id,
+                productId: product.id,
+                title: product.title,
+                variantTitle: null,
+                price: product.price,
+                image: product.image,
+                available: product.available,
+                variantId: null,
+            }]);
+            let updated = { ...prev };
+            selectedVariantIds.forEach(id => {
+                if (!updated[id]) {
+                    const item = allVariants.find(v => v.id === id);
+                    if (item) {
+                        updated[id] = {
+                            id: item.id,
+                            productId: item.productId,
+                            title: item.title,
+                            variant: item.variantTitle,
+                            variantId: item.variantId,
+                            quantity: 1,
+                            price: item.price,
+                            image: item.image
+                        };
+                    }
+                }
+        });
+            // Remove items that are no longer selected
+            Object.keys(updated).forEach(id => {
+                if (!selectedVariantIds.includes(id)) {
+                    delete updated[id];
+                }
+            });
+            return updated;
+        });
+    }, [selectedVariantIds, productData]);
 
-    // Handle drag and drop reordering of selected products
     const handleDragEnd = useCallback((result) => {
         if (!result.destination) return;
-
         const items = Array.from(selectedProductItems);
         const [reorderedItem] = items.splice(result.source.index, 1);
         items.splice(result.destination.index, 0, reorderedItem);
-
         setSelectedProductItems(items);
     }, [selectedProductItems]);
 
-    // Remove a product from the selection
     const handleRemoveProduct = useCallback((productId) => {
         const newSelection = selectedProductItems.filter(product => product.id !== productId);
         setSelectedProductItems(newSelection);
         setSelectedProducts(newSelection.length);
-
-        // Remove from checkbox state
         setPopupProductChecked(prev => {
             const newState = { ...prev };
             delete newState[productId];
@@ -350,32 +446,14 @@ export default function CreateLink() {
         });
     }, [selectedProductItems]);
 
-    // Individual discount handlers
-    const handleFreeShippingChange = useCallback((value) => {
-        setDiscountData(prev => ({ ...prev, freeShipping: value }));
-    }, []);
-
-    const handleOrderDiscountChange = useCallback((value) => {
-        setDiscountData(prev => ({ ...prev, orderDiscount: value }));
-    }, []);
-
-    const handleDiscountValueChange = useCallback((value) => {
-        setDiscountData(prev => ({ ...prev, discountValue: value }));
-    }, []);
-
-    const handleDiscountCodeChange = useCallback((value) => {
-        setDiscountData(prev => ({ ...prev, discountCode: value }));
-    }, []);
-
-    const handleDiscountCodeValueChange = useCallback((value) => {
-        setDiscountData(prev => ({ ...prev, discountCodeValue: value }));
-    }, []);
-
-    // Individual popup message handlers
+    // -- Discount and Popup handlers (unchanged)
+    const handleFreeShippingChange = useCallback((value) => setDiscountData(prev => ({ ...prev, freeShipping: value })), []);
+    const handleOrderDiscountChange = useCallback((value) => setDiscountData(prev => ({ ...prev, orderDiscount: value })), []);
+    const handleDiscountValueChange = useCallback((value) => setDiscountData(prev => ({ ...prev, discountValue: value })), []);
+    const handleDiscountCodeChange = useCallback((value) => setDiscountData(prev => ({ ...prev, discountCode: value })), []);
+    const handleDiscountCodeValueChange = useCallback((value) => setDiscountData(prev => ({ ...prev, discountCodeValue: value })), []);
     const handlePopupActiveToggle = useCallback((value) => {
         setPopupMessageData(prev => ({ ...prev, isActive: value }));
-
-        // Parse timer and start countdown when popup is active and countdown is enabled
         if (value && popupMessageData.countdownActive && popupMessageData.timerText) {
             const timeInSeconds = parseTimeToSeconds(popupMessageData.timerText);
             setTimerSeconds(timeInSeconds);
@@ -384,19 +462,10 @@ export default function CreateLink() {
             setIsTimerActive(false);
         }
     }, [popupMessageData.countdownActive, popupMessageData.timerText]);
-
-    const handlePopupHeadingTextChange = useCallback((value) => {
-        setPopupMessageData(prev => ({ ...prev, headingText: value }));
-    }, []);
-
-    const handlePopupMessageTextChange = useCallback((value) => {
-        setPopupMessageData(prev => ({ ...prev, messageText: value }));
-    }, []);
-
+    const handlePopupHeadingTextChange = useCallback((value) => setPopupMessageData(prev => ({ ...prev, headingText: value })), []);
+    const handlePopupMessageTextChange = useCallback((value) => setPopupMessageData(prev => ({ ...prev, messageText: value })), []);
     const handlePopupCountdownToggle = useCallback((value) => {
         setPopupMessageData(prev => ({ ...prev, countdownActive: value }));
-
-        // Start timer if countdown is enabled and popup is active
         if (value && popupMessageData.isActive && popupMessageData.timerText) {
             const timeInSeconds = parseTimeToSeconds(popupMessageData.timerText);
             setTimerSeconds(timeInSeconds);
@@ -405,74 +474,38 @@ export default function CreateLink() {
             setIsTimerActive(false);
         }
     }, [popupMessageData.isActive, popupMessageData.timerText]);
-
     const handlePopupTimerTextChange = useCallback((value) => {
         setPopupMessageData(prev => ({ ...prev, timerText: value }));
-
-        // Restart timer if countdown is active and popup is active
         if (popupMessageData.countdownActive && popupMessageData.isActive) {
             const timeInSeconds = parseTimeToSeconds(value);
             setTimerSeconds(timeInSeconds);
             setIsTimerActive(true);
         }
     }, [popupMessageData.countdownActive, popupMessageData.isActive]);
+    const handlePopupCopyTextChange = useCallback((value) => setPopupMessageData(prev => ({ ...prev, copyText: value })), []);
+    const handlePopupAllowDeselectToggle = useCallback((value) => setPopupMessageData(prev => ({ ...prev, allowDeselect: value })), []);
+    const handlePopupShowPriceToggle = useCallback((value) => setPopupMessageData(prev => ({ ...prev, showPrice: value })), []);
+    const handlePopupShowOrderTotalToggle = useCallback((value) => setPopupMessageData(prev => ({ ...prev, showOrderTotal: value })), []);
+    const handlePopupCheckoutButtonTextChange = useCallback((value) => setPopupMessageData(prev => ({ ...prev, checkoutButtonText: value })), []);
+    const handlePopupCloseButtonTextChange = useCallback((value) => setPopupMessageData(prev => ({ ...prev, closeButtonText: value })), []);
+    const handlePopupCloseButtonLinkChange = useCallback((value) => setPopupMessageData(prev => ({ ...prev, closeButtonLink: value })), []);
 
-    const handlePopupCopyTextChange = useCallback((value) => {
-        setPopupMessageData(prev => ({ ...prev, copyText: value }));
-    }, []);
-
-    const handlePopupAllowDeselectToggle = useCallback((value) => {
-        setPopupMessageData(prev => ({ ...prev, allowDeselect: value }));
-    }, []);
-
-    const handlePopupShowPriceToggle = useCallback((value) => {
-        setPopupMessageData(prev => ({ ...prev, showPrice: value }));
-    }, []);
-
-    const handlePopupShowOrderTotalToggle = useCallback((value) => {
-        setPopupMessageData(prev => ({ ...prev, showOrderTotal: value }));
-    }, []);
-
-    const handlePopupCheckoutButtonTextChange = useCallback((value) => {
-        setPopupMessageData(prev => ({ ...prev, checkoutButtonText: value }));
-    }, []);
-
-    const handlePopupCloseButtonTextChange = useCallback((value) => {
-        setPopupMessageData(prev => ({ ...prev, closeButtonText: value }));
-    }, []);
-
-    const handlePopupCloseButtonLinkChange = useCallback((value) => {
-        setPopupMessageData(prev => ({ ...prev, closeButtonLink: value }));
-    }, []);
-
-    // Parse time string to seconds (e.g., "2 minutes" -> 120, "1 minute" -> 60, "30 seconds" -> 30)
+    // -- Timer utilities
     const parseTimeToSeconds = (timeString) => {
         const lowerCase = timeString.toLowerCase();
         const number = parseInt(lowerCase.match(/\d+/)?.[0] || 0);
-
-        if (lowerCase.includes('minute')) {
-            return number * 60;
-        } else if (lowerCase.includes('second')) {
-            return number;
-        } else if (lowerCase.includes('hour')) {
-            return number * 3600;
-        }
-
-        // Default to minutes if no unit specified
+        if (lowerCase.includes('minute')) return number * 60;
+        if (lowerCase.includes('second')) return number;
+        if (lowerCase.includes('hour')) return number * 3600;
         return number * 60;
     };
-
-    // Format seconds to MM:SS format
     const formatTime = (seconds) => {
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
-
-    // Timer effect
     useEffect(() => {
         let interval = null;
-
         if (isTimerActive && timerSeconds > 0) {
             interval = setInterval(() => {
                 setTimerSeconds(seconds => {
@@ -486,21 +519,15 @@ export default function CreateLink() {
         } else if (timerSeconds === 0) {
             setIsTimerActive(false);
         }
-
-        return () => {
-            if (interval) clearInterval(interval);
-        };
+        return () => { if (interval) clearInterval(interval); };
     }, [isTimerActive, timerSeconds]);
 
-    // Handle checkbox changes in popup message preview
     const handlePopupProductCheck = useCallback((productId, checked) => {
         setPopupProductChecked(prev => ({
             ...prev,
             [productId]: checked
         }));
     }, []);
-
-    // Restart timer function
     const restartTimer = useCallback(() => {
         if (popupMessageData.isActive && popupMessageData.countdownActive && popupMessageData.timerText) {
             const timeInSeconds = parseTimeToSeconds(popupMessageData.timerText);
@@ -509,15 +536,40 @@ export default function CreateLink() {
         }
     }, [popupMessageData.isActive, popupMessageData.countdownActive, popupMessageData.timerText]);
 
+    // Copy to clipboard handler
+    const handleCopyLink = useCallback(async () => {
+        const linkUrl = "https://examplewebsite.com/3n49sjw3...";
+        try {
+            await navigator.clipboard.writeText(linkUrl);
+            if (app && app.toast) {
+                app.toast.show('Link copied to clipboard!', {
+                    isError: false,
+                    duration: 3000
+                });
+            }
+        } catch {
+            const textArea = document.createElement('textarea');
+            textArea.value = linkUrl;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            if (app && app.toast) {
+                app.toast.show('Link copied to clipboard!', {
+                    isError: false,
+                    duration: 3000
+                });
+            }
+        }
+    }, [app]);
+
+    // -- UI Render
     return (
-
         <Page
-
             title='Create Link'
             backAction={{
                 content: 'Links',
                 onAction: () => router.visit(route('links', query))
-
             }}
             primaryAction={{
                 content: 'Save',
@@ -528,17 +580,15 @@ export default function CreateLink() {
                     console.log('Selected Products:', selectedProductItems);
                     console.log('Discount Data:', discountData);
                     console.log('Popup Message Data:', popupMessageData);
+                    saveLinkData();
                 },
                 disabled: !linkName || !linkId || selectedProductItems.length === 0
             }}
         >
-
             <div className='scroll-wrapper'>
-                {/* Left side - Scrollable */}
-                <div className='custom-scroll' >
+                <div className='custom-scroll'>
                     <div style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
                         <BlockStack gap="500">
-
                             <Card>
                                 <BlockStack gap="400" padding="400">
                                     <Text variant="bodyMd">Link Name</Text>
@@ -549,7 +599,6 @@ export default function CreateLink() {
                                         placeholder="Enter your Link Name"
                                         autoComplete="off"
                                     />
-
                                     <Text variant="bodyMd">Link ID</Text>
                                     <TextField
                                         label=""
@@ -562,20 +611,15 @@ export default function CreateLink() {
                             </Card>
 
 
+                            {/* Products Card */}
                             <Card>
                                 <BlockStack gap="400">
-
                                     <InlineStack align="space-between" padding="400">
                                         <InlineStack align="center" gap='050'>
                                             <Box>
-                                                <Icon
-                                                    source={ProductAddIcon}
-                                                    tone="base"
-                                                />
-
+                                                <Icon source={ProductAddIcon} tone="base" />
                                             </Box>
                                             <Text variant="bodyMd" fontWeight='bold'> Products</Text>
-
                                         </InlineStack>
                                         <Button
                                             onClick={handleProductsToggle}
@@ -585,25 +629,106 @@ export default function CreateLink() {
                                             icon={productsOpen ? ChevronUpIcon : ChevronDownIcon}
                                         />
                                     </InlineStack>
-
-                                    <Collapsible
-                                        open={productsOpen}
-                                        id="products-content"
-                                    >
+                                    <Collapsible open={productsOpen} id="products-content">
                                         <Box>
                                             <BlockStack gap="400">
-                                                <InlineStack align="space-between" gap="400">
+                                                <InlineStack align="space-between" gap="400" >
                                                     <div style={{ flexGrow: 1 }}>
                                                         <TextField
-                                                            prefix={<Icon source={SearchIcon} />}
-                                                            placeholder="Search products "
-                                                            fullWidth
-                                                            value={productSearch}
-                                                            onChange={(value) => { setProductSearch(value) }} />
+                                                            label=""
+                                                            value={mainProductSearch}
+                                                            onChange={handleMainProductSearchChange}
+                                                            placeholder="Search products..."
+                                                            clearButton
+                                                            onClearButtonClick={() => handleMainProductSearchChange('')}
+                                                            autoComplete="off"
+                                                        />
                                                     </div>
                                                     <Button onClick={handleProductModalOpen}>Browse</Button>
                                                 </InlineStack>
 
+                                                {/* Show filtered products under the search field */}
+                                                {mainProductSearch && (
+                                                    <div style={{
+                                                        maxHeight: '320px',
+                                                        overflowY: 'auto',
+                                                        margin: '12px 0',
+                                                        background: '#fff',
+                                                        border: '1px solid #e1e3e5',
+                                                        borderRadius: 8,
+                                                        boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+                                                        padding: '8px 0',
+                                                    }}>
+                                                        {productData
+                                                            .filter(product =>
+                                                                product.title.toLowerCase().includes(mainProductSearch.toLowerCase())
+                                                            )
+                                                            .map(product => (
+                                                                <div
+                                                                    key={product.id}
+                                                                    style={{
+                                                                        borderBottom: '1px solid #f0f0f0',
+                                                                        padding: '10px 18px',
+                                                                        transition: 'background 0.2s',
+                                                                        cursor: 'pointer',
+                                                                    }}
+                                                                    onMouseOver={e => e.currentTarget.style.background = '#f9fafb'}
+                                                                    onMouseOut={e => e.currentTarget.style.background = '#fff'}
+                                                                >
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                                        <Checkbox
+                                                                            label=""
+                                                                            checked={product.variants.length > 0
+                                                                                ? product.variants.every(v => selectedVariantIds.includes(v.id))
+                                                                                : selectedVariantIds.includes(product.id)
+                                                                            }
+                                                                            indeterminate={product.variants.length > 0 && product.variants.some(v => selectedVariantIds.includes(v.id)) && !product.variants.every(v => selectedVariantIds.includes(v.id))}
+                                                                            onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
+                                                                        />
+                                                                        <Thumbnail source={product.image} alt={product.title} size="small" />
+                                                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                                                            <Text fontWeight="medium" truncate>{product.title}</Text>
+                                                                            {/* <Text variant="bodySm" color="subdued" style={{ marginLeft: 8 }}>Available:</Text> */}
+                                                                        </div>
+                                                                        {product.variants.length === 0 && (
+                                                                            <Text variant="bodySm" color="subdued">Price: ${product.price}</Text>
+                                                                        )}
+                                                                    </div>
+                                                                    {product.variants.length > 0 && (
+                                                                        <div style={{ marginLeft: 44, marginTop: 6 }}>
+                                                                            {product.variants.map(variant => (
+                                                                                <div key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2, padding: '2px 0' }}>
+                                                                                    <Checkbox
+                                                                                        label=""
+                                                                                        checked={selectedVariantIds.includes(variant.id)}
+                                                                                        onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
+                                                                                    />
+                                                                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                                                                        <Text fontWeight="medium" truncate>{variant.variantTitle}</Text>
+                                                                                        <Text variant="bodySm" color="subdued" style={{ marginLeft: 8 }}>Available: {variant.available}</Text>
+                                                                                    </div>
+                                                                                    <Text variant="bodySm" color="subdued">Price: ${variant.price}</Text>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+
+                                                        <Box paddingBlockStart="200" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', paddingTop: '8px' }}>
+                                                            <Pagination
+                                                                hasPrevious={currentPage > 1}
+                                                                onPrevious={handlePrevious}
+                                                                hasNext={currentPage < totalPages}
+                                                                onNext={handleNext}
+                                                            />
+                                                        </Box>
+
+                                                        {productData.filter(product => product.title.toLowerCase().includes(mainProductSearch.toLowerCase())).length === 0 && (
+                                                            <Text variant="bodySm" color="subdued" alignment="center" style={{ display: 'block', padding: 16 }}>No products found</Text>
+                                                        )}
+                                                    </div>
+                                                )}
                                                 {selectedProductItems.length > 0 && (
                                                     <DragDropContext onDragEnd={handleDragEnd}>
                                                         <Droppable droppableId="selected-products">
@@ -614,9 +739,9 @@ export default function CreateLink() {
                                                                 >
                                                                     {selectedProductItems.map((product, index) => {
                                                                         if (!product) return null;
-
+                                                                        // Use a unique key by combining id and index
                                                                         return (
-                                                                            <Draggable key={product.id} draggableId={product.id} index={index}>
+                                                                            <Draggable key={`${product.id}_${index}`} draggableId={`${product.id}_${index}`} index={index}>
                                                                                 {(provided) => (
                                                                                     <div
                                                                                         ref={provided.innerRef}
@@ -631,23 +756,19 @@ export default function CreateLink() {
                                                                                             justifyContent: 'space-between',
                                                                                         }}
                                                                                     >
-                                                                                        <InlineStack gap="400" >
+                                                                                        <InlineStack gap="400">
                                                                                             <div {...provided.dragHandleProps} style={{ color: '#6d7175', display: 'flex', alignItems: 'center' }}>
                                                                                                 <Icon source={DragHandleIcon} tone='base' />
                                                                                             </div>
                                                                                             <Thumbnail
                                                                                                 source={product.image}
-                                                                                                alt={product.name}
+                                                                                                alt={product.title}
                                                                                                 size="small"
                                                                                             />
                                                                                             <Box maxWidth="180px">
-                                                                                                <div
-                                                                                                    style={{ display: 'inline-block', width: '100%' }}
-                                                                                                    title={product.title + (product.variant ? ` (${product.variant})` : '')}
-                                                                                                >
+                                                                                                <div style={{ display: 'inline-block', width: '100%' }} title={product.title + (product.variant ? ` (${product.variant})` : '')}>
                                                                                                     <Text fontWeight="medium" truncate as="span">
                                                                                                         {product.title}
-
                                                                                                         {product.variant && ` (${product.variant})`}
                                                                                                     </Text>
                                                                                                 </div>
@@ -658,7 +779,6 @@ export default function CreateLink() {
                                                                                             <Button variant="plain" onClick={() => handleRemoveProduct(product.id)}>
                                                                                                 <Icon source={XIcon} tone='base' />
                                                                                             </Button>
-                                                                                            {/* <Button variant="plain" size="slim">Edit</Button> */}
                                                                                         </InlineStack>
                                                                                     </div>
                                                                                 )}
@@ -676,23 +796,15 @@ export default function CreateLink() {
                                     </Collapsible>
                                 </BlockStack>
                             </Card>
-
-
-
-
+                            {/* Discounts Card */}
                             <Card>
                                 <BlockStack gap="400">
                                     <InlineStack align="space-between" padding="400">
                                         <InlineStack align="center" gap='050'>
                                             <Box>
-                                                <Icon
-                                                    source={SettingsIcon}
-                                                    tone="base"
-                                                />
-
+                                                <Icon source={SettingsIcon} tone="base" />
                                             </Box>
                                             <Text variant="bodyMd" fontWeight='bold'> Discounts</Text>
-
                                         </InlineStack>
                                         <Button
                                             onClick={handleDiscountsToggle}
@@ -702,12 +814,8 @@ export default function CreateLink() {
                                             icon={discountsOpen ? ChevronUpIcon : ChevronDownIcon}
                                         />
                                     </InlineStack>
-
-                                    <Collapsible
-                                        open={discountsOpen}
-                                        id="discounts-content"
-                                    >
-                                        <Box padding="">
+                                    <Collapsible open={discountsOpen} id="discounts-content">
+                                        <Box>
                                             <Discount
                                                 discountData={discountData}
                                                 onFreeShippingChange={handleFreeShippingChange}
@@ -720,21 +828,15 @@ export default function CreateLink() {
                                     </Collapsible>
                                 </BlockStack>
                             </Card>
-
-
+                            {/* Popup Message Card */}
                             <Card>
                                 <BlockStack gap="400">
                                     <InlineStack align="space-between" padding="400">
                                         <InlineStack align="center" gap='050'>
                                             <Box>
-                                                <Icon
-                                                    source={StatusActiveIcon}
-                                                    tone="base"
-                                                />
-
+                                                <Icon source={StatusActiveIcon} tone="base" />
                                             </Box>
                                             <Text variant="bodyMd" fontWeight='bold'> Popup Message</Text>
-
                                         </InlineStack>
                                         <Button
                                             onClick={handlePopupMessageToggle}
@@ -744,12 +846,8 @@ export default function CreateLink() {
                                             icon={popupMessageOpen ? ChevronUpIcon : ChevronDownIcon}
                                         />
                                     </InlineStack>
-
-                                    <Collapsible
-                                        open={popupMessageOpen}
-                                        id="popup-message-content"
-                                    >
-                                        <Box padding="">
+                                    <Collapsible open={popupMessageOpen} id="popup-message-content">
+                                        <Box>
                                             <PopupMessage
                                                 popupMessageData={popupMessageData}
                                                 onActiveToggle={handlePopupActiveToggle}
@@ -772,7 +870,6 @@ export default function CreateLink() {
                         </BlockStack>
                     </div>
                 </div>
-
                 <div style={{ flex: 1, position: 'sticky', top: '1rem', height: 'fit-content', paddingLeft: '0.5rem', overflow: 'auto' }}>
                     <BlockStack gap="300">
 
@@ -899,7 +996,7 @@ export default function CreateLink() {
                                                             }}>
                                                                 <BlockStack gap="400">
                                                                     {selectedProductItems.map((product, index) => (
-                                                                        <InlineStack key={product.id} align="space-between" gap="400" blockAlign='center' padding="200" borderRadius="2" border="base">
+                                                                        <InlineStack key={`${product.id}_${index}`} align="space-between" gap="400" blockAlign='center' padding="200" borderRadius="2" border="base">
                                                                             <InlineStack gap="300" blockAlign='center' align='start'>
                                                                                 <div style={{ position: 'relative', display: 'inline-block' }}>
                                                                                     <Box
@@ -965,6 +1062,7 @@ export default function CreateLink() {
                                                                     <TextField
                                                                         placeholder="Gift card"
                                                                         autoComplete="off"
+                                                                            value={discountData.discountValue}
                                                                     // connectedRight={
                                                                     //     <Button variant="secondary">Apply</Button>
                                                                     // }
@@ -1071,7 +1169,7 @@ export default function CreateLink() {
                                                             {discountData.orderDiscount && discountData.discountValue != '' && (
                                                                 <InlineStack align="start" gap="050" >
                                                                     <Box>
-                                                                        <Icon source={ProductListIcon} tone="base"  />
+                                                                            <Icon source={ProductListIcon} tone="base" />
 
                                                                     </Box>
                                                                     <Text fontWeight="bold" tone="050" variant="bodyMd">
@@ -1274,8 +1372,7 @@ export default function CreateLink() {
                     </BlockStack>
                 </div>
             </div>
-
-
+            {/* --- MODAL WITH SEARCH & PAGINATION --- */}
             <Modal
                 open={isProductModalOpen}
                 onClose={handleProductModalClose}
@@ -1292,157 +1389,80 @@ export default function CreateLink() {
                 ]}
                 footer={
                     <div style={{ padding: '12px 16px', textAlign: 'left' }}>
-                        <Text>{tempSelectedProductItems.length} products selected</Text>
+                        <Text>{Object.keys(tempSelectedProductItems).length} products selected</Text>
                     </div>
                 }
             >
                 <Modal.Section>
                     <BlockStack gap="400">
-                        {/* Search and Filter Section */}
                         <InlineStack gap="400" align="start">
                             <div style={{ flexGrow: 1 }} className="product-search-container">
                                 <TextField
                                     label=""
                                     value={productSearchValue}
                                     onChange={handleProductSearchChange}
-
                                     placeholder="Search product"
                                     clearButton
                                     onClearButtonClick={() => setProductSearchValue('')}
                                     autoComplete="off"
                                 />
                             </div>
-
-                            {/* <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                                <Popover
-                                    active={filterPopoverActive}
-                                    activator={
-                                        <Button onClick={toggleFilterPopover} icon={FilterIcon}>
-                                            Add filter
-                                        </Button>
-                                    }
-                                    onClose={toggleFilterPopover}
-                                >
-                                    <Box padding="400">
-                                        <Text variant="headingSm" as="h3">Filter options</Text>
-                                    </Box>
-                                </Popover>
-                            </div> */}
                         </InlineStack>
 
-                        {/* Product List using ResourceList */}
                         <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                            <ResourceList
-                                resourceName={{ singular: 'product', plural: 'products' }}
-                                items={[
-                                    // Gift Card Category Header
-                                    {
-                                        id: 'gift-card',
-                                        name: 'Gift Card',
-                                        isCategory: true,
-                                        image: productData.find(item => item.id === 'gift-card')?.image,
-                                    },
-                                    // Gift Card Items
-                                    ...productData.filter(item => item.type === 'gift-card' && item.id !== 'gift-card').map(item => ({
-                                        id: item.id,
-                                        name: item.title,
-                                        isGiftCardItem: true,
-                                        price: item.price,
-                                    })),
-                                    // Regular Products
-                                    ...productData.filter(item => item.type === 'product').map(item => ({
-                                        id: item.id,
-                                        name: item.title,
-                                        variant: item.variant,
-                                        available: item.available,
-                                        price: item.price,
-                                        image: item.image,
-                                    }))
-                                ]}
-                                selectedItems={tempSelectedProductItems.map(item => item.id)}
-                                onSelectionChange={handleProductSelection}
-                                selectable
-                                renderItem={(item) => {
-                                    const isSelected = selectedProductItems.includes(item.id);
-
-                                    // Category Header (Gift Card)
-                                    if (item.isCategory) {
-                                        return (
-                                            <ResourceItem
-                                                id={item.id}
-                                                media={
-                                                    <Thumbnail
-                                                        source={item.image}
-                                                        alt={item.name}
-                                                        size="small"
-                                                    />
-                                                }
-                                                verticalAlignment="center"
-                                                accessibilityLabel={`Select ${item.name}`}
-                                                name={item.name}
-                                                style={{
-                                                    backgroundColor: '#F6F6F7',
-                                                    padding: '12px 16px',
-                                                    fontWeight: '500'
-                                                }}
-                                            >
-                                                <Text fontWeight="semibold">{item.name}</Text>
-                                            </ResourceItem>
-                                        );
-                                    }
-
-
-                                    if (item.isGiftCardItem) {
-                                        return (
-                                            <ResourceItem
-                                                id={item.id}
-                                                verticalAlignment="center"
-                                                accessibilityLabel={`Select ${item.name}`}
-                                                name={item.name}
-                                            >
-                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                                    <div>
-                                                        <Text fontWeight="medium">{item.name}</Text>
-                                                        <Text variant="bodySm" color="subdued">Gift Card</Text>
-                                                    </div>
-                                                    {/* <Button variant="plain" size="slim">Edit</Button> */}
-                                                    <Text fontWeight="semibold">${item.price}</Text>
-                                                </div>
-                                            </ResourceItem>
-                                        );
-                                    }
-
-
-                                    return (
-                                        <ResourceItem
-                                            id={item.id}
-                                            media={
-                                                <Thumbnail
-                                                    source={item.image}
-                                                    alt={item.name}
-                                                    size="small"
-                                                />
+                            {productData.map(product => (
+                                <div key={product.id} style={{ borderBottom: '1px solid #eee', padding: '8px 0' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <Checkbox
+                                            label=""
+                                            checked={product.variants.length > 0
+                                                ? product.variants.every(v => selectedVariantIds.includes(v.id))
+                                                : selectedVariantIds.includes(product.id)
                                             }
-                                            verticalAlignment="center"
-                                            accessibilityLabel={`Select ${item.name}`}
-                                            name={item.name}
-                                        >
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                                                <div>
-                                                    <Text fontWeight="medium">{item.name}</Text>
-                                                    <Text variant="bodySm" color="subdued">Available: {item.available}</Text>
+                                            indeterminate={product.variants.length > 0 && product.variants.some(v => selectedVariantIds.includes(v.id)) && !product.variants.every(v => selectedVariantIds.includes(v.id))}
+                                            onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
+                                        />
+                                        <Thumbnail source={product.image} alt={product.title} size="small" />
+                                        <div style={{ flex: 1 }}>
+                                            <Text fontWeight="medium">{product.title}</Text>
+                                        </div>
+                                        {product.variants.length === 0 && (
+                                            <Text variant="bodySm" color="subdued">Price: ${product.price}</Text>
+                                        )}
+                                    </div>
+                                    {product.variants.length > 0 && (
+                                        <div style={{ marginLeft: 36, marginTop: 4 }}>
+                                            {product.variants.map(variant => (
+                                                <div key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                                                    <Checkbox
+                                                        label=""
+                                                        checked={selectedVariantIds.includes(variant.id)}
+                                                        onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
+                                                    />
+                                                    {/* <Thumbnail source={variant.image} alt={variant.title} size="small" /> */}
+                                                    <div style={{ flex: 1 }}>
+                                                        <Text fontWeight="medium">{variant.variantTitle}</Text>
+                                                        <Text variant="bodySm" color="subdued" style={{ marginLeft: 8 }}>Available: {variant.available}</Text>
+                                                    </div>
+                                                    <Text variant="bodySm" color="subdued">Price: ${variant.price}</Text>
                                                 </div>
-                                                <Text fontWeight="semibold">${item.price}</Text>
-                                            </div>
-                                        </ResourceItem>
-                                    );
-                                }}
-                            />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
                         </div>
+                        <Box paddingBlockStart="200" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                            <Pagination
+                                hasPrevious={currentPage > 1}
+                                onPrevious={handlePrevious}
+                                hasNext={currentPage < totalPages}
+                                onNext={handleNext}
+                            />
+                        </Box>
                     </BlockStack>
                 </Modal.Section>
             </Modal>
         </Page>
     );
 }
-

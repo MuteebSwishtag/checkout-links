@@ -25,3 +25,11 @@
 .Polaris-TextField:focus-within > .Polaris-TextField__Input{
     --tw-ring-shadow:black !important;
 }
+#customToggleTwo span:before {
+    border-radius: 12%;
+    padding: 6px;
+}
+
+#customToggleTwo span {
+    border-radius: 12%;
+}

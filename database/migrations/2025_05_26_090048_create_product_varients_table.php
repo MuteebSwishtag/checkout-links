@@ -16,13 +16,11 @@ return new class extends Migration
             $table->unsignedBigInteger('product_id')->nullable();
             $table->unsignedBigInteger('shopify_product_varient_id')->nullable();
             $table->unsignedBigInteger('shopify_inventory_item_id')->nullable();
-            $table->double('compare_at_price')->nullable();
-            $table->bigInteger('price')->nullable();
-            $table->string('sku')->nullable();
+            $table->decimal('compare_at_price', 10, 2)->nullable();
+            $table->decimal('price', 10, 2)->nullable();
             $table->string('title')->nullable();
-            $table->bigInteger('inventory_quantity')->nullable();
+            $table->unsignedBigInteger('inventory_quantity')->nullable();
             $table->timestamps();
-
         });
     }
 

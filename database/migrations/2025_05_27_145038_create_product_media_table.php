@@ -13,9 +13,8 @@ return new class extends Migration
     {
         Schema::create('product_media', function (Blueprint $table) {
             $table->id();
-            $table->string('product_id')->nullable();
+            $table->unsignedBigInteger('product_id')->nullable();
             $table->string('shopify_product_media_id')->nullable();
-            $table->string('position')->nullable();
             $table->string('src')->nullable();
             $table->timestamps();
         });

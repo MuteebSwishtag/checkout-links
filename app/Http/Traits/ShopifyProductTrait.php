@@ -6,8 +6,6 @@ use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use App\Repositories\Product\ProductRepositoryInterface;
 
-
-
 trait ShopifyProductTrait
 {
     protected $product;
@@ -31,7 +29,6 @@ trait ShopifyProductTrait
                         if (!$this->storeData($this->arrayToObject($product), $user)) {
                             $hasErrors = true;
                         }
-
                     }
                 }
             }
@@ -69,11 +66,7 @@ trait ShopifyProductTrait
                         node {
                             id
                             title
-                            handle
-                            descriptionHtml
-                            tags
                             vendor
-                            productType
                             status
                             variants(first: 250) {
                                 edges {
@@ -83,14 +76,13 @@ trait ShopifyProductTrait
                                             id
                                         }
                                         title
-                                        sku
                                         price
                                         inventoryQuantity
                                         compareAtPrice
                                     }
                                 }
                             }
-                            media(first: 250) {
+                            media(first: 1) {
                                 edges {
                                     node {
                                         ... on MediaImage {
@@ -141,11 +133,7 @@ trait ShopifyProductTrait
             'user_id' => $user->id,
             'shopify_product_id' => $product->id,
             'title' => $product->title,
-            "handle" => $product->handle,
-            'body_html' => $product->body_html,
-            'tags' => $product->tags,
             'vendor' => $product->vendor,
-            'product_type' => $product->product_type,
             'status' => $product->status,
             'variants' => $this->formateProductvarientData($product->variants),
             'media' => $this->formateProductMedia($product->media)
@@ -157,10 +145,10 @@ trait ShopifyProductTrait
         $productVarients = [];
         foreach ($variants as $varient) {
             $productVarients[] = [
-                "shopify_product_Varient_id" => $varient->id,
+                'product_id' => $varient->product_id ?? null, // optional, set if available
+                'shopify_product_varient_id' => $varient->id,
                 'shopify_inventory_item_id' => $varient->inventory_item_id,
                 'title' => $varient->title,
-                'sku' => $varient->sku,
                 'price' => $varient->price,
                 'inventory_quantity' => $varient->inventory_quantity,
                 'compare_at_price' => $varient->compare_at_price
@@ -173,8 +161,8 @@ trait ShopifyProductTrait
         $productMedia = [];
         foreach ($media as $image) {
             $productMedia[] = [
+                'product_id' => $image->product_id ?? null, // optional, set if available
                 'shopify_product_media_id' => $image->id,
-                'position' => $image->position ?? null,
                 'src' => $image->preview_image->src
             ];
         }
@@ -219,7 +207,7 @@ trait ShopifyProductTrait
                 if ($media) {
                     $productMedia[] = [
                         'id' => $this->extractId($media->id),
-                        'position' => $index + 1,
+                        // 'position' => $index + 1,
                         'preview_image' => [
                             'src' => $media->image->url ?? null,
                         ],
@@ -228,14 +216,14 @@ trait ShopifyProductTrait
             }
         }
         $product = [
-            'body_html' => $node->descriptionHtml,
-            'handle' => $node->handle,
+            // 'body_html' => $node->descriptionHtml,
+            // 'handle' => $node->handle,
             'id' => $this->extractId($node->id),
-            'product_type' => $node->productType,
+            // 'product_type' => $node->productType,
             'title' => $node->title,
             'vendor' => $node->vendor,
             'status' => strtolower($node->status),
-            'tags' => $this->arrayToString($node->tags),
+            // 'tags' => $this->arrayToString($node->tags),
             'variants' => $productVariants,
             'media' => $productMedia,
         ];

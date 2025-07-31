@@ -15,13 +15,9 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('user_id')->nullable();
             $table->unsignedBigInteger('shopify_product_id')->nullable();
-            $table->text('body_html')->nullable();
-            $table->string('handle')->nullable();
-            $table->string('product_type')->nullable();
             $table->string('title')->nullable();
             $table->string('vendor')->nullable();
             $table->string('status')->nullable();
-            $table->string('tags')->nullable();
             $table->timestamps();
         });
     }

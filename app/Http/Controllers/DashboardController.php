@@ -5,7 +5,8 @@ namespace App\Http\Controllers;
 use App\Jobs\OrderSyncJob;
 use Illuminate\Http\Request;
 use App\Repositories\Order\OrderRepositoryInterface;
-
+use Illuminate\Support\Facades\Auth;
+use App\Jobs\ProductSyncJob;
 
 
 class DashboardController extends Controller
@@ -18,7 +19,13 @@ class DashboardController extends Controller
     }
     public function index()
     {
-        OrderSyncJob::dispatch(auth()->user()->id);
+        // OrderSyncJob::dispatch(auth()->user()->id);
+        $user = Auth::user();
+        if ($user->product_sync == 0) {
+            ProductSyncJob::dispatch($user->id);
+            $user->product_sync = 1;
+            $user->save();
+        }
         return $this->render('Dashboard');
     }
     public function orderSeacrhfilter(Request $request)
