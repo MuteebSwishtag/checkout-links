@@ -16,6 +16,7 @@ import {
     Thumbnail,
     Checkbox,
     Pagination,
+    Banner,
 } from '@shopify/polaris';
 import {
     ChevronDownIcon,
@@ -57,9 +58,29 @@ export default function CreateLink() {
     const query = props.ziggy.query;
     const app = useAppBridge();
     const { link } = props;
+    const [shop, setShop] = useState('');
+
+    // Function to fetch a unique ID from the backend
+    const fetchUniqueId = async () => {
+        try {
+            const response = await fetch(route('links.generateUniqueId', query));
+            const data = await response.json();
+            console.log("Fetched unique ID:", data);
+            if (data.success) {
+                setLinkId(data.uniqueId);
+                // Store the full URL with shop in local state if needed
+                if (data.fullUrl) {
+                    setFullUrl(data.fullUrl);
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching unique ID:', error);
+        }
+    };
 
     useEffect(() => {
         if (link) {
+            // Editing existing link - use stored values
             setLinkName(link.link_name || '');
             setLinkId(link.link_url || '');
             setDiscountData({
@@ -69,6 +90,7 @@ export default function CreateLink() {
                 discountCode: !!link.discount_code,
                 discountCodeValue: link.discount_code_value || ''
             });
+
             if (link.popup_message) {
                 setPopupMessageData(prev => ({
                     ...prev,
@@ -80,15 +102,29 @@ export default function CreateLink() {
                     allowDeselect: !!link.popup_message.allow_deselect
                 }));
             }
+
             if (Array.isArray(link.linked_variants)) {
                 // Map linked_variants to selectedProductItems structure
                 const selected = link.linked_variants.map(v => {
                     const product = v.variant && v.variant.product ? v.variant.product : {};
                     const media = product.media && product.media[0] ? product.media[0].src : '';
-                    return {
-                        id: v.product_id + '_' + v.variant_id,
+
+                    // Create the unique UI ID and store the actual Shopify variant ID
+                    const itemId = v.product_id + '_' + v.variant_id;
+                    const shopifyVariantId = v.variant ? v.variant.shopify_product_varient_id : null;
+
+                    console.log("Loading existing variant:", {
+                        itemId,
                         productId: v.product_id,
                         variantId: v.variant_id,
+                        shopifyVariantId
+                    });
+
+                    return {
+                        id: itemId,
+                        productId: v.product_id,
+                        variantId: v.variant_id,
+                        shopifyVariantId: shopifyVariantId,
                         title: product.title || '',
                         variant: v.variant ? v.variant.title : '',
                         price: v.price || (v.variant ? v.variant.price : ''),
@@ -96,16 +132,23 @@ export default function CreateLink() {
                         quantity: 1
                     };
                 });
+
                 setSelectedProductItems(selected);
                 setSelectedProducts(selected.length);
+
+                // Store the UI IDs (composite IDs) for UI state management
                 setSelectedVariantIds(selected.map(v => v.id));
             }
+        } else {
+            // Creating new link - generate unique ID
+            fetchUniqueId();
         }
     }, [link]);
 
     // -- UI State
     const [linkName, setLinkName] = useState('');
     const [linkId, setLinkId] = useState('');
+    const [fullUrl, setFullUrl] = useState(''); // Store the full URL with shop name
     const [productsOpen, setProductsOpen] = useState(true);
     const [discountsOpen, setDiscountsOpen] = useState(false);
     const [popupMessageOpen, setPopupMessageOpen] = useState(false);
@@ -125,6 +168,25 @@ export default function CreateLink() {
         discountValue: '',
         discountCode: false,
         discountCodeValue: ''
+    });
+
+    // Validation state
+    const [errors, setErrors] = useState({
+        linkName: '',
+        linkId: '',
+        selectedProducts: '',
+        discountValue: '',
+        discountCodeValue: '',
+        popupMessage: {
+            headingText: '',
+            messageText: '',
+            timerText: '',
+            copyText: '',
+            checkoutButtonText: '',
+            closeButtonText: '',
+            closeButtonLink: '',
+            general: ''
+        }
     });
     const [popupMessageData, setPopupMessageData] = useState({
         isActive: false,
@@ -159,12 +221,10 @@ export default function CreateLink() {
                 const data = await response.json();
                 console.log('Fetched products:', data);
                 if (data && Array.isArray(data.data)) {
-
                     setProducts(data.data);
-
-
                     setCurrentPage(data.pagination.current_page);
                     setTotalPages(data.pagination.last_page);
+                    setShop(data.pagination.shop || ''); // Set shop from pagination data if available
                 } else {
                     setProducts([]);
                     setCurrentPage(1);
@@ -174,55 +234,249 @@ export default function CreateLink() {
                 setProducts([]);
                 setCurrentPage(1);
                 setTotalPages(1);
+                setShop(''); // Reset shop on error
             }
         },
         [perPage, query]
     );
-
-
     // -- Product selection handlers
     // Hierarchical selection state: store selected variant ids
     const [selectedVariantIds, setSelectedVariantIds] = useState([]);
 
     // Collect all relevant data from the page
-    const collectAllPageData = () => ({
-        linkName,
-        linkId,
-        selectedProducts,
-        selectedProductItems,
-        discountData,
-        popupMessageData,
-        selectedVariantIds,
-        // Add more fields if needed
-    });
+    const collectAllPageData = () => {
+        // Map selected product items to include shopify variant IDs clearly
+        const mappedSelectedProductItems = selectedProductItems.map(item => ({
+            ...item,
+            shopify_variant_id: item.shopifyVariantId || item.variantId, // Ensure we use the correct Shopify variant ID
+        }));
+
+        // Extract the actual Shopify variant IDs from the selected products
+        const actualVariantIds = selectedProductItems.map(item => item.shopifyVariantId || item.variantId);
+        console.log("Sending Shopify variant IDs:", actualVariantIds);
+
+        return {
+            linkName,
+            linkId,
+            selectedProducts,
+            selectedProductItems: mappedSelectedProductItems,
+            discountData,
+            popupMessageData,
+            // Send the actual Shopify variant IDs instead of the UI IDs
+            selectedVariantIds: actualVariantIds,
+        };
+    };
 
     const saveLinkData = useCallback(async () => {
-        const allData = collectAllPageData();
-        const isEdit = link && link.id;
-        const url = isEdit ? route('links.update', { ...query, id: link.id }) : route('products.save', query);
-        const method = isEdit ? 'PUT' : 'POST';
-        await toast.promise(
-            (async () => {
-                const response = await fetch(url, {
-                    method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(allData),
-                });
-                const data = await response.json();
-                if (!response.ok || !data.success) {
-                    throw new Error(data.error || 'Failed to save link.');
-                }
-                return data.message || isEdit ? 'Link updated successfully!' : 'Link created successfully!';
-            })(),
-            {
-                loading: isEdit ? 'Updating link...' : 'Saving link...',
-                success: (msg) => msg,
-                error: (err) => err.message || 'Failed to save the link. Please try again.',
+        // Reset all errors first
+        setErrors({
+            linkName: '',
+            linkId: '',
+            selectedProducts: '',
+            discountValue: '',
+            discountCodeValue: '',
+            popupMessage: {
+                headingText: '',
+                messageText: '',
+                timerText: '',
+                copyText: '',
+                checkoutButtonText: '',
+                closeButtonText: '',
+                closeButtonLink: '',
+                general: ''
             }
-        );
-    }, [selectedProductItems, linkName, linkId, selectedProducts, discountData, popupMessageData, selectedVariantIds, link]);
+        });
+
+        // Perform frontend validation
+        let hasErrors = false;
+
+        // Validate link name
+        if (!linkName.trim()) {
+            setErrors(prev => ({ ...prev, linkName: 'Link name is required' }));
+            hasErrors = true;
+        }
+
+        // Validate link ID
+        if (!linkId) {
+            setErrors(prev => ({ ...prev, linkId: 'Link ID is required' }));
+            hasErrors = true;
+        }
+
+        // Validate selected products
+        if (selectedProductItems.length === 0) {
+            setErrors(prev => ({ ...prev, selectedProducts: 'At least one product must be selected' }));
+            hasErrors = true;
+            // Show the products section if there's an error
+            setProductsOpen(true);
+        }
+
+        // Validate discount values if enabled
+        if (discountData.orderDiscount && !discountData.discountValue) {
+            setErrors(prev => ({ ...prev, discountValue: 'Discount value is required' }));
+            hasErrors = true;
+            setDiscountsOpen(true);
+        }
+
+        if (discountData.discountCode && !discountData.discountCodeValue) {
+            setErrors(prev => ({ ...prev, discountCodeValue: 'Discount code is required' }));
+            hasErrors = true;
+            setDiscountsOpen(true);
+        }
+
+        // Validate popup message fields if active
+        if (popupMessageData.isActive) {
+            if (!popupMessageData.headingText.trim()) {
+                setErrors(prev => ({
+                    ...prev,
+                    popupMessage: { ...prev.popupMessage, headingText: 'Heading text is required' }
+                }));
+                hasErrors = true;
+                setPopupMessageOpen(true);
+            }
+
+            if (!popupMessageData.messageText.trim()) {
+                setErrors(prev => ({
+                    ...prev,
+                    popupMessage: { ...prev.popupMessage, messageText: 'Message text is required' }
+                }));
+                hasErrors = true;
+                setPopupMessageOpen(true);
+            }
+
+            if (popupMessageData.countdownActive && !popupMessageData.timerText.trim()) {
+                setErrors(prev => ({
+                    ...prev,
+                    popupMessage: { ...prev.popupMessage, timerText: 'Timer text is required' }
+                }));
+                hasErrors = true;
+                setPopupMessageOpen(true);
+            }
+        }
+
+        // If there are errors, stop submission and show toast
+        if (hasErrors) {
+            toast.error('Please fix the validation errors before saving');
+            return;
+        }
+
+        try {
+            const allData = collectAllPageData();
+            console.log('Saving link data:', allData);
+            console.log('SHOPIFY VARIANT IDs BEING SENT:', allData.selectedProductItems.map(item => ({
+                id: item.id,
+                shopify_variant_id: item.shopify_variant_id
+            })));
+
+            const isEdit = link && link.id;
+            const url = isEdit ? route('links.update', { ...query, id: link.id }) : route('products.save', query);
+            const method = isEdit ? 'PUT' : 'POST';
+
+            await toast.promise(
+                (async () => {
+                    try {
+                        const response = await fetch(url, {
+                            method,
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(allData),
+                        });
+
+                        const data = await response.json();
+
+                        if (!response.ok || !data.success) {
+                            console.error('Error saving link:', data);
+
+                            // Handle backend validation errors
+                            if (data.errors) {
+                                // Map backend errors to our error state
+                                const backendErrors = data.errors;
+                                const newErrors = {
+                                    linkName: '',
+                                    linkId: '',
+                                    selectedProducts: '',
+                                    discountValue: '',
+                                    discountCodeValue: '',
+                                    popupMessage: {
+                                        headingText: '',
+                                        messageText: '',
+                                        timerText: '',
+                                        copyText: '',
+                                        checkoutButtonText: '',
+                                        closeButtonText: '',
+                                        closeButtonLink: '',
+                                        general: ''
+                                    }
+                                };
+
+                                Object.keys(backendErrors).forEach(key => {
+                                    // Map backend error fields to our frontend error state
+                                    switch (key) {
+                                        case 'linkName':
+                                            newErrors.linkName = backendErrors[key][0];
+                                            break;
+                                        case 'linkId':
+                                            newErrors.linkId = backendErrors[key][0];
+                                            break;
+                                        case 'selectedProductItems':
+                                            newErrors.selectedProducts = backendErrors[key][0];
+                                            setProductsOpen(true);
+                                            break;
+                                        case 'discountData.discountValue':
+                                        case 'discountValue':
+                                            newErrors.discountValue = backendErrors[key][0];
+                                            setDiscountsOpen(true);
+                                            break;
+                                        case 'discountData.discountCodeValue':
+                                        case 'discountCodeValue':
+                                            newErrors.discountCodeValue = backendErrors[key][0];
+                                            setDiscountsOpen(true);
+                                            break;
+                                        // Map popup message errors
+                                        case 'popupMessageData.headingText':
+                                        case 'popupMessage.headingText':
+                                            newErrors.popupMessage.headingText = backendErrors[key][0];
+                                            setPopupMessageOpen(true);
+                                            break;
+                                        case 'popupMessageData.messageText':
+                                        case 'popupMessage.messageText':
+                                            newErrors.popupMessage.messageText = backendErrors[key][0];
+                                            setPopupMessageOpen(true);
+                                            break;
+                                        default:
+                                            // Handle other errors
+                                            console.log('Unhandled validation key:', key);
+                                            break;
+                                    }
+                                });
+
+                                setErrors(newErrors);
+                            }
+
+                            throw new Error(data.error || data.message || 'Failed to save link.');
+                        }
+
+                        if (data.success) {
+                            window.location.href = route('home', query);
+                        }
+
+                        return data.message || (isEdit ? 'Link updated successfully!' : 'Link created successfully!');
+                    } catch (error) {
+                        console.error('Error in fetch operation:', error);
+                        throw new Error(error.message || 'An unexpected error occurred while saving the link.');
+                    }
+                })(),
+                {
+                    loading: isEdit ? 'Updating link...' : 'Saving link...',
+                    success: (msg) => msg,
+                    error: (err) => err.message || 'Failed to save the link. Please try again.',
+                }
+            );
+        } catch (error) {
+            console.error('Error in saveLinkData:', error);
+            toast.error(error.message || 'Failed to save the link. Please try again.');
+        }
+    }, [selectedProductItems, linkName, linkId, selectedProducts, discountData, popupMessageData, selectedVariantIds, link, query]);
 
     // -- Fetch on mount and when search/page changes
     useEffect(() => {
@@ -279,14 +533,23 @@ export default function CreateLink() {
                         (product.media && product.media[0]?.src) ||
                         (product.productMedias && product.productMedias[0]?.src) ||
                         'https://via.placeholder.com/50',
-                    variantId: variant.id,
+                    variantId: variant.shopify_product_varient_id,
                 })) : [],
             }))
             : []
     ), [products]);
+    console.log(productData);
 
     // -- Basic UI Handlers
-    const handleLinkNameChange = useCallback((value) => setLinkName(value), []);
+    const handleLinkNameChange = useCallback((value) => {
+        setLinkName(value);
+        // Clear error if value is not empty
+        if (value.trim()) {
+            setErrors(prev => ({ ...prev, linkName: '' }));
+        } else {
+            setErrors(prev => ({ ...prev, linkName: 'Link name is required' }));
+        }
+    }, []);
     const handleLinkIdChange = useCallback((value) => setLinkId(value), []);
     const handleProductsToggle = useCallback(() => setProductsOpen(!productsOpen), [productsOpen]);
     const handleDiscountsToggle = useCallback(() => setDiscountsOpen(!discountsOpen), [discountsOpen]);
@@ -323,9 +586,13 @@ export default function CreateLink() {
 
     // Handle product or variant checkbox change
     const handleProductOrVariantCheck = (id, checked, isProduct, product) => {
+        console.log("Product/Variant Check:", { id, checked, isProduct });
+
         if (isProduct) {
             // Product-level: select/deselect all its variants (or itself if no variants)
             const variantIds = getAllVariantIds(product);
+            console.log("All variant IDs for product:", variantIds);
+
             setSelectedVariantIds(prev => {
                 let newIds;
                 if (checked) {
@@ -361,7 +628,8 @@ export default function CreateLink() {
             productId: product.id,
             title: product.title,
             variant: v.variantTitle,
-            variantId: v.id,
+            variantId: v.variantId,
+            shopifyVariantId: v.variantId, // Store the Shopify variant ID
             quantity: 1,
             price: v.price,
             image: product.image
@@ -371,10 +639,15 @@ export default function CreateLink() {
             title: product.title,
             variant: null,
             variantId: null,
+            shopifyVariantId: null,
             quantity: 1,
             price: product.price,
             image: product.image
         }]);
+
+        console.log("All available variants:", allVariants.map(v => ({ id: v.id, shopifyVariantId: v.shopifyVariantId })));
+        console.log("Selected UI IDs:", variantIds);
+
         const selected = [];
         const seen = new Set();
         allVariants.forEach(v => {
@@ -383,6 +656,8 @@ export default function CreateLink() {
                 seen.add(v.id);
             }
         });
+
+        console.log("Selected product items:", selected.map(v => ({ id: v.id, shopifyVariantId: v.shopifyVariantId })));
         setSelectedProductItems(selected);
     };
 
@@ -403,6 +678,7 @@ export default function CreateLink() {
             selectedVariantIds.forEach(id => {
                 if (!updated[id]) {
                     const item = allVariants.find(v => v.id === id);
+
                     if (item) {
                         updated[id] = {
                             id: item.id,
@@ -410,13 +686,19 @@ export default function CreateLink() {
                             title: item.title,
                             variant: item.variantTitle,
                             variantId: item.variantId,
+                            shopifyVariantId: item.variantId, // Store the actual Shopify variant ID
                             quantity: 1,
                             price: item.price,
                             image: item.image
                         };
+
+                        console.log("Added to temp selection:", {
+                            id: item.id,
+                            shopifyVariantId: item.variantId
+                        });
                     }
                 }
-        });
+            });
             // Remove items that are no longer selected
             Object.keys(updated).forEach(id => {
                 if (!selectedVariantIds.includes(id)) {
@@ -545,8 +827,23 @@ export default function CreateLink() {
 
     // Copy to clipboard handler
     const handleCopyLink = useCallback(async () => {
-        const linkUrl = "https://examplewebsite.com/3n49sjw3...";
+        // Use fullUrl if available, otherwise use a default format with linkId
+        console.log("Copying link:", { fullUrl, linkId, shop });
+        const linkUrl = fullUrl || (linkId ? `${shop}/checkout/${linkId}` : "");
+        console.log("Final link URL to copy:", linkUrl);
+
+        if (!linkUrl) {
+            if (app && app.toast) {
+                app.toast.show('No link available to copy', {
+                    isError: true,
+                    duration: 3000
+                });
+            }
+            return;
+        }
+
         try {
+            // Try the modern clipboard API first
             await navigator.clipboard.writeText(linkUrl);
             if (app && app.toast) {
                 app.toast.show('Link copied to clipboard!', {
@@ -554,21 +851,44 @@ export default function CreateLink() {
                     duration: 3000
                 });
             }
-        } catch {
-            const textArea = document.createElement('textarea');
-            textArea.value = linkUrl;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand('copy');
-            document.body.removeChild(textArea);
-            if (app && app.toast) {
-                app.toast.show('Link copied to clipboard!', {
-                    isError: false,
-                    duration: 3000
-                });
+        } catch (error) {
+            console.error('Failed to use clipboard API, falling back to execCommand', error);
+            // Fallback for browsers that don't support clipboard API
+            try {
+                const textArea = document.createElement('textarea');
+                textArea.value = linkUrl;
+                // Make the textarea out of viewport
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+
+                const successful = document.execCommand('copy');
+                document.body.removeChild(textArea);
+
+                if (successful) {
+                    if (app && app.toast) {
+                        app.toast.show('Link copied to clipboard!', {
+                            isError: false,
+                            duration: 3000
+                        });
+                    }
+                } else {
+                    throw new Error('execCommand copy failed');
+                }
+            } catch (fallbackError) {
+                console.error('Clipboard copy failed completely', fallbackError);
+                if (app && app.toast) {
+                    app.toast.show('Failed to copy link. Please try again or copy manually.', {
+                        isError: true,
+                        duration: 3000
+                    });
+                }
             }
         }
-    }, [app]);
+    }, [fullUrl, linkId, app]);
 
     // -- UI Render
     return (
@@ -581,15 +901,70 @@ export default function CreateLink() {
             primaryAction={{
                 content: 'Save',
                 onAction: () => {
-                    // Handle save logic here
-                    console.log('Link Name:', linkName);
-                    console.log('Link ID:', linkId);
-                    console.log('Selected Products:', selectedProductItems);
-                    console.log('Discount Data:', discountData);
-                    console.log('Popup Message Data:', popupMessageData);
-                    saveLinkData();
+                    // Clear previous errors
+                    setErrors({
+                        linkName: '',
+                        linkId: '',
+                        selectedProducts: '',
+                        discountValue: '',
+                        discountCodeValue: '',
+                        popupMessage: {
+                            headingText: '',
+                            messageText: '',
+                            timerText: '',
+                            copyText: '',
+                            checkoutButtonText: '',
+                            closeButtonText: '',
+                            closeButtonLink: '',
+                            general: ''
+                        }
+                    });
+
+                    // Validate basic requirements before save
+                    let hasBasicErrors = false;
+
+                    if (!linkName.trim()) {
+                        setErrors(prev => ({ ...prev, linkName: 'Link name is required' }));
+                        hasBasicErrors = true;
+                    }
+
+                    if (selectedProductItems.length === 0) {
+                        setErrors(prev => ({ ...prev, selectedProducts: 'At least one product must be selected' }));
+                        setProductsOpen(true);
+                        hasBasicErrors = true;
+                    }
+
+                    // Check if order discount is enabled but no value provided
+                    if (discountData.orderDiscount && !discountData.discountValue) {
+                        setErrors(prev => ({ ...prev, discountValue: 'Discount value is required' }));
+                        setDiscountsOpen(true);
+                        hasBasicErrors = true;
+                    }
+
+                    // Check if discount code is enabled but no value provided
+                    if (discountData.discountCode && !discountData.discountCodeValue) {
+                        setErrors(prev => ({ ...prev, discountCodeValue: 'Discount code is required' }));
+                        setDiscountsOpen(true);
+                        hasBasicErrors = true;
+                    }
+
+                    if (!hasBasicErrors) {
+                        try {
+                            console.log('Link Name:', linkName);
+                            console.log('Link ID:', linkId);
+                            console.log('Selected Products:', selectedProductItems);
+                            console.log('Discount Data:', discountData);
+                            console.log('Popup Message Data:', popupMessageData);
+                            saveLinkData();
+                        } catch (error) {
+                            console.error('Error when saving link:', error);
+                            toast.error('An unexpected error occurred. Please try again.');
+                        }
+                    } else {
+                        toast.error('Please fix the validation errors before saving');
+                    }
                 },
-                disabled: !linkName || !linkId || selectedProductItems.length === 0
+                disabled: false // Remove the disabled state to allow validation messages to show
             }}
         >
             <div className='scroll-wrapper'>
@@ -605,14 +980,17 @@ export default function CreateLink() {
                                         onChange={handleLinkNameChange}
                                         placeholder="Enter your Link Name"
                                         autoComplete="off"
+                                        error={errors.linkName}
                                     />
                                     <Text variant="bodyMd">Link ID</Text>
                                     <TextField
                                         label=""
                                         value={linkId}
-                                        onChange={handleLinkIdChange}
+                                        // onChange={handleLinkIdChange}
                                         placeholder="https://www.example.com/ 3n49sjw3"
                                         autoComplete="off"
+                                        readOnly
+                                        error={errors.linkId}
                                     />
                                 </BlockStack>
                             </Card>
@@ -636,6 +1014,16 @@ export default function CreateLink() {
                                             icon={productsOpen ? ChevronUpIcon : ChevronDownIcon}
                                         />
                                     </InlineStack>
+
+                                    {/* Show product selection error if any */}
+                                    {errors.selectedProducts && (
+                                        <Box paddingInline="400">
+                                            <Banner status="critical">
+                                                {errors.selectedProducts}
+                                            </Banner>
+                                        </Box>
+                                    )}
+
                                     <Collapsible open={productsOpen} id="products-content">
                                         <Box>
                                             <BlockStack gap="400">
@@ -739,7 +1127,7 @@ export default function CreateLink() {
                                                         </Box>
 
                                                         {productData.filter(product => product.title.toLowerCase().includes(mainProductSearch.toLowerCase())).length === 0 && (
-                                                            <Text variant="bodySm" color="subdued" alignment="center" style={{ display: 'block', padding: 16 }}>No products found</Text>
+                                                            <Text variant="bodySm" tone="subdued" textAlign="center" style={{ display: 'block', padding: 16 }}>No products found</Text>
                                                         )}
                                                     </div>
                                                 )}
@@ -832,6 +1220,10 @@ export default function CreateLink() {
                                         <Box>
                                             <Discount
                                                 discountData={discountData}
+                                                errors={{
+                                                    discountValue: errors.discountValue,
+                                                    discountCodeValue: errors.discountCodeValue
+                                                }}
                                                 onFreeShippingChange={handleFreeShippingChange}
                                                 onOrderDiscountChange={handleOrderDiscountChange}
                                                 onDiscountValueChange={handleDiscountValueChange}
@@ -864,6 +1256,7 @@ export default function CreateLink() {
                                         <Box>
                                             <PopupMessage
                                                 popupMessageData={popupMessageData}
+                                                errors={errors.popupMessage}
                                                 onActiveToggle={handlePopupActiveToggle}
                                                 onHeadingTextChange={handlePopupHeadingTextChange}
                                                 onMessageTextChange={handlePopupMessageTextChange}
@@ -901,7 +1294,7 @@ export default function CreateLink() {
                                                 <div style={{ marginTop: "2px" }}>
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
-                                                <Text as="span" color="subdued">Pre-filled cart: {selectedProducts} products selected</Text>
+                                                <Text as="span" tone="subdued">Pre-filled cart: {selectedProducts} products selected</Text>
                                             </InlineStack>
 
 
@@ -913,7 +1306,7 @@ export default function CreateLink() {
                                                 <div style={{ marginTop: "2px" }}>
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
-                                                <Text as="span" color="subdued">Free shipping applied</Text>
+                                                <Text as="span" tone="subdued">Free shipping applied</Text>
                                             </InlineStack>
                                         }
 
@@ -922,7 +1315,7 @@ export default function CreateLink() {
                                                 <div style={{ marginTop: "2px" }}>
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
-                                                <Text as="span" color="subdued" > Order Discount: {discountData.discountValue}% Off</Text>
+                                                <Text as="span" tone="subdued" > Order Discount: {discountData.discountValue}% Off</Text>
                                             </InlineStack>
                                         }
 
@@ -931,7 +1324,7 @@ export default function CreateLink() {
                                                 <div style={{ marginTop: "2px" }}>
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
-                                                <Text as="span" color="subdued">Discount code: {discountData.discountCodeValue}</Text>
+                                                <Text as="span" tone="subdued">Discount code: {discountData.discountCodeValue}</Text>
                                             </InlineStack>
                                         }
                                         {popupMessageData.isActive &&
@@ -941,7 +1334,7 @@ export default function CreateLink() {
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
                                                 <Box maxWidth='260px'>
-                                                    <Text as="span" color="subdued"> User is prompted with popup message before checkout </Text>
+                                                    <Text as="span" tone="subdued"> User is prompted with popup message before checkout </Text>
 
                                                 </Box>
                                             </InlineStack>
@@ -949,11 +1342,11 @@ export default function CreateLink() {
                                         <InlineStack gap="400">
                                             <Box width='70%'>
                                                 <TextField
-                                                    value="https://examplewebsite.com/3n49sjw3..."
+                                                    id="link-url-field"
+                                                    value={fullUrl || (linkId ? `${shop}/checkout/${linkId}` : "")}
                                                     readOnly
                                                     autoComplete="off"
                                                 />
-
                                             </Box>
                                             <Button icon={ClipboardIcon} onClick={handleCopyLink}>Copy</Button>
                                         </InlineStack>
@@ -971,7 +1364,7 @@ export default function CreateLink() {
                                 </InlineStack>
 
                                 <Box background="" borderRadius="2" border="base">
-                                    <BlockStack gap="300" align="center">
+                                    <BlockStack gap="300">
                                         <InlineStack blockAlign='center' align='space-between'>
 
                                             <InlineStack gap='050'>
@@ -997,7 +1390,7 @@ export default function CreateLink() {
                                         {!popupMessageData.isActive && (
                                             <Box background='bg-fill-disabled' borderRadius='200' padding={'300'}>
                                                 {selectedProductItems.length === 0 ? (
-                                                    <Text variant="headingSm" as="h3" alignment='center' color="subdued">No products selected</Text>
+                                                    <Text variant="headingSm" as="h3" textAlign='center' tone="subdued">No products selected</Text>
                                                 ) : (
 
                                                     <Box background='' padding={'400'} borderRadius='200' border="base">
@@ -1051,20 +1444,20 @@ export default function CreateLink() {
                                                                                 </div>
                                                                                 <InlineStack align='center' blockAlign='center' >
                                                                                     <Box maxWidth='150px'>
-                                                                                        <div title={product.title}>
+                                                                                        <div title={product.title + (product.variant ? ` (${product.variant})` : '')}>
                                                                                             <Text
                                                                                                 fontWeight="medium"
-                                                                                                alignment="center"
+                                                                                                textAlign="center"
                                                                                                 truncate
                                                                                             >
-                                                                                                {product.title}
+                                                                                                title={product.title + (product.variant ? ` (${product.variant})` : '')}
                                                                                             </Text>
                                                                                         </div>
 
                                                                                     </Box>
                                                                                 </InlineStack>
                                                                             </InlineStack>
-                                                                            <Text fontWeight="medium" alignment="center">${product.price || '0.00'}</Text>
+                                                                            <Text fontWeight="medium" textAlign="center">${product.price || '0.00'}</Text>
                                                                         </InlineStack>
                                                                     ))}
                                                                 </BlockStack>
@@ -1129,7 +1522,7 @@ export default function CreateLink() {
                                                                                 const quantity = parseInt(product.quantity || 1);
                                                                                 return total + (price * quantity);
                                                                             }, 0);
-                                                                            const discount = subtotal * (parseFloat(discountData.discountValue) / 100);
+                                                                                const discount = subtotal * (parseFloat(discountData.discountValue || 0) / 100);
                                                                             return `- $${discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                                                                         })()}
                                                                     </Text>
@@ -1167,7 +1560,7 @@ export default function CreateLink() {
                                                                             }, 0);
                                                                             let discount = 0;
                                                                             if (discountData.orderDiscount && discountData.discountValue && !isNaN(parseFloat(discountData.discountValue))) {
-                                                                                discount = subtotal * (parseFloat(discountData.discountValue) / 100);
+                                                                                discount = subtotal * (parseFloat(discountData.discountValue || 0) / 100);
                                                                             } else if (discountData.discountCode && discountData.discountCodeValue && !isNaN(parseFloat(discountData.discountCodeValue))) {
                                                                                 // Assuming discount code value represents a percentage
                                                                                 const codeValue = parseFloat(discountData.discountCodeValue) || 0;
@@ -1219,7 +1612,7 @@ export default function CreateLink() {
 
                                                         {/* Message Text */}
                                                         {popupMessageData.messageText && (
-                                                            <Text variant="bodySm" alignment="center" tone="subdued">
+                                                            <Text variant="bodySm" textAlign="center" tone="subdued">
                                                                 {popupMessageData.messageText}
                                                             </Text>
                                                         )}
@@ -1292,7 +1685,7 @@ export default function CreateLink() {
                                                                                         <InlineStack align='center' blockAlign='center' >
                                                                                             <Box maxWidth='120px'>
                                                                                                 <div title={product.title}>
-                                                                                                    <Text fontWeight="medium" alignment='center' truncate>{product.title}</Text>
+                                                                                                    <Text fontWeight="medium" textAlign='center' truncate>{product.title}</Text>
                                                                                                     {popupMessageData.showPrice && (
                                                                                                         <Text variant="bodyMd" color="subdued" style={{ display: 'flex', marginTop: 1 }}>
                                                                                                             ${product.price || '0.00'}

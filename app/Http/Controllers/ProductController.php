@@ -11,6 +11,7 @@ class ProductController extends Controller
  public function getProducts(Request $request)
     {
         $user = Auth::user();
+        $shop = env('APP_URL');
         $perPage = $request->input('per_page', 10);
         $search = $request->input('search', '');
 
@@ -24,6 +25,7 @@ class ProductController extends Controller
             });
         }
 
+
         $products = $query->paginate($perPage);
 
         return response()->json([
@@ -35,6 +37,7 @@ class ProductController extends Controller
                 'last_page' => $products->lastPage(),
                 'per_page' => $products->perPage(),
                 'total' => $products->total(),
+                'shop' => $shop,
             ]
         ]);
     }

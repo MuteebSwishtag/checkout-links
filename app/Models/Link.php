@@ -15,7 +15,7 @@ class Link extends Model {
     }
 
     public function linkedVariants() {
-        return $this->hasMany(LinkProductVarient::class,'variant_id');
+        return $this->hasMany(LinkProductVarient::class, 'link_id');
     }
 
     public function user() {

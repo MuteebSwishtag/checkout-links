@@ -17,11 +17,11 @@ class LinkProductVarient extends Model {
     }
 
     public function product() {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Product::class, 'product_id');
     }
 
     public function variant() {
-        return $this->belongsTo(ProductVarient::class, 'variant_id');
+        return $this->belongsTo(ProductVarient::class, 'variant_id', 'shopify_product_varient_id');
     }
 }
 

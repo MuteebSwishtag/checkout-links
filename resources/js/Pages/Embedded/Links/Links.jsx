@@ -66,7 +66,7 @@ const LinksIndex = () => {
                 const mappedLinks = data.links.map(link => ({
                     id: link.id,
                     linkName: link.link_name || 'Unnamed',
-                    urlCode: link.link_url || '',
+                    urlCode: link.full_url || '',
                     status: 'Active',
                     clicks: link.clicks ?? 0,
                     placedOrder: link.placed_order ?? 0,
@@ -244,7 +244,7 @@ const LinksIndex = () => {
                             {linkName}
                         </Text>
                     </IndexTable.Cell>
-                    <IndexTable.Cell>{urlCode}</IndexTable.Cell>
+                    <IndexTable.Cell>{urlCode.length > 12 ? `${urlCode.slice(0, 12)}...` : urlCode}</IndexTable.Cell>
                     <IndexTable.Cell>
                         <Badge tone="success">{status}</Badge>
                     </IndexTable.Cell>

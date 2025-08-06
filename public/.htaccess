@@ -19,3 +19,10 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# Increase PHP limits for form submissions with many fields
+<IfModule mod_php.c>
+    php_value max_input_vars 5000
+    php_value max_execution_time 300
+    php_value post_max_size 64M
+</IfModule>

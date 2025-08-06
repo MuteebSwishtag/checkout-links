@@ -29,6 +29,12 @@
     border-radius: 12%;
     padding: 6px;
 }
+/* Style for read-only input fields */
+.Polaris-TextField input[readonly] {
+    background-color: #f5f5f5 !important;
+    color: #6b7280 !important;
+    cursor: not-allowed !important;
+}
 #customToggleTwo span {
     border-radius: 12%;
 }

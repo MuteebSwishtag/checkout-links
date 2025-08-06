@@ -6,11 +6,20 @@ import {
   BlockStack,
   InlineStack,
   TextField,
-  Checkbox
+  Checkbox,
+  Banner
 } from '@shopify/polaris'
 import React from 'react'
 
-export default function Discount({ discountData, onFreeShippingChange, onOrderDiscountChange, onDiscountValueChange, onDiscountCodeChange, onDiscountCodeValueChange }) {
+export default function Discount({
+  discountData,
+  errors = {},
+  onFreeShippingChange,
+  onOrderDiscountChange,
+  onDiscountValueChange,
+  onDiscountCodeChange,
+  onDiscountCodeValueChange
+}) {
 
   // Toggle handlers that call parent functions with mutual exclusivity
   const handleFreeShippingToggle = () => {
@@ -70,6 +79,11 @@ export default function Discount({ discountData, onFreeShippingChange, onOrderDi
 
   return (
     <BlockStack gap="400">
+      {/* Display any general discount errors */}
+      {errors && errors.general && errors.general !== '' && (
+        <Banner status="critical">{errors.general}</Banner>
+      )}
+
       {/* Free shipping Card */}
       <Card>
         <Box padding="">
@@ -119,7 +133,7 @@ export default function Discount({ discountData, onFreeShippingChange, onOrderDi
             {discountData.orderDiscount && (
               <Box>
                 <TextField
-                  value={discountData.discountValue}
+                  value={discountData.discountValue || ''}
                   onChange={handleDiscountValueChange}
                   suffix="%"
                   placeholder='20'
@@ -127,6 +141,7 @@ export default function Discount({ discountData, onFreeShippingChange, onOrderDi
                   autoComplete="off"
                   min={0}
                   max={100}
+                  error={errors.discountValue || ''}
                 />
               </Box>
             )}
@@ -167,6 +182,7 @@ export default function Discount({ discountData, onFreeShippingChange, onOrderDi
                   placeholder="Enter discount code"
                   autoComplete="off"
                   min={0}
+                  error={errors.discountCodeValue || ''}
                 />
               </Box>
             )}
