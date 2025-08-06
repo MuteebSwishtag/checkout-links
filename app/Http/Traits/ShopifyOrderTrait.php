@@ -760,6 +760,11 @@ GRAPHQL;
         // Discount Code
         // with  4 digit random uniquecode
         $code = ($link->discount_value ?? 0) . 'FORYOU' . $link->id . strtoupper(substr(md5(mt_rand()), 0, 4));
+        $percentage = floatval($link->discount_value ?? 0) / 100;
+
+        if ($percentage < 0.01 || $percentage > 1.0) {
+            throw new \Exception("Discount percentage must be between 1 and 100.");
+        }
 
         // Mutation Variables
         $variables = [
@@ -773,7 +778,7 @@ GRAPHQL;
                 ],
                 "customerGets" => [
                     "value" => [
-                        "percentage" => 0.2,
+                        "percentage" => $percentage,
                     ],
                     "items" => [
                         "all" => true
@@ -783,9 +788,7 @@ GRAPHQL;
                 "appliesOncePerCustomer" => true
             ]
         ];
-
         $response = $link->user->api()->graph($mutation, $variables);
-
         return $this->arrayToObject($response);
     }
 
