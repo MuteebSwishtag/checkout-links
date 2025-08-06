@@ -65,7 +65,7 @@ export default function CreateLink() {
         try {
             const response = await fetch(route('links.generateUniqueId', query));
             const data = await response.json();
-            console.log("Fetched unique ID:", data);
+            // console.log("Fetched unique ID:", data);
             if (data.success) {
                 setLinkId(data.uniqueId);
                 // Store the full URL with shop in local state if needed
@@ -113,12 +113,12 @@ export default function CreateLink() {
                     const itemId = v.product_id + '_' + v.variant_id;
                     const shopifyVariantId = v.variant ? v.variant.shopify_product_varient_id : null;
 
-                    console.log("Loading existing variant:", {
-                        itemId,
-                        productId: v.product_id,
-                        variantId: v.variant_id,
-                        shopifyVariantId
-                    });
+                    // console.log("Loading existing variant:", {
+                    //     itemId,
+                    //     productId: v.product_id,
+                    //     variantId: v.variant_id,
+                    //     shopifyVariantId
+                    // });
 
                     return {
                         id: itemId,
@@ -219,7 +219,7 @@ export default function CreateLink() {
                     route('products.all', { ...query, page, per_page: perPage, search })
                 );
                 const data = await response.json();
-                console.log('Fetched products:', data);
+                // console.log('Fetched products:', data);
                 if (data && Array.isArray(data.data)) {
                     setProducts(data.data);
                     setCurrentPage(data.pagination.current_page);
@@ -253,7 +253,7 @@ export default function CreateLink() {
 
         // Extract the actual Shopify variant IDs from the selected products
         const actualVariantIds = selectedProductItems.map(item => item.shopifyVariantId || item.variantId);
-        console.log("Sending Shopify variant IDs:", actualVariantIds);
+        // console.log("Sending Shopify variant IDs:", actualVariantIds);
 
         return {
             linkName,
@@ -361,11 +361,11 @@ export default function CreateLink() {
 
         try {
             const allData = collectAllPageData();
-            console.log('Saving link data:', allData);
-            console.log('SHOPIFY VARIANT IDs BEING SENT:', allData.selectedProductItems.map(item => ({
-                id: item.id,
-                shopify_variant_id: item.shopify_variant_id
-            })));
+            // console.log('Saving link data:', allData);
+            // console.log('SHOPIFY VARIANT IDs BEING SENT:', allData.selectedProductItems.map(item => ({
+            //     id: item.id,
+            //     shopify_variant_id: item.shopify_variant_id
+            // })));
 
             const isEdit = link && link.id;
             const url = isEdit ? route('links.update', { ...query, id: link.id }) : route('products.save', query);
@@ -445,7 +445,7 @@ export default function CreateLink() {
                                             break;
                                         default:
                                             // Handle other errors
-                                            console.log('Unhandled validation key:', key);
+                                            // console.log('Unhandled validation key:', key);
                                             break;
                                     }
                                 });
@@ -538,7 +538,7 @@ export default function CreateLink() {
             }))
             : []
     ), [products]);
-    console.log(productData);
+    // console.log(productData);
 
     // -- Basic UI Handlers
     const handleLinkNameChange = useCallback((value) => {
@@ -586,12 +586,12 @@ export default function CreateLink() {
 
     // Handle product or variant checkbox change
     const handleProductOrVariantCheck = (id, checked, isProduct, product) => {
-        console.log("Product/Variant Check:", { id, checked, isProduct });
+        // console.log("Product/Variant Check:", { id, checked, isProduct });
 
         if (isProduct) {
             // Product-level: select/deselect all its variants (or itself if no variants)
             const variantIds = getAllVariantIds(product);
-            console.log("All variant IDs for product:", variantIds);
+            // console.log("All variant IDs for product:", variantIds);
 
             setSelectedVariantIds(prev => {
                 let newIds;
@@ -645,8 +645,8 @@ export default function CreateLink() {
             image: product.image
         }]);
 
-        console.log("All available variants:", allVariants.map(v => ({ id: v.id, shopifyVariantId: v.shopifyVariantId })));
-        console.log("Selected UI IDs:", variantIds);
+        // console.log("All available variants:", allVariants.map(v => ({ id: v.id, shopifyVariantId: v.shopifyVariantId })));
+        // console.log("Selected UI IDs:", variantIds);
 
         const selected = [];
         const seen = new Set();
@@ -657,7 +657,7 @@ export default function CreateLink() {
             }
         });
 
-        console.log("Selected product items:", selected.map(v => ({ id: v.id, shopifyVariantId: v.shopifyVariantId })));
+        // console.log("Selected product items:", selected.map(v => ({ id: v.id, shopifyVariantId: v.shopifyVariantId })));
         setSelectedProductItems(selected);
     };
 
@@ -692,10 +692,10 @@ export default function CreateLink() {
                             image: item.image
                         };
 
-                        console.log("Added to temp selection:", {
-                            id: item.id,
-                            shopifyVariantId: item.variantId
-                        });
+                        // console.log("Added to temp selection:", {
+                        //     id: item.id,
+                        //     shopifyVariantId: item.variantId
+                        // });
                     }
                 }
             });
@@ -828,9 +828,9 @@ export default function CreateLink() {
     // Copy to clipboard handler
     const handleCopyLink = useCallback(async () => {
         // Use fullUrl if available, otherwise use a default format with linkId
-        console.log("Copying link:", { fullUrl, linkId, shop });
+        // console.log("Copying link:", { fullUrl, linkId, shop });
         const linkUrl = fullUrl || (linkId ? `${shop}/checkout/${linkId}` : "");
-        console.log("Final link URL to copy:", linkUrl);
+        // console.log("Final link URL to copy:", linkUrl);
 
         if (!linkUrl) {
             if (app && app.toast) {
@@ -950,11 +950,11 @@ export default function CreateLink() {
 
                     if (!hasBasicErrors) {
                         try {
-                            console.log('Link Name:', linkName);
-                            console.log('Link ID:', linkId);
-                            console.log('Selected Products:', selectedProductItems);
-                            console.log('Discount Data:', discountData);
-                            console.log('Popup Message Data:', popupMessageData);
+                            // console.log('Link Name:', linkName);
+                            // console.log('Link ID:', linkId);
+                            // console.log('Selected Products:', selectedProductItems);
+                            // console.log('Discount Data:', discountData);
+                            // console.log('Popup Message Data:', popupMessageData);
                             saveLinkData();
                         } catch (error) {
                             console.error('Error when saving link:', error);
