@@ -1,10 +1,10 @@
 <?php
 
 namespace App\Http\Traits;
-use Log;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use App\Repositories\Product\ProductRepositoryInterface;
+use Illuminate\Support\Facades\Log;
 
 trait ShopifyProductTrait
 {
@@ -114,6 +114,7 @@ trait ShopifyProductTrait
     }
     public function storeData($product, User $user)
     {
+        Log::info(json_encode($product, JSON_PRETTY_PRINT));
         DB::beginTransaction();
         try {
             $formatedData = $this->formateProductdata($product, $user);
@@ -159,11 +160,12 @@ trait ShopifyProductTrait
     public function formateProductMedia($media)
     {
         $productMedia = [];
+        Log::info(json_encode($media, JSON_PRETTY_PRINT));
         foreach ($media as $image) {
             $productMedia[] = [
                 'product_id' => $image->product_id ?? null, // optional, set if available
                 'shopify_product_media_id' => $image->id,
-                'src' => $image->preview_image->src
+                'src' => $image->image->src,
             ];
         }
         return $productMedia;
@@ -173,6 +175,8 @@ trait ShopifyProductTrait
         DB::beginTransaction();
         try {
             $product = $this->product->getByShopifyId($productId);
+            // $product->variants()->delete();
+            // $product->media()->delete();
             $this->product->delete($product->id);
         } catch (\Exception $e) {
             DB::rollBack();

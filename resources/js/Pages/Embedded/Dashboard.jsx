@@ -137,7 +137,7 @@ export default function Dashboard() {
 
     return (
         <Box paddingInline={'800'}>
-            <Page title='Dashboard'
+            <Page title=''
                 primaryAction={{
                     content: 'Create checkout link',
                     onAction: () => router.get(route('links.create', query)),

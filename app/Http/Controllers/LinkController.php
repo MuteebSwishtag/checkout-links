@@ -140,7 +140,6 @@ public function getLinks(Request $request)
 {
     $user = Auth::user();
         Log::info('Link listing request:', $request->all());
-
         $baseUrl = config('app.url') . '/checkout/';
 
     // Handle "last=X" case — recent links only

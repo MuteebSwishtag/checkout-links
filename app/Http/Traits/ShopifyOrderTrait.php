@@ -4,12 +4,13 @@ namespace App\Http\Traits;
 
 use App\Models\Link;
 use Carbon\Carbon;
-use Log;
+
 use App\Models\User;
 use App\Http\Traits\ResponseTrait;
 use Illuminate\Support\Facades\DB;
 use App\Repositories\Order\OrderRepositoryInterface;
 use Carbon\CarbonInterval;
+use Illuminate\Support\Facades\Log;
 
 trait ShopifyOrderTrait
 {

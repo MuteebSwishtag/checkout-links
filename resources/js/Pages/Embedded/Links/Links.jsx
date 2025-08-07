@@ -37,6 +37,7 @@ const LinksIndex = () => {
     const [totalPages, setTotalPages] = useState(1);
     const [totalLinks, setTotalLinks] = useState(0);
 
+
     const [loading, setLoading] = useState(false); // Add loading state
 
     const fetchLinks = async (page = 1, search = '') => {
@@ -233,6 +234,7 @@ const LinksIndex = () => {
                     document.body.removeChild(textarea);
                 }
             };
+            const shortCode = urlCode.split('/').pop(); 
             return (
                 <IndexTable.Row
                     id={id}
@@ -240,11 +242,13 @@ const LinksIndex = () => {
                     position={index}
                 >
                     <IndexTable.Cell>
-                        <Text variant="bodyMd" fontWeight="bold" as="span">
+                        <Text variant="bodyMd" as="span">
                             {linkName}
                         </Text>
                     </IndexTable.Cell>
-                    <IndexTable.Cell>{urlCode.length > 12 ? `${urlCode.slice(0, 12)}...` : urlCode}</IndexTable.Cell>
+                    <IndexTable.Cell>
+                        {shortCode.length > 12 ? `${shortCode.slice(0, 12)}...` : shortCode}
+                    </IndexTable.Cell>
                     <IndexTable.Cell>
                         <Badge tone="success">{status}</Badge>
                     </IndexTable.Cell>
@@ -320,7 +324,7 @@ const LinksIndex = () => {
                         {rowMarkup}
                     </IndexTable>
 
-
+                    {currentPage < totalPages && (
                     <Box
                         paddingBlockStart="200"
                         style={{
@@ -337,6 +341,7 @@ const LinksIndex = () => {
                             onNext={handleNextPage}
                         />
                     </Box>
+                    )}
                 </Card>
             </Page>
         </div>

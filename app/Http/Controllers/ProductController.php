@@ -16,7 +16,7 @@ class ProductController extends Controller
         $search = $request->input('search', '');
 
         $query = Product::with(['variants', 'media'])
-            ->where('user_id', $user->id);
+            ->where('user_id', $user->id)->where('status', 'active');
 
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {
