@@ -4,13 +4,12 @@ namespace App\Http\Traits;
 
 use App\Models\Link;
 use Carbon\Carbon;
-
+use Log;
 use App\Models\User;
 use App\Http\Traits\ResponseTrait;
 use Illuminate\Support\Facades\DB;
 use App\Repositories\Order\OrderRepositoryInterface;
 use Carbon\CarbonInterval;
-use Illuminate\Support\Facades\Log;
 
 trait ShopifyOrderTrait
 {
@@ -461,24 +460,18 @@ trait ShopifyOrderTrait
 
             // Add all linked product variants to the order
             foreach ($link->linkedVariants as $linkedVariant) {
-                $variant = $linkedVariant->variant;
-                Log::info("Variant" . json_encode($variant, JSON_PRETTY_PRINT));
-                if (!$variant)
-                    continue;
+    $variant = $linkedVariant->variant;
+    if (!$variant)
+        continue;
 
-                $lineItemInput = [
-                    'variantId' => 'gid://shopify/ProductVariant/' . $variant->shopify_product_varient_id,
-                    'quantity' => 1
-                ];
-
-                // If custom price is set in the link, override the variant price
-                if ($linkedVariant->price) {
-                    $lineItemInput['customAttributes'] = [
-                        ['key' => '_override_price', 'value' => (string) $linkedVariant->price]
-                    ];
-                }
-                $lineItemsInput[] = $lineItemInput;
-            }
+    $price = $linkedVariant->price ?? $variant->price ?? 0; // Fallback to variant price if custom not set
+    $totalProductPrice += floatval($price);
+}
+$actualDiscountValue = 0;
+if (!empty($link->discount_value)) {
+    $percentage = floatval($link->discount_value);
+    $actualDiscountValue = ($totalProductPrice * $percentage) / 100;
+}
             // If no line items, return null
             if (empty($lineItemsInput)) {
                 Log::error("No valid line items found for link", ['link_id' => $linkId]);
@@ -491,7 +484,7 @@ trait ShopifyOrderTrait
                 $link->link_name,
                 $customerData,
                 $link->discount_code,
-                $link->discount_value,
+                $actualDiscountValue,
                 $link->free_shipping,
                 $link->order_discount
             );
