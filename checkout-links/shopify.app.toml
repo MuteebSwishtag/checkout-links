@@ -1,0 +1,29 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "293f810a998b598dc1cbcc650ba1ca82"
+name = "CheckoutLinks"
+handle = "CheckOutLinksUnique"
+application_url = "https://phpstack-1035961-5713949.cloudwaysapps.com/"
+embedded = true
+
+[build]
+include_config_on_deploy = true
+
+[webhooks]
+api_version = "2025-04"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "/webhooks/app/scopes_update"
+
+[auth]
+redirect_urls = [
+  "https://phpstack-1035961-5713949.cloudwaysapps.com/authenticate"
+]
+
+[pos]
+embedded = true

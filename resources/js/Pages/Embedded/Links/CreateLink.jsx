@@ -17,6 +17,9 @@ import {
     Checkbox,
     Pagination,
     Banner,
+    Spinner,
+    LegacyCard,
+    EmptyState,
 } from '@shopify/polaris';
 import {
     ChevronDownIcon,
@@ -32,6 +35,7 @@ import {
     ProductListIcon,
     DragDropIcon,
     CartIcon,
+    LinkIcon,
 } from '@shopify/polaris-icons';
 import { router, usePage } from '@inertiajs/react';
 import { useAppBridge } from '@shopify/app-bridge-react';
@@ -80,6 +84,7 @@ export default function CreateLink() {
 
     useEffect(() => {
         if (link) {
+            console.log("Link data:", link);
             // Editing existing link - use stored values
             setLinkName(link.link_name || '');
             setLinkId(link.link_url || '');
@@ -92,33 +97,36 @@ export default function CreateLink() {
             });
 
             if (link.popup_message) {
-                setPopupMessageData(prev => ({
-                    ...prev,
-                    ...link.popup_message,
+                console.log("Popup message data:", link.popup_message);
+                setPopupMessageData({
                     isActive: !!link.popup_message.is_active,
+                    headingText: link.popup_message.heading_text || 'Order summary',
+                    messageText: link.popup_message.message_text || 'I hope you enjoy your discount!',
                     countdownActive: !!link.popup_message.countdown_active,
-                    showOrderTotal: !!link.popup_message.show_order_total,
+                    timerText: link.popup_message.timer_text || '1 minute',
+                    copyText: link.popup_message.copy_text || 'This offer will expire in',
+                    allowDeselect: !!link.popup_message.allow_deselect,
                     showPrice: !!link.popup_message.show_price,
-                    allowDeselect: !!link.popup_message.allow_deselect
-                }));
+                    showOrderTotal: !!link.popup_message.show_order_total,
+                    checkoutButtonText: link.popup_message.checkout_button_text || 'Confirm',
+                    closeButtonText: link.popup_message.close_button_text || 'No thanks',
+                    closeButtonLink: link.popup_message.close_button_link || '#'
+                });
+
+                // Start timer if popup is active with countdown
+                if (link.popup_message.is_active && link.popup_message.countdown_active && link.popup_message.timer_text) {
+                    const timeInSeconds = parseTimeToSeconds(link.popup_message.timer_text);
+                    setTimerSeconds(timeInSeconds);
+                    setIsTimerActive(true);
+                }
             }
 
             if (Array.isArray(link.linked_variants)) {
-                // Map linked_variants to selectedProductItems structure
                 const selected = link.linked_variants.map(v => {
-                    const product = v.variant && v.variant.product ? v.variant.product : {};
-                    const media = product.media && product.media[0] ? product.media[0].src : '';
-
-                    // Create the unique UI ID and store the actual Shopify variant ID
-                    const itemId = v.product_id + '_' + v.variant_id;
-                    const shopifyVariantId = v.variant ? v.variant.shopify_product_varient_id : null;
-
-                    // console.log("Loading existing variant:", {
-                    //     itemId,
-                    //     productId: v.product_id,
-                    //     variantId: v.variant_id,
-                    //     shopifyVariantId
-                    // });
+                    const product = v.variant?.product || {};
+                    const media = product.media?.[0]?.src || product.image || '';
+                    const itemId = `${v.product_id}_${v.variant_id}`;
+                    const shopifyVariantId = v.variant?.shopify_product_varient_id || null;
 
                     return {
                         id: itemId,
@@ -126,8 +134,8 @@ export default function CreateLink() {
                         variantId: v.variant_id,
                         shopifyVariantId: shopifyVariantId,
                         title: product.title || '',
-                        variant: v.variant ? v.variant.title : '',
-                        price: v.price || (v.variant ? v.variant.price : ''),
+                        variant: v.variant?.title || '',
+                        price: v.price || (v.variant?.price || ''),
                         image: media,
                         quantity: 1
                     };
@@ -135,8 +143,6 @@ export default function CreateLink() {
 
                 setSelectedProductItems(selected);
                 setSelectedProducts(selected.length);
-
-                // Store the UI IDs (composite IDs) for UI state management
                 setSelectedVariantIds(selected.map(v => v.id));
             }
         } else {
@@ -206,35 +212,41 @@ export default function CreateLink() {
     const [currentPage, setCurrentPage] = useState(1);
     const [perPage] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
+    const [isLoading, setIsLoading] = useState(false);
 
     // -- Debounced search values (for performance)
     const debouncedMainProductSearch = useDebouncedValue(mainProductSearch, 300);
     const debouncedProductSearchValue = useDebouncedValue(productSearchValue, 300);
 
-    // --- Fetch products with server-side search and pagination
+    // --- Fetch products with server-side search and pagination (with AbortController)
     const fetchProducts = useCallback(
-        async (page = 1, search = '') => {
+        async (page = 1, search = '', controller = null) => {
+            setIsLoading(true);
             try {
                 const response = await fetch(
-                    route('products.all', { ...query, page, per_page: perPage, search })
+                    route('products.all', { ...query, page, per_page: perPage, search }),
+                    controller ? { signal: controller.signal } : undefined
                 );
                 const data = await response.json();
-                // console.log('Fetched products:', data);
                 if (data && Array.isArray(data.data)) {
                     setProducts(data.data);
                     setCurrentPage(data.pagination.current_page);
                     setTotalPages(data.pagination.last_page);
-                    setShop(data.pagination.shop || ''); // Set shop from pagination data if available
+                    setShop(data.pagination.shop || '');
                 } else {
                     setProducts([]);
                     setCurrentPage(1);
                     setTotalPages(1);
                 }
             } catch (error) {
-                setProducts([]);
-                setCurrentPage(1);
-                setTotalPages(1);
-                setShop(''); // Reset shop on error
+                if (error.name !== 'AbortError') {
+                    setProducts([]);
+                    setCurrentPage(1);
+                    setTotalPages(1);
+                    setShop('');
+                }
+            } finally {
+                setIsLoading(false);
             }
         },
         [perPage, query]
@@ -353,9 +365,8 @@ export default function CreateLink() {
             }
         }
 
-        // If there are errors, stop submission and show toast
+        // If there are errors, stop submission (inline errors will be shown)
         if (hasErrors) {
-            toast.error('Please fix the validation errors before saving');
             return;
         }
 
@@ -456,9 +467,9 @@ export default function CreateLink() {
                             throw new Error(data.error || data.message || 'Failed to save link.');
                         }
 
-                        if (data.success) {
-                            window.location.href = route('home', query);
-                        }
+                        // if (data.success) {
+                        //     window.location.href = route('home', query);
+                        // }
 
                         return data.message || (isEdit ? 'Link updated successfully!' : 'Link created successfully!');
                     } catch (error) {
@@ -478,12 +489,24 @@ export default function CreateLink() {
         }
     }, [selectedProductItems, linkName, linkId, selectedProducts, discountData, popupMessageData, selectedVariantIds, link, query]);
 
-    // -- Fetch on mount and when search/page changes
+    // -- Debounced page change handlers
+    const handleNext = useCallback(() => {
+        if (currentPage < totalPages && !isLoading) {
+            setCurrentPage(prev => prev + 1);
+        }
+    }, [currentPage, totalPages, isLoading]);
+    const handlePrevious = useCallback(() => {
+        if (currentPage > 1 && !isLoading) {
+            setCurrentPage(prev => prev - 1);
+        }
+    }, [currentPage, isLoading]);
+
+    // -- Fetch on mount and when search/page changes (with AbortController)
     useEffect(() => {
-        // Use modal search if open, otherwise main search
+        const controller = new AbortController();
         const searchTerm = isProductModalOpen ? debouncedProductSearchValue : debouncedMainProductSearch;
-        fetchProducts(currentPage, searchTerm);
-        // eslint-disable-next-line
+        fetchProducts(currentPage, searchTerm, controller);
+        return () => controller.abort();
     }, [fetchProducts, currentPage, debouncedMainProductSearch, debouncedProductSearchValue, isProductModalOpen]);
 
     // -- Handlers for search bars
@@ -494,13 +517,6 @@ export default function CreateLink() {
     const handleProductSearchChange = (value) => {
         setProductSearchValue(value);
         setCurrentPage(1);
-    };
-
-    const handleNext = () => {
-        if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-    };
-    const handlePrevious = () => {
-        if (currentPage > 1) setCurrentPage(currentPage - 1);
     };
 
     // Structure product data for hierarchical rendering (product + variants), memoized to avoid infinite loop
@@ -659,6 +675,11 @@ export default function CreateLink() {
 
         // console.log("Selected product items:", selected.map(v => ({ id: v.id, shopifyVariantId: v.shopifyVariantId })));
         setSelectedProductItems(selected);
+
+        // Clear selectedProducts error if products are selected
+        if (selected.length > 0) {
+            setErrors(prev => ({ ...prev, selectedProducts: '' }));
+        }
     };
 
     // Update tempSelectedProductItems when selectedVariantIds changes
@@ -731,9 +752,21 @@ export default function CreateLink() {
     // -- Discount and Popup handlers (unchanged)
     const handleFreeShippingChange = useCallback((value) => setDiscountData(prev => ({ ...prev, freeShipping: value })), []);
     const handleOrderDiscountChange = useCallback((value) => setDiscountData(prev => ({ ...prev, orderDiscount: value })), []);
-    const handleDiscountValueChange = useCallback((value) => setDiscountData(prev => ({ ...prev, discountValue: value })), []);
+    const handleDiscountValueChange = useCallback((value) => {
+        setDiscountData(prev => ({ ...prev, discountValue: value }));
+        // Clear error if value is not empty and order discount is enabled
+        if (value.trim() && discountData.orderDiscount) {
+            setErrors(prev => ({ ...prev, discountValue: '' }));
+        }
+    }, [discountData.orderDiscount]);
     const handleDiscountCodeChange = useCallback((value) => setDiscountData(prev => ({ ...prev, discountCode: value })), []);
-    const handleDiscountCodeValueChange = useCallback((value) => setDiscountData(prev => ({ ...prev, discountCodeValue: value })), []);
+    const handleDiscountCodeValueChange = useCallback((value) => {
+        setDiscountData(prev => ({ ...prev, discountCodeValue: value }));
+        // Clear error if value is not empty and discount code is enabled
+        if (value.trim() && discountData.discountCode) {
+            setErrors(prev => ({ ...prev, discountCodeValue: '' }));
+        }
+    }, [discountData.discountCode]);
     const handlePopupActiveToggle = useCallback((value) => {
         setPopupMessageData(prev => ({ ...prev, isActive: value }));
         if (value && popupMessageData.countdownActive && popupMessageData.timerText) {
@@ -744,8 +777,26 @@ export default function CreateLink() {
             setIsTimerActive(false);
         }
     }, [popupMessageData.countdownActive, popupMessageData.timerText]);
-    const handlePopupHeadingTextChange = useCallback((value) => setPopupMessageData(prev => ({ ...prev, headingText: value })), []);
-    const handlePopupMessageTextChange = useCallback((value) => setPopupMessageData(prev => ({ ...prev, messageText: value })), []);
+    const handlePopupHeadingTextChange = useCallback((value) => {
+        setPopupMessageData(prev => ({ ...prev, headingText: value }));
+        // Clear error if value is not empty
+        if (value.trim()) {
+            setErrors(prev => ({
+                ...prev,
+                popupMessage: { ...prev.popupMessage, headingText: '' }
+            }));
+        }
+    }, []);
+    const handlePopupMessageTextChange = useCallback((value) => {
+        setPopupMessageData(prev => ({ ...prev, messageText: value }));
+        // Clear error if value is not empty
+        if (value.trim()) {
+            setErrors(prev => ({
+                ...prev,
+                popupMessage: { ...prev.popupMessage, messageText: '' }
+            }));
+        }
+    }, []);
     const handlePopupCountdownToggle = useCallback((value) => {
         setPopupMessageData(prev => ({ ...prev, countdownActive: value }));
         if (value && popupMessageData.isActive && popupMessageData.timerText) {
@@ -758,6 +809,13 @@ export default function CreateLink() {
     }, [popupMessageData.isActive, popupMessageData.timerText]);
     const handlePopupTimerTextChange = useCallback((value) => {
         setPopupMessageData(prev => ({ ...prev, timerText: value }));
+        // Clear error if value is not empty
+        if (value.trim()) {
+            setErrors(prev => ({
+                ...prev,
+                popupMessage: { ...prev.popupMessage, timerText: '' }
+            }));
+        }
         if (popupMessageData.countdownActive && popupMessageData.isActive) {
             const timeInSeconds = parseTimeToSeconds(value);
             setTimerSeconds(timeInSeconds);
@@ -969,8 +1027,8 @@ export default function CreateLink() {
         >
             <div className='scroll-wrapper'>
                 <div className='custom-scroll'>
-                    <div style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
-                        <BlockStack gap="500">
+                    <div style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem', marginBottom: '20px' }}>
+                        <BlockStack gap="300">
                             <Card>
                                 <BlockStack gap="400" padding="400">
                                     <Text variant="bodyMd">Link Name</Text>
@@ -1044,37 +1102,42 @@ export default function CreateLink() {
 
                                                 {/* Show filtered products under the search field */}
                                                 {mainProductSearch && (
-                                                    <div style={{
-                                                        maxHeight: '320px',
-                                                        overflowY: 'auto',
-                                                        margin: '12px 0',
-                                                        background: '#fff',
-                                                        border: '1px solid #e1e3e5',
-                                                        borderRadius: 8,
-                                                        boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
-                                                        padding: '8px 0',
-                                                    }}>
-                                                        {productData
-                                                            .filter(product =>
-                                                                product.title.toLowerCase().includes(mainProductSearch.toLowerCase())
-                                                            )
-                                                            .map(product => (
-                                                                <div
-                                                                    key={product.id}
-                                                                    style={{
-                                                                        borderBottom: '1px solid #f0f0f0',
-                                                                        padding: '10px 18px',
-                                                                        transition: 'background 0.2s',
-                                                                        cursor: 'pointer',
-                                                                    }}
-                                                                    onMouseOver={e => e.currentTarget.style.background = '#f9fafb'}
-                                                                    onMouseOut={e => e.currentTarget.style.background = '#fff'}
-                                                                >
-                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                                                        {(popupMessageData.allowDeselect || !(product.variants.length > 0
-                                                                            ? product.variants.every(v => selectedVariantIds.includes(v.id))
-                                                                            : selectedVariantIds.includes(product.id)
-                                                                        )) && (
+                                                    <>
+                                                        {(() => {
+                                                            const filteredProducts = productData.filter(product => product.title.toLowerCase().includes(mainProductSearch.toLowerCase()));
+                                                            return (
+                                                                <Text variant="bodySm" tone="subdued" style={{ display: 'block', padding: '0 18px 8px' }}>
+                                                                    {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
+                                                                </Text>
+                                                            );
+                                                        })()}
+                                                        <div style={{
+                                                            maxHeight: '320px',
+                                                            overflowY: 'auto',
+                                                            margin: '12px 0',
+                                                            background: '#fff',
+                                                            border: '1px solid #e1e3e5',
+                                                            borderRadius: 8,
+                                                            boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+                                                            padding: '8px 0',
+                                                        }}>
+                                                            {productData
+                                                                .filter(product =>
+                                                                    product.title.toLowerCase().includes(mainProductSearch.toLowerCase())
+                                                                )
+                                                                .map(product => (
+                                                                    <div
+                                                                        key={product.id}
+                                                                        style={{
+                                                                            borderBottom: '1px solid #f0f0f0',
+                                                                            padding: '10px 18px',
+                                                                            transition: 'background 0.2s',
+                                                                            cursor: 'pointer',
+                                                                        }}
+                                                                        onMouseOver={e => e.currentTarget.style.background = '#f9fafb'}
+                                                                        onMouseOut={e => e.currentTarget.style.background = '#fff'}
+                                                                    >
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                                                             <Checkbox
                                                                                 label=""
                                                                                 checked={product.variants.length > 0
@@ -1084,52 +1147,59 @@ export default function CreateLink() {
                                                                                 indeterminate={product.variants.length > 0 && product.variants.some(v => selectedVariantIds.includes(v.id)) && !product.variants.every(v => selectedVariantIds.includes(v.id))}
                                                                                 onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
                                                                             />
+                                                                            <Thumbnail source={product.image} alt={product.title} size="small" />
+                                                                            <div style={{ flex: 1, minWidth: 0 }}>
+                                                                                <Text fontWeight="medium" truncate>{product.title}</Text>
+                                                                                {/* <Text variant="bodySm" color="subdued" style={{ marginLeft: 8 }}>Available:</Text> */}
+                                                                            </div>
+                                                                            {product.variants.length === 0 && (
+                                                                                <Text variant="bodySm" color="subdued">Price: ${product.price}</Text>
                                                                             )}
-                                                                        <Thumbnail source={product.image} alt={product.title} size="small" />
-                                                                        <div style={{ flex: 1, minWidth: 0 }}>
-                                                                            <Text fontWeight="medium" truncate>{product.title}</Text>
-                                                                            {/* <Text variant="bodySm" color="subdued" style={{ marginLeft: 8 }}>Available:</Text> */}
                                                                         </div>
-                                                                        {product.variants.length === 0 && (
-                                                                            <Text variant="bodySm" color="subdued">Price: ${product.price}</Text>
-                                                                        )}
-                                                                    </div>
-                                                                    {product.variants.length > 0 && (
-                                                                        <div style={{ marginLeft: 44, marginTop: 6 }}>
-                                                                            {product.variants.map(variant => (
-                                                                                <div key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2, padding: '2px 0' }}>
-                                                                                    {(popupMessageData.allowDeselect || !selectedVariantIds.includes(variant.id)) && (
+                                                                        {product.variants.length > 0 && (
+                                                                            <div style={{ marginLeft: 44, marginTop: 6 }}>
+                                                                                {product.variants.map(variant => (
+                                                                                    <div key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2, padding: '2px 0' }}>
                                                                                         <Checkbox
                                                                                             label=""
                                                                                             checked={selectedVariantIds.includes(variant.id)}
                                                                                             onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
                                                                                         />
-                                                                                    )}
-                                                                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                                                                        <Text fontWeight="medium" truncate>{variant.variantTitle}</Text>
-                                                                                        <Text variant="bodySm" color="subdued" style={{ marginLeft: 8 }}>Available: {variant.available}</Text>
+                                                                                        <div style={{ flex: 1, minWidth: 0 }}>
+                                                                                            <Text fontWeight="medium" truncate>{variant.variantTitle}</Text>
+                                                                                            <Text variant="bodySm" color="subdued" style={{ marginLeft: 8 }}>Available: {variant.available}</Text>
+                                                                                        </div>
+                                                                                        <Text variant="bodySm" color="subdued">Price: ${variant.price}</Text>
                                                                                     </div>
-                                                                                    <Text variant="bodySm" color="subdued">Price: ${variant.price}</Text>
-                                                                                </div>
-                                                                            ))}
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            ))}
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                            {currentPage < totalPages && (
+                                                                <Box paddingBlockStart="200" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', paddingTop: '8px' }}>
+                                                                    <Pagination
+                                                                        hasPrevious={currentPage > 1 && !isLoading}
+                                                                        onPrevious={handlePrevious}
+                                                                        hasNext={currentPage < totalPages && !isLoading}
+                                                                        onNext={handleNext}
+                                                                        disabled={isLoading}
+                                                                    />
+                                                                    {isLoading && <Spinner size="small" />}
+                                                                </Box>
+                                                            )}
+                                                            {productData.filter(product => product.title.toLowerCase().includes(mainProductSearch.toLowerCase())).length === 0 && (
 
-                                                        <Box paddingBlockStart="200" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', paddingTop: '8px' }}>
-                                                            <Pagination
-                                                                hasPrevious={currentPage > 1}
-                                                                onPrevious={handlePrevious}
-                                                                hasNext={currentPage < totalPages}
-                                                                onNext={handleNext}
-                                                            />
-                                                        </Box>
+                                                                <EmptyState
+                                                                    heading="No products found"
+                                                                    image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                                                                >
 
-                                                        {productData.filter(product => product.title.toLowerCase().includes(mainProductSearch.toLowerCase())).length === 0 && (
-                                                            <Text variant="bodySm" tone="subdued" textAlign="center" style={{ display: 'block', padding: 16 }}>No products found</Text>
-                                                        )}
-                                                    </div>
+                                                                </EmptyState>
+
+                                                            )}
+                                                        </div>
+                                                    </>
                                                 )}
                                                 {selectedProductItems.length > 0 && (
                                                     <DragDropContext onDragEnd={handleDragEnd}>
@@ -1235,6 +1305,7 @@ export default function CreateLink() {
                                 </BlockStack>
                             </Card>
                             {/* Popup Message Card */}
+                            {/* card  margin  bottom */}
                             <Card>
                                 <BlockStack gap="400">
                                     <InlineStack align="space-between" padding="400">
@@ -1277,7 +1348,7 @@ export default function CreateLink() {
                         </BlockStack>
                     </div>
                 </div>
-                <div style={{ flex: 1, position: 'sticky', top: '1rem', height: 'fit-content', paddingLeft: '0.5rem', overflow: 'auto' }}>
+                <div style={{ flex: 1, position: 'sticky', height: 'fit-content', paddingLeft: '0.5rem', overflow: 'auto' }}>
                     <BlockStack gap="300">
 
                         <Card>
@@ -1339,16 +1410,17 @@ export default function CreateLink() {
                                                 </Box>
                                             </InlineStack>
                                         }
-                                        <InlineStack gap="400">
-                                            <Box width='70%'>
-                                                <TextField
-                                                    id="link-url-field"
-                                                    value={fullUrl || (linkId ? `${shop}/checkout/${linkId}` : "")}
-                                                    readOnly
-                                                    autoComplete="off"
-                                                />
-                                            </Box>
-                                            <Button icon={ClipboardIcon} onClick={handleCopyLink}>Copy</Button>
+                                        <InlineStack gap="500" justifyContent>
+                                            <TextField
+                                                id="link-url-field"
+                                                value={fullUrl || (linkId ? `${shop}/checkout/${linkId}` : "")}
+                                                autoComplete="off"
+                                                labelHidden
+                                                prefix={<Icon source={LinkIcon} tone="critical" />}
+                                            />
+                                            <Button icon={ClipboardIcon} onClick={handleCopyLink}>
+                                                Copy
+                                            </Button>
                                         </InlineStack>
                                     </BlockStack>
                                 </Box>
@@ -1397,9 +1469,9 @@ export default function CreateLink() {
                                                         <BlockStack gap="400">
 
                                                             <div style={{
-                                                                maxHeight: selectedProductItems.length > 4 ? '100px' : 'auto',
-                                                                overflowY: selectedProductItems.length > 4 ? 'auto' : 'visible',
-                                                                paddingRight: selectedProductItems.length > 4 ? '8px' : '0'
+                                                                    maxHeight: selectedProductItems.length > 2 ? '160px' : 'auto',
+                                                                    overflowY: selectedProductItems.length > 2 ? 'auto' : 'visible',
+                                                                    paddingRight: selectedProductItems.length > 2 ? '8px' : '0'
                                                             }}>
                                                                 <BlockStack gap="400">
                                                                     {selectedProductItems.map((product, index) => (
@@ -1450,7 +1522,7 @@ export default function CreateLink() {
                                                                                                 textAlign="center"
                                                                                                 truncate
                                                                                             >
-                                                                                                title={product.title + (product.variant ? ` (${product.variant})` : '')}
+                                                                                                {product.title + (product.variant ? ` (${product.variant})` : '')}
                                                                                             </Text>
                                                                                         </div>
 
@@ -1469,14 +1541,15 @@ export default function CreateLink() {
                                                                     <TextField
                                                                         placeholder="Gift card"
                                                                         autoComplete="off"
-                                                                            value={discountData.discountValue}
+                                                                            value={discountData.orderDiscount ? discountData.discountValue : ''}
+                                                                            disabled={discountData.orderDiscount == 0}
                                                                     // connectedRight={
                                                                     //     <Button variant="secondary">Apply</Button>
                                                                     // }
                                                                     />
 
                                                                 </Box>
-                                                                <Button variant="secondary" >Apply</Button>
+                                                                    <Button variant="secondary" disabled={!discountData.orderDiscount}>Apply</Button>
                                                             </InlineStack>
 
 
@@ -1567,7 +1640,7 @@ export default function CreateLink() {
                                                                                 discount = subtotal * (codeValue / 100);
                                                                             }
                                                                             // Free shipping doesn't affect the product total, only shipping cost
-                                                                            return `$${(subtotal - discount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                                                                return `${(subtotal - discount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                                                                         })()}
                                                                     </Text>
                                                                 </InlineStack>
@@ -1612,10 +1685,13 @@ export default function CreateLink() {
 
                                                         {/* Message Text */}
                                                         {popupMessageData.messageText && (
-                                                            <Text variant="bodySm" textAlign="center" tone="subdued">
-                                                                {popupMessageData.messageText}
-                                                            </Text>
+                                                            <div style={{ textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '100%' }}>
+                                                                <Text variant="bodySm" tone="subdued" as="p">
+                                                                    {popupMessageData.messageText}
+                                                                </Text>
+                                                            </div>
                                                         )}
+
 
                                                         {/* Countdown Timer */}
                                                         {popupMessageData.countdownActive && (
@@ -1634,9 +1710,9 @@ export default function CreateLink() {
 
                                                         {/* Products List with Scrollable Container */}
                                                         <div style={{
-                                                            maxHeight: selectedProductItems.filter(product => popupProductChecked[product.id] !== false).length > 4 ? '100px' : 'auto',
-                                                            overflowY: selectedProductItems.filter(product => popupProductChecked[product.id] !== false).length > 4 ? 'auto' : 'visible',
-                                                            paddingRight: selectedProductItems.filter(product => popupProductChecked[product.id] !== false).length > 4 ? '8px' : '0'
+                                                            maxHeight: selectedProductItems.filter(product => popupProductChecked[product.id] !== false).length > 2 ? '160px' : 'auto',
+                                                            overflowY: selectedProductItems.filter(product => popupProductChecked[product.id] !== false).length > 2 ? 'auto' : 'visible',
+                                                            paddingRight: selectedProductItems.filter(product => popupProductChecked[product.id] !== false).length > 2 ? '8px' : '0'
                                                         }}>
                                                             <BlockStack gap="400">
                                                                 {selectedProductItems
@@ -1722,7 +1798,7 @@ export default function CreateLink() {
                                                                     <InlineStack align="end" gap="200" blockAlign='center'>
                                                                         <Text variant="headingXs" tone="subdued">AUD</Text>
                                                                         <Text variant="headingLg" fontWeight="bold">
-                                                                            ${(() => {
+                                                                            {(() => {
                                                                                 const subtotal = selectedProductItems
                                                                                     .filter(product => popupProductChecked[product.id] !== false)
                                                                                     .reduce((total, product) => {
@@ -1790,9 +1866,42 @@ export default function CreateLink() {
                     },
                 ]}
                 footer={
-                    <div style={{ padding: '12px 16px', textAlign: 'left' }}>
-                        <Text>{Object.keys(tempSelectedProductItems).length} products selected</Text>
-                    </div>
+                    (() => {
+                        // Count products fully selected and individual variants
+                        const selectedIds = Object.keys(tempSelectedProductItems);
+                        let productCount = 0;
+                        let variantCount = 0;
+                        productData.forEach(product => {
+                            if (product.variants.length > 0) {
+                                const allVariantIds = product.variants.map(v => v.id);
+                                const allSelected = allVariantIds.every(id => selectedIds.includes(id));
+                                if (allSelected) {
+                                    productCount++;
+                                } else {
+                                    // Count only the selected variants for this product
+                                    variantCount += allVariantIds.filter(id => selectedIds.includes(id)).length;
+                                }
+                            } else {
+                                // Simple product (no variants)
+                                if (selectedIds.includes(product.id)) {
+                                    productCount++;
+                                }
+                            }
+                        });
+                        let text = '';
+                        if (productCount > 0 && variantCount > 0) {
+                            text = `${productCount} product${productCount !== 1 ? 's' : ''}, ${variantCount} variant${variantCount !== 1 ? 's' : ''} selected`;
+                        } else if (productCount > 0) {
+                            text = `${productCount} product${productCount !== 1 ? 's' : ''} selected`;
+                        } else {
+                            text = `${variantCount} variant${variantCount !== 1 ? 's' : ''} selected`;
+                        }
+                        return (
+                            <div style={{ padding: '12px 16px', textAlign: 'left' }}>
+                                <Text>{text}</Text>
+                            </div>
+                        );
+                    })()
                 }
             >
                 <Modal.Section>
@@ -1812,13 +1921,18 @@ export default function CreateLink() {
                         </InlineStack>
 
                         <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                            {productData.map(product => (
-                                <div key={product.id} style={{ borderBottom: '1px solid #eee', padding: '8px 0' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        {(popupMessageData.allowDeselect || !(product.variants.length > 0
-                                            ? product.variants.every(v => selectedVariantIds.includes(v.id))
-                                            : selectedVariantIds.includes(product.id)
-                                        )) && (
+                            {productData.length === 0 ? (
+                                <LegacyCard sectioned>
+                                    <EmptyState
+                                        heading="No products found"
+                                        image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                                    >
+                                    </EmptyState>
+                                </LegacyCard>
+                            ) : (
+                                productData.map(product => (
+                                    <div key={product.id} style={{ borderBottom: '1px solid #eee', padding: '8px 0' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                             <Checkbox
                                                 label=""
                                                 checked={product.variants.length > 0
@@ -1828,47 +1942,51 @@ export default function CreateLink() {
                                                 indeterminate={product.variants.length > 0 && product.variants.some(v => selectedVariantIds.includes(v.id)) && !product.variants.every(v => selectedVariantIds.includes(v.id))}
                                                 onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
                                             />
+                                            <Thumbnail source={product.image} alt={product.title} size="small" />
+                                            <div style={{ flex: 1 }}>
+                                                <Text fontWeight="medium">{product.title}</Text>
+                                            </div>
+                                            {product.variants.length === 0 && (
+                                                <Text variant="bodySm" color="subdued">Price: ${product.price}</Text>
                                             )}
-                                        <Thumbnail source={product.image} alt={product.title} size="small" />
-                                        <div style={{ flex: 1 }}>
-                                            <Text fontWeight="medium">{product.title}</Text>
                                         </div>
-                                        {product.variants.length === 0 && (
-                                            <Text variant="bodySm" color="subdued">Price: ${product.price}</Text>
-                                        )}
-                                    </div>
-                                    {product.variants.length > 0 && (
-                                        <div style={{ marginLeft: 36, marginTop: 4 }}>
-                                            {product.variants.map(variant => (
-                                                <div key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                                                    {(popupMessageData.allowDeselect || !selectedVariantIds.includes(variant.id)) && (
+                                        {product.variants.length > 0 && (
+                                            <div style={{ marginLeft: 36, marginTop: 4 }}>
+                                                {product.variants.map(variant => (
+                                                    <div key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                                                         <Checkbox
                                                             label=""
                                                             checked={selectedVariantIds.includes(variant.id)}
                                                             onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
                                                         />
-                                                    )}
-                                                    {/* <Thumbnail source={variant.image} alt={variant.title} size="small" /> */}
-                                                    <div style={{ flex: 1 }}>
-                                                        <Text fontWeight="medium">{variant.variantTitle}</Text>
-                                                        <Text variant="bodySm" color="subdued" style={{ marginLeft: 8 }}>Available: {variant.available}</Text>
+                                                        {/* <Thumbnail source={variant.image} alt={variant.title} size="small" /> */}
+                                                        <div style={{ flex: 1 }}>
+                                                            <Text fontWeight="medium">{variant.variantTitle}</Text>
+                                                            <Text variant="bodySm" color="subdued" style={{ marginLeft: 8 }}>Available: {variant.available}</Text>
+                                                        </div>
+                                                        <Text variant="bodySm" color="subdued">Price: ${variant.price}</Text>
                                                     </div>
-                                                    <Text variant="bodySm" color="subdued">Price: ${variant.price}</Text>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))
+                            )}
                         </div>
-                        <Box paddingBlockStart="200" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-                            <Pagination
-                                hasPrevious={currentPage > 1}
-                                onPrevious={handlePrevious}
-                                hasNext={currentPage < totalPages}
-                                onNext={handleNext}
-                            />
-                        </Box>
+                        {currentPage < totalPages && (
+                            <Box
+                                paddingBlockStart="200"
+                                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                            >
+                                <Pagination
+                                    hasPrevious={currentPage > 1 && !isLoading}
+                                    onPrevious={handlePrevious}
+                                    hasNext={currentPage < totalPages && !isLoading}
+                                    onNext={handleNext}
+                                    disabled={isLoading}
+                                />
+                            </Box>
+                        )}
                     </BlockStack>
                 </Modal.Section>
             </Modal>

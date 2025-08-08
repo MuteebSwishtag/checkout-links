@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('links', function (Blueprint $table) {
     $table->id();
     $table->unsignedBigInteger('user_id')->nullable();
-    $table->string('link_name')->nullable();
+    $table->string('link_name')->nullable()->unique();
     $table->string('link_url')->nullable();
     $table->boolean('discount_code')->nullable();
     $table->string('discount_code_value')->nullable();

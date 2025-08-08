@@ -15,8 +15,17 @@ class ProductController extends Controller
         $perPage = $request->input('per_page', 10);
         $search = $request->input('search', '');
 
-        $query = Product::with(['variants', 'media'])
-            ->where('user_id', $user->id);
+        $query = Product::with([
+            'variants' => function ($q) {
+                $q->where('inventory_quantity', '>', 0);
+            },
+            'media'
+        ])
+            ->where('user_id', $user->id)
+            ->where('status', 'active')
+            ->whereHas('variants', function ($q) {
+                $q->where('inventory_quantity', '>', 0);
+            });
 
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {
