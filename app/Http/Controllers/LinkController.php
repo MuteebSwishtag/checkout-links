@@ -8,8 +8,10 @@ use App\Http\Traits\ShopifyOrderTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Exists;
 
 class LinkController extends Controller
@@ -22,13 +24,14 @@ class LinkController extends Controller
         Log::info('Data received for saving link:', ['data' => $data]);
 
         // Validate the request
-        $validator = \Validator::make($data, [
-            'linkName' => 'required|string|max:255',
+        $validator = Validator::make($data, [
+            'linkName' => 'required|string|max:255|unique:links,link_name',
             'linkId' => 'required|string',
             'selectedProductItems' => 'required|array|min:1',
             'selectedProductItems.*.shopify_variant_id' => 'required',
         ], [
             'linkName.required' => 'The link name is required',
+            'linkName.unique' => 'This link name already exists. Please choose another one.',
             'linkId.required' => 'The link ID is required',
             'selectedProductItems.required' => 'At least one product must be selected',
             'selectedProductItems.min' => 'At least one product must be selected',
@@ -467,7 +470,7 @@ public function update(Request $request, $id)
      * @param string $encryptedId The encrypted ID from URL
      * @return \Illuminate\Http\JsonResponse
      */
-    public function decryptLinkId($encryptedId): JsonResponse|RedirectResponse
+    public function decryptLinkId($encryptedId): JsonResponse|RedirectResponse|Response
     {
         $originalId = $this->decryptId($encryptedId);
 
@@ -484,17 +487,15 @@ public function update(Request $request, $id)
             ->first();
 
         if (!$link) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Link not found'
-            ], 404);
+            // Show a popup/error page instead of JSON response
+            return $this->showLinkNotFoundPage();
         }
 
         $user = User::where('id', $link->user_id)->first();
         $shopUrl = "https://" . urlencode($user ? $user->name : 'Guest');
 
         // Increment clicks counter
-        $link->increment('clicks');
+        // $link->increment('clicks');
 
         // Check if popup message is active
         $popupMessageActive = $link->popupMessage && $link->popupMessage->is_active;
@@ -541,5 +542,127 @@ public function update(Request $request, $id)
         }
         Log::info('Redirecting to: ' . $redirectUrl);
         return redirect()->to($redirectUrl);
+    }
+
+    /**
+     * Show a user-friendly error page when link is not found
+     *
+     * @return \Illuminate\Http\Response
+     */
+    private function showLinkNotFoundPage()
+    {
+        $html = '
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Link Not Found</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    background: linerar-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    margin: 0;
+                    padding: 0;
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .container {
+                    background: white;
+                    border-radius: 20px;
+                    padding: 40px;
+                    text-align: center;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                    max-width: 500px;
+                    margin: 20px;
+                }
+                .icon {
+                    font-size: 80px;
+                    margin-bottom: 20px;
+                    color: #ff6b6b;
+                }
+                h1 {
+                    color: #333;
+                    margin-bottom: 15px;
+                    font-size: 28px;
+                }
+                p {
+                    color: #666;
+                    line-height: 1.6;
+                    margin-bottom: 30px;
+                    font-size: 16px;
+                }
+                .btn {
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 12px 30px;
+                    border: none;
+                    border-radius: 25px;
+                    font-size: 16px;
+                    cursor: pointer;
+                    text-decoration: none;
+                    display: inline-block;
+                    transition: transform 0.3s ease;
+                }
+                .btn:hover {
+                    transform: translateY(-2px);
+                }
+                .error-code {
+                    background: #f8f9fa;
+                    color: #6c757d;
+                    padding: 10px 20px;
+                    border-radius: 5px;
+                    font-family: monospace;
+                    font-size: 14px;
+                    margin-top: 20px;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="icon">🔗❌</div>
+                <h1>Oops! Link Not Found</h1>
+                <p>
+                    The checkout link you\'re looking for doesn\'t exist or may have been removed. 
+                    This could happen if the link was deleted or if there was a typo in the URL.
+                </p>
+                <a href="javascript:history.back()" class="btn">Go Back</a>
+                <div class="error-code">Error Code: 404 - Link Not Found</div>
+            </div>
+            
+            <script>
+                // Auto-close after 10 seconds if opened in a popup
+                if (window.opener) {
+                    setTimeout(() => {
+                        window.close();
+                    }, 10000);
+                }
+            </script>
+        </body>
+        </html>';
+
+        return response($html, 404)->header('Content-Type', 'text/html');
+    }
+
+
+    public function count(Request $request)
+    {
+        $data = $request->validate([
+            'link_id' => 'required|exists:links,id',
+            'event_type' => 'required|string',
+            'timestamp' => 'required|date',
+            'page_url' => 'nullable|url'
+        ]);
+        // Log the incoming request data
+        Log::info('Order count request received:', $data);
+        // Process the order count logic here
+        // For example, increment the order count for the link
+        $link = Link::findOrFail($data['link_id']);
+        $link->increment('placed_order');
+        Log::info('Order count incremented for link ID: ' . $data['link_id']);
+        // Optionally, store the event in a separate table or log file
+        return response()->json(['success' => true, 'message' => 'Order count recorded successfully']);
     }
 }

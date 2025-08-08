@@ -165,7 +165,7 @@ trait ShopifyProductTrait
             $productMedia[] = [
                 'product_id' => $image->product_id ?? null, // optional, set if available
                 'shopify_product_media_id' => $image->id,
-                'src' => $image->image->src,
+                'src' => $image->preview_image->src ?? null,
             ];
         }
         return $productMedia;

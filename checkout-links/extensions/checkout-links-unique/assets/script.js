@@ -11,6 +11,94 @@ window.checkoutConfig = window.checkoutConfig || {
   popupMessage: {}
 };
 
+// Simple order counter for checkout links
+window.orderCounter = {
+  // Count completed orders for this link
+  countOrder: function() {
+    const linkId = window.checkoutConfig?.link_id;
+    if (!linkId) return;
+    
+    // Send order count to backend
+    this.sendOrderCount(linkId);
+    
+    // Store locally as backup
+    this.storeLocalCount(linkId);
+  },
+
+  // Send order count to backend API
+  sendOrderCount: function(linkId) {
+    const backendUrl = window.checkoutConfig?.backendUrl;
+    if (!backendUrl) return;
+    
+    const countData = {
+      link_id: linkId,
+      event_type: 'order_placed',
+      timestamp: new Date().toISOString(),
+      page_url: window.location.href
+    };
+
+    fetch(`${backendUrl}/api/order-count`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(countData)
+    }).then(response => {
+      if (response.ok) {
+        console.log('Order count sent successfully for link:', linkId);
+      }
+    }).catch(error => {
+      console.error('Failed to send order count:', error);
+    });
+  },
+
+  // Store order count locally
+  storeLocalCount: function(linkId) {
+    try {
+      const countKey = `checkout_links_count_${linkId}`;
+      const currentCount = parseInt(localStorage.getItem(countKey) || '0');
+      localStorage.setItem(countKey, (currentCount + 1).toString());
+      
+      console.log(`Order count for link ${linkId}: ${currentCount + 1}`);
+    } catch (error) {
+      console.error('Failed to store order count locally:', error);
+    }
+  },
+
+  // Check if we're on thank you page and count order
+  checkAndCount: function() {
+    // Check if we're on thank you/order confirmation page
+    const currentPath = window.location.pathname;
+    const currentSearch = window.location.search;
+    
+    const isThankYouPage = currentPath.includes('/thank_you') || 
+                          currentPath.includes('/thank-you') ||
+                          currentPath.includes('/orders/') ||
+                          currentPath.match(/\/checkouts\/[^\/]+\/[^\/]+\/thank-you/) ||
+                          document.querySelector('.os-step__title') ||
+                          document.querySelector('[data-step="thank_you"]') ||
+                          document.querySelector('.order-confirmation') ||
+                          document.querySelector('.step__footer') ||
+                          currentSearch.includes('thank_you') ||
+                          currentSearch.includes('thank-you');
+    
+    console.log('Order Counter: Checking for thank you page...', {
+      currentPath,
+      currentSearch,
+      isThankYouPage,
+      linkId: window.checkoutConfig?.link_id
+    });
+    if (isThankYouPage && window.checkoutConfig?.link_id) {
+      console.log('Order Counter: Thank you page detected, counting order for link:', window.checkoutConfig.link_id);
+      // Add small delay to ensure page is loaded
+      setTimeout(() => {
+        this.countOrder();
+      }, 1000);
+    }
+  }
+};
+
 document.addEventListener('DOMContentLoaded', function() {
   // Immediately make sure the modal is properly hidden on page load
   const initialModalElement = document.getElementById('orderSummaryModal');
@@ -457,6 +545,170 @@ document.addEventListener('DOMContentLoaded', function() {
     attachEventListeners();
   }
 
+  // Helper function to add items to cart with error handling
+  async function addItemsToCart(cartItems, confirmBtn) {
+    try {
+      const response = await fetch(window.Shopify.routes?.root ? `${window.Shopify.routes.root}cart/add.js` : '/cart/add.js', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ 
+          items: cartItems,
+        })
+      });
+
+      if (!response.ok) {
+        // Handle specific error responses
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          errorData = { message: 'Unknown error occurred' };
+        }
+        
+        const error = new Error(errorData.message || `HTTP error! Status: ${response.status}`);
+        error.status = response.status;
+        error.data = errorData;
+        throw error;
+      }
+
+      const data = await response.json();
+      // console.log('Products added to cart:', data);
+      
+      // Store cart session data for potential order counting
+      if (window.checkoutConfig?.link_id) {
+        sessionStorage.setItem('checkout_links_session', JSON.stringify({
+          link_id: window.checkoutConfig.link_id,
+          cart_created: new Date().toISOString(),
+          items: cartItems
+        }));
+      }
+      
+      // Reset button state
+      confirmBtn.textContent = window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm';
+      confirmBtn.disabled = false;
+      
+      // Close modal and redirect to cart page
+      closeModal();
+      setTimeout(() => {
+        // If we have a discount code, redirect to checkout with discount applied
+        const discountCode = window.checkoutConfig.discount?.code || '';
+        if (discountCode) {
+          // console.log('Redirecting to checkout with discount:', discountCode);
+          window.location.href = `/checkout?discount=${encodeURIComponent(discountCode)}`;
+        } else {
+          // console.log('Redirecting to checkout without discount');
+          window.location.href = '/checkout';
+        }
+      }, 300);
+
+    } catch (error) {
+      // console.error('Error adding products to cart:', error);
+      
+      // Reset button state first
+      confirmBtn.disabled = false;
+      
+      // Handle specific error cases
+      if (error.status === 422) {
+        if (error.message && error.message.includes('maximum quantity')) {
+          // Handle maximum quantity error - try updating cart instead
+          confirmBtn.textContent = 'Updating cart...';
+          await handleMaxQuantityError(cartItems, confirmBtn);
+        } else if (error.data && error.data.description) {
+          // Show the specific error description from Shopify
+          confirmBtn.textContent = error.data.description;
+          setTimeout(() => {
+            confirmBtn.textContent = window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm';
+          }, 3000);
+        } else {
+          // Generic 422 error
+          confirmBtn.textContent = 'Unable to add to cart';
+          setTimeout(() => {
+            confirmBtn.textContent = window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm';
+          }, 3000);
+        }
+      } else if (error.status === 404) {
+        confirmBtn.textContent = 'Product not found';
+        setTimeout(() => {
+          confirmBtn.textContent = window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm';
+        }, 3000);
+      } else {
+        // Generic error handling
+        confirmBtn.textContent = 'Failed! Try again';
+        setTimeout(() => {
+          confirmBtn.textContent = window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm';
+        }, 3000);
+      }
+    }
+  }
+
+  // Helper function to handle maximum quantity errors by updating existing cart items
+  async function handleMaxQuantityError(cartItems, confirmBtn) {
+    try {
+      // Get current cart state
+      const cartResponse = await fetch('/cart.js');
+      const currentCart = await cartResponse.json();
+      
+      // Check which items are already in cart and update quantities
+      const updates = {};
+      let hasUpdates = false;
+      
+      for (const item of cartItems) {
+        const existingItem = currentCart.items.find(cartItem => 
+          cartItem.variant_id === item.id || cartItem.id === item.id
+        );
+        
+        if (existingItem) {
+          // Item exists, update quantity (ensure we don't exceed max)
+          const newQuantity = Math.min(existingItem.quantity + item.quantity, 10); // Assuming max 10
+          if (newQuantity !== existingItem.quantity) {
+            updates[existingItem.key] = newQuantity;
+            hasUpdates = true;
+          }
+        }
+      }
+      
+      if (hasUpdates) {
+        // Update cart with new quantities
+        const updateResponse = await fetch('/cart/update.js', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ updates })
+        });
+        
+        if (updateResponse.ok) {
+          confirmBtn.textContent = 'Cart updated!';
+          setTimeout(() => {
+            closeModal();
+            window.location.href = '/cart';
+          }, 1500);
+        } else {
+          throw new Error('Failed to update cart');
+        }
+      } else {
+        // Items are already at maximum quantity
+        confirmBtn.textContent = 'Items already in cart';
+        setTimeout(() => {
+          closeModal();
+          window.location.href = '/cart';
+        }, 1500);
+      }
+      
+    } catch (updateError) {
+      // console.error('Error updating cart:', updateError);
+      confirmBtn.textContent = 'Already in cart - view cart';
+      setTimeout(() => {
+        closeModal();
+        window.location.href = '/cart';
+      }, 2000);
+    }
+  }
+
   // Attach event listeners
   function attachEventListeners() {
     // Update total when checkboxes change
@@ -516,55 +768,8 @@ document.addEventListener('DOMContentLoaded', function() {
         // console.log('Using discount code for cart:', discountCode);
         
         // Add to cart using Shopify AJAX API
-        fetch(window.Shopify.routes?.root ? `${window.Shopify.routes.root}cart/add.js` : '/cart/add.js', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify({ 
-            items: cartItems,
-          })
-        })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! Status: ${response.status}`);
-          }
-          return response.json();
-        })
-        .then(data => {
-          // console.log('Products added to cart:', data);
-          
-          // Reset button state
-          confirmBtn.textContent = window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm';
-          confirmBtn.disabled = false;
-          
-          // Close modal and redirect to cart page
-          closeModal();
-          setTimeout(() => {
-            // If we have a discount code, redirect to checkout with discount applied
-            const discountCode = window.checkoutConfig.discount?.code || '';
-            if (discountCode) {
-              // console.log('Redirecting to checkout with discount:', discountCode);
-              window.location.href = `/checkout?discount=${encodeURIComponent(discountCode)}`;
-            } else {
-              // console.log('Redirecting to checkout without discount');
-              window.location.href = '/checkout';
-            }
-          }, 300);
-        })
-        .catch(error => {
-          // console.error('Error adding products to cart:', error);
-          
-          // Show error on button
-          confirmBtn.textContent = 'Failed! Try again';
-          confirmBtn.disabled = false;
-          
-          // Reset button text after 3 seconds
-          setTimeout(() => {
-            confirmBtn.textContent = window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm';
-          }, 300);
-        });
+        // First try to add items to cart
+        addItemsToCart(cartItems, confirmBtn);
       });
     }
     
@@ -825,6 +1030,9 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       // Show modal after data is loaded
       showModal();
+      
+      // Initialize order counting
+      window.orderCounter.checkAndCount();
     }).catch(() => {
       // Don't show modal on error but ensure backdrop is removed
       // console.log('Error fetching link data, not showing modal');
@@ -834,6 +1042,20 @@ document.addEventListener('DOMContentLoaded', function() {
     // If no link ID, don't show the modal and ensure backdrop is removed
     // console.log('No link ID found, modal will not be displayed');
     ensureModalAndBackdropRemoved();
+    
+    // Still check for order counting in case link_id is in session
+    const sessionData = sessionStorage.getItem('checkout_links_session');
+    if (sessionData) {
+      try {
+        const data = JSON.parse(sessionData);
+        if (data.link_id) {
+          window.checkoutConfig.link_id = data.link_id;
+          window.orderCounter.checkAndCount();
+        }
+      } catch (e) {
+        // console.error('Failed to parse session data:', e);
+      }
+    }
   }
   
   // Make sure we don't block the page if modal isn't shown
