@@ -1275,7 +1275,7 @@ export default function CreateLink() {
                                                                         onNext={handleNext}
                                                                         disabled={isLoading}
                                                                     />
-                                                                    {isLoading && <Spinner size="small" />}
+
                                                                 </Box>
                                                             )}
                                                             {productData.filter(product => product.title.toLowerCase().includes(mainProductSearch.toLowerCase())).length === 0 && (
@@ -2076,7 +2076,6 @@ export default function CreateLink() {
                                     onNext={handleNext}
                                     disabled={isLoading}
                                 />
-                                {isLoading && <Spinner size="small" />}
                             </Box>
                         )}
                     </BlockStack>
