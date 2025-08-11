@@ -34,6 +34,8 @@ createInertiaApp({
                             padding: '16px',
                         },
                     }}
+                    // Limit to one toast at a time
+                    limit={1}
                 />
                 <App {...props} />
             </AppProvider>
