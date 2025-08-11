@@ -152,6 +152,7 @@ trait ShopifyProductTrait
                 'title' => $varient->title,
                 'price' => $varient->price,
                 'inventory_quantity' => $varient->inventory_quantity,
+                'inventory_policy' => $varient->inventory_policy ?? 'deny',
                 'compare_at_price' => $varient->compare_at_price
             ];
         }
@@ -201,6 +202,7 @@ trait ShopifyProductTrait
                     'title' => $variant->title ?? null,
                     'inventory_item_id' => $this->extractId($variant->inventoryItem->id ?? null),
                     'inventory_quantity' => $variant->inventoryQuantity ?? 0,
+                    'inventory_policy' => $variant->inventoryPolicy ?? 'deny',
                 ];
             }
         }

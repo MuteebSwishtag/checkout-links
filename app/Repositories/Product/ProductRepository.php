@@ -49,10 +49,10 @@ class ProductRepository implements ProductRepositoryInterface
         $product = $this->model->updateOrCreate($data);
 
         foreach ($varients as $varient) {
+            // Log::info('Product Varient Data: ' . json_encode($varient, JSON_PRETTY_PRINT));
             $varient['product_id'] = $product->id;
             $this->productVarient->updateOrCreate($varient);
         }
-
         foreach ($medias as $media) {
             $media['product_id'] = $product->id;
             $this->productMedia->updateOrCreate($media);

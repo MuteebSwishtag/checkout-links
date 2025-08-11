@@ -13,7 +13,7 @@ class ProductVarient extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['product_id', 'shopify_product_varient_id', 'shopify_inventory_item_id', 'compare_at_price', 'price', 'title', 'inventory_quantity'];
+    protected $fillable = ['product_id', 'shopify_product_varient_id', 'shopify_inventory_item_id', 'compare_at_price', 'price', 'title', 'inventory_quantity', 'inventory_policy'];
 
     /**
      * Mutator to handle negative inventory quantity values

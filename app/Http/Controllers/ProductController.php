@@ -15,17 +15,24 @@ class ProductController extends Controller
         $perPage = $request->input('per_page', 10);
         $search = $request->input('search', '');
 
+        // Common variant filter closure
+        $variantFilter = function ($q) {
+            $q->where(function ($query) {
+                $query->where('inventory_quantity', '>', 0)
+                    ->orWhere(function ($subQuery) {
+                        $subQuery->where('inventory_quantity', '=', 0)
+                            ->where('inventory_policy', '=', 'continue');
+                    });
+            });
+        };
+
         $query = Product::with([
-            'variants' => function ($q) {
-                $q->where('inventory_quantity', '>', 0);
-            },
+            'variants' => $variantFilter,
             'media'
         ])
             ->where('user_id', $user->id)
             ->where('status', 'active')
-            ->whereHas('variants', function ($q) {
-                $q->where('inventory_quantity', '>', 0);
-            });
+            ->whereHas('variants', $variantFilter);
 
         if (!empty($search)) {
             $query->where(function ($q) use ($search) {
@@ -33,7 +40,6 @@ class ProductController extends Controller
                 // $q->orWhere('description', 'like', '%' . $search . '%');
             });
         }
-
 
         $products = $query->paginate($perPage);
 
@@ -50,4 +56,5 @@ class ProductController extends Controller
             ]
         ]);
     }
+
 }

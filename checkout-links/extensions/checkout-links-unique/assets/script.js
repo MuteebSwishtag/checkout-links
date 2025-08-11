@@ -556,6 +556,11 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         body: JSON.stringify({ 
           items: cartItems,
+          attributes: {
+      'checkout_link_id': window.checkoutConfig.link_id,
+      'source': 'checkout-links-unique',
+      // Add any other cart-level attributes
+    }
         })
       });
 

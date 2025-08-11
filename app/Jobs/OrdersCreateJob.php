@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use stdClass;
 use App\Models\User;
+use App\Models\Link;
 use App\Http\Traits\ResponseTrait;
 use App\Http\Traits\ShopifyOrderTrait;
 use Illuminate\Queue\SerializesModels;
@@ -64,10 +65,50 @@ class OrdersCreateJob implements ShouldQueue
         $payload = $this->data;
         $this->getOrderRepository(app(OrderRepositoryInterface::class));
         if($this->storeData($payload , $user)){
+            // Extract checkout link ID from note attributes and update the placed order count
+            $this->updateLinkOrderCount($payload);
             $this->logInfo("Order Create Job Successfully Completed");
         }
         else{
             $this->logInfo("Order Create Job Failed");
+        }
+    }
+
+    /**
+     * Extract checkout link ID from note attributes and update the placed order count
+     * 
+     * @param object $payload The order data payload
+     * @return void
+     */
+    private function updateLinkOrderCount($payload)
+    {
+        // Check if note_attributes exist in the payload
+        if (!empty($payload->note_attributes)) {
+            $checkoutLinkId = null;
+
+            // Look for the checkout_link_id in note_attributes
+            foreach ($payload->note_attributes as $attribute) {
+                if ($attribute->name === 'checkout_link_id') {
+                    $checkoutLinkId = $attribute->value;
+                    break;
+                }
+            }
+
+            // If we found a checkout_link_id, update the Link record
+            if ($checkoutLinkId) {
+                $link = Link::find($checkoutLinkId);
+                if ($link) {
+                    // Increment the placed_order count by 1
+                    $link->increment('placed_order', 1);
+                    $this->logInfo("Updated placed order count for link ID: {$checkoutLinkId}");
+                } else {
+                    $this->logInfo("Link not found with ID: {$checkoutLinkId}");
+                }
+            } else {
+                $this->logInfo("No checkout_link_id found in order note attributes");
+            }
+        } else {
+            $this->logInfo("No note_attributes found in order payload");
         }
     }
 }

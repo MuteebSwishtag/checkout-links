@@ -20,6 +20,7 @@ export default function Dashboard() {
     const [onFulfillStatusChange, setonFulfillStatusChange] = useState('');
     const [queryValue, setQueryValue] = useState('');
     const [links, setLinks] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
     const page = usePage().props;
     const query = page.ziggy.query;
 
@@ -43,6 +44,7 @@ export default function Dashboard() {
 
     const fetchLinks = async () => {
         try {
+            setIsLoading(true);
             const response = await fetch(route('links.get', { ...query, last: 2 }), {
                 method: 'GET',
                 headers: {
@@ -55,8 +57,10 @@ export default function Dashboard() {
             if (data.success && Array.isArray(data.links)) {
                 setLinks(data.links);
             }
+            setIsLoading(false);
         } catch (error) {
             console.error("Error fetching links:", error);
+            setIsLoading(false);
         }
     };
     useEffect(() => {
@@ -144,7 +148,107 @@ export default function Dashboard() {
                 }}
             >
                 {/* Show features card if no links, otherwise show recent order links card */}
-                {(!links || links.length === 0) ? (
+                {/* Show skeleton loading state while data is being fetched */}
+                {isLoading ? (
+                    <Card>
+                        <Box>
+                            {/* Skeleton for title */}
+                            <div
+                                style={{
+                                    height: '32px',
+                                    width: '200px',
+                                    backgroundColor: '#f0f0f0',
+                                    borderRadius: '4px',
+                                    marginBottom: '16px',
+                                    animation: 'pulse 1.5s infinite ease-in-out'
+                                }}
+                            />
+
+                            {/* Skeleton for subtitle text */}
+                            <div
+                                style={{
+                                    height: '20px',
+                                    width: '80%',
+                                    backgroundColor: '#f0f0f0',
+                                    borderRadius: '4px',
+                                    marginTop: '8px',
+                                    animation: 'pulse 1.5s infinite ease-in-out'
+                                }}
+                            />
+                        </Box>
+
+                        <Box paddingBlockStart="500">
+                            <Grid>
+                                {/* Skeleton for feature cards */}
+                                {[1, 2, 3].map((item) => (
+                                    <Grid.Cell key={item} columnSpan={{ xs: 12, sm: 6, md: 6, lg: 4, xl: 4 }}>
+                                        <Box background='bg-surface-secondary' borderRadius='200' padding="400" height="100%">
+                                            <InlineStack gap="100" blockAlign="start">
+                                                {/* Skeleton for icon */}
+                                                <div
+                                                    style={{
+                                                        height: '24px',
+                                                        width: '24px',
+                                                        backgroundColor: '#e0e0e0',
+                                                        borderRadius: '4px',
+                                                        animation: 'pulse 1.5s infinite ease-in-out'
+                                                    }}
+                                                />
+
+                                                {/* Skeleton for title */}
+                                                <div
+                                                    style={{
+                                                        height: '20px',
+                                                        width: '150px',
+                                                        backgroundColor: '#e0e0e0',
+                                                        borderRadius: '4px',
+                                                        animation: 'pulse 1.5s infinite ease-in-out'
+                                                    }}
+                                                />
+                                            </InlineStack>
+
+                                            {/* Skeleton for description */}
+                                            <Box paddingBlockStart={"200"}>
+                                                <div
+                                                    style={{
+                                                        height: '16px',
+                                                        width: '90%',
+                                                        backgroundColor: '#e0e0e0',
+                                                        borderRadius: '4px',
+                                                        animation: 'pulse 1.5s infinite ease-in-out'
+                                                    }}
+                                                />
+                                            </Box>
+                                        </Box>
+                                    </Grid.Cell>
+                                ))}
+                            </Grid>
+
+                            {/* Skeleton for button */}
+                            <Box paddingBlockStart="600">
+                                <div
+                                    style={{
+                                        height: '44px',
+                                        width: '100%',
+                                        backgroundColor: '#e0e0e0',
+                                        borderRadius: '4px',
+                                        animation: 'pulse 1.5s infinite ease-in-out'
+                                    }}
+                                />
+                            </Box>
+                        </Box>
+
+                        <style>
+                            {`
+                            @keyframes pulse {
+                                0% { opacity: 0.6; }
+                                50% { opacity: 1; }
+                                100% { opacity: 0.6; }
+                            }
+                            `}
+                        </style>
+                    </Card>
+                ) : (!links || links.length === 0) ? (
                     <Card >
                         <Box>
                             <Text variant="headingLg" as="h2">

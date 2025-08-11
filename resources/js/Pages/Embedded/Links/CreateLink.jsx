@@ -143,7 +143,22 @@ export default function CreateLink() {
 
                 setSelectedProductItems(selected);
                 setSelectedProducts(selected.length);
-                setSelectedVariantIds(selected.map(v => v.id));
+
+                // When editing a link, store the original variant data for later matching with productData
+                if (Array.isArray(link.linked_variants)) {
+                    // Extract the variant IDs that should be selected
+                    const variantIdsToSelect = [];
+                    link.linked_variants.forEach(v => {
+                        if (v.variant_id) {
+                            variantIdsToSelect.push(`${v.product_id}_${v.variant_id}`);
+                        } else {
+                            variantIdsToSelect.push(`${v.product_id}`);
+                        }
+                    });
+
+                    console.log("Setting variant IDs from link data:", variantIdsToSelect);
+                    setSelectedVariantIds(variantIdsToSelect);
+                }
             }
         } else {
             // Creating new link - generate unique ID
@@ -554,6 +569,45 @@ export default function CreateLink() {
             }))
             : []
     ), [products]);
+
+    // Log productData when it changes to help debug
+    useEffect(() => {
+        if (productData.length > 0) {
+            console.log("Product data loaded:", productData);
+
+            // Check if we need to update selected variant IDs based on Shopify IDs
+            if (link && Array.isArray(link.linked_variants) && link.linked_variants.length > 0) {
+                console.log("Re-syncing selected variant IDs from link data with loaded product data");
+
+                // We need to match each linked variant to its corresponding product/variant in productData
+                const updatedIds = [];
+
+                link.linked_variants.forEach(linkVariant => {
+                    // Find matching product
+                    const matchingProduct = productData.find(p => p.id === `${linkVariant.product_id}`);
+                    if (matchingProduct) {
+                        if (linkVariant.variant_id) {
+                            // Find matching variant
+                            const matchingVariant = matchingProduct.variants.find(v =>
+                                v.variantId === linkVariant.variant?.shopify_product_varient_id);
+
+                            if (matchingVariant) {
+                                updatedIds.push(matchingVariant.id); // Use the composite ID
+                            }
+                        } else {
+                            // Simple product without variants
+                            updatedIds.push(matchingProduct.id);
+                        }
+                    }
+                });
+
+                if (updatedIds.length > 0) {
+                    console.log("Updating selected variant IDs after product data load:", updatedIds);
+                    setSelectedVariantIds(updatedIds);
+                }
+            }
+        }
+    }, [productData, link]);
     // console.log(productData);
 
     // -- Basic UI Handlers
@@ -598,16 +652,21 @@ export default function CreateLink() {
     }, [tempSelectedProductItems]);
 
     // Helper: get all variant ids for a product
-    const getAllVariantIds = (product) => product.variants.length > 0 ? product.variants.map(v => v.id) : [product.id];
+    const getAllVariantIds = (product) => {
+        // Get all variant IDs for a product (or the product ID itself if no variants)
+        const ids = product.variants.length > 0 ? product.variants.map(v => v.id) : [product.id];
+        console.log(`Getting all variant IDs for product ${product.title}:`, ids);
+        return ids;
+    };
 
     // Handle product or variant checkbox change
     const handleProductOrVariantCheck = (id, checked, isProduct, product) => {
-        // console.log("Product/Variant Check:", { id, checked, isProduct });
+        console.log("Product/Variant Check:", { id, checked, isProduct, productTitle: product.title });
 
         if (isProduct) {
             // Product-level: select/deselect all its variants (or itself if no variants)
             const variantIds = getAllVariantIds(product);
-            // console.log("All variant IDs for product:", variantIds);
+            console.log("All variant IDs for product:", variantIds);
 
             setSelectedVariantIds(prev => {
                 let newIds;
@@ -617,6 +676,7 @@ export default function CreateLink() {
                     newIds = prev.filter(vid => !variantIds.includes(vid));
                 }
                 // Update selectedProductItems
+                console.log("New selected variant IDs:", newIds);
                 updateSelectedProductItems(newIds);
                 return newIds;
             });
@@ -630,6 +690,7 @@ export default function CreateLink() {
                     newIds = prev.filter(vid => vid !== id);
                 }
                 // Update selectedProductItems
+                console.log("New selected variant IDs (variant toggle):", newIds);
                 updateSelectedProductItems(newIds);
                 return newIds;
             });
@@ -661,13 +722,14 @@ export default function CreateLink() {
             image: product.image
         }]);
 
-        // console.log("All available variants:", allVariants.map(v => ({ id: v.id, shopifyVariantId: v.shopifyVariantId })));
-        // console.log("Selected UI IDs:", variantIds);
+        console.log("Selected UI IDs to update product items:", variantIds);
 
         const selected = [];
         const seen = new Set();
         allVariants.forEach(v => {
+            // The id in variantIds matches the composite id structure
             if (variantIds.includes(v.id) && !seen.has(v.id)) {
+                console.log(`Adding variant to selection: ${v.title} ${v.variant || ''} (ID: ${v.id})`);
                 selected.push(v);
                 seen.add(v.id);
             }
@@ -948,6 +1010,24 @@ export default function CreateLink() {
         }
     }, [fullUrl, linkId, app]);
 
+    // Test link handler
+    const handleTestLink = useCallback(() => {
+        const linkUrl = fullUrl || (linkId ? `${shop}/checkout/${linkId}` : "");
+
+        if (!linkUrl) {
+            if (app && app.toast) {
+                app.toast.show('No link available to test', {
+                    isError: true,
+                    duration: 3000
+                });
+            }
+            return;
+        }
+
+        // Open the link in a new window
+        window.open(linkUrl, '_blank');
+    }, [fullUrl, linkId, shop, app]);
+
     // -- UI Render
     return (
         <Page
@@ -1140,8 +1220,12 @@ export default function CreateLink() {
                                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                                                             <Checkbox
                                                                                 label=""
-                                                                                checked={product.variants.length > 0
-                                                                                    ? product.variants.every(v => selectedVariantIds.includes(v.id))
+                                                                                checked={product.variants.length > 0 
+                                                                                    ? product.variants.every(v => {
+                                                                                        const isIncluded = selectedVariantIds.includes(v.id);
+                                                                                        // console.log(`Checking if variant ${v.variantTitle} (ID: ${v.id}) is included:`, isIncluded);
+                                                                                        return isIncluded;
+                                                                                    })
                                                                                     : selectedVariantIds.includes(product.id)
                                                                                 }
                                                                                 indeterminate={product.variants.length > 0 && product.variants.some(v => selectedVariantIds.includes(v.id)) && !product.variants.every(v => selectedVariantIds.includes(v.id))}
@@ -1355,7 +1439,7 @@ export default function CreateLink() {
                             <BlockStack gap="400" padding="400">
                                 <InlineStack align="space-between">
                                     <Text variant="bodyMd">Summary</Text>
-                                    {/* <Button variant='plain'>Test</Button> */}
+                                    <Button variant='plain' onClick={handleTestLink}>Test</Button>
                                 </InlineStack>
 
                                 <Box background="bg-surface-secondary" padding="400" borderRadius="2" border="base">
