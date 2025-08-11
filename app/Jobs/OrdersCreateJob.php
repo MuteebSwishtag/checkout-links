@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use Log;
 use stdClass;
 use App\Models\User;
 use App\Models\Link;
@@ -85,15 +86,16 @@ class OrdersCreateJob implements ShouldQueue
         // Check if note_attributes exist in the payload
         if (!empty($payload->note_attributes)) {
             $checkoutLinkId = null;
-
             // Look for the checkout_link_id in note_attributes
             foreach ($payload->note_attributes as $attribute) {
+                Log::info("Processing note attribute: {$attribute->name} with value: {$attribute->value}");
                 if ($attribute->name === 'checkout_link_id') {
                     $checkoutLinkId = $attribute->value;
                     break;
                 }
             }
 
+            log(`Checkout Link ID: {$checkoutLinkId}`);
             // If we found a checkout_link_id, update the Link record
             if ($checkoutLinkId) {
                 $link = Link::find($checkoutLinkId);

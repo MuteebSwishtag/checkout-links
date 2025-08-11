@@ -7,6 +7,11 @@ export default function AuthenticatedLayout({ children }) {
             <Toaster
                 position="top-right"
                 reverseOrder={false}
+                toastOptions={{
+                    duration: 3000,
+                }}
+                // Limit to one toast at a time
+                limit={1}
             />
             <main>{children}</main>
         </div>

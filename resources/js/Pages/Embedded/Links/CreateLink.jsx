@@ -295,6 +295,9 @@ export default function CreateLink() {
     };
 
     const saveLinkData = useCallback(async () => {
+        // Add a direct toast call to test if toast is working
+        toast('Starting validation...', { duration: 1000 });
+
         // Reset all errors first
         setErrors({
             linkName: '',
@@ -380,8 +383,9 @@ export default function CreateLink() {
             }
         }
 
-        // If there are errors, stop submission (inline errors will be shown)
+        // If there are errors, show a toast and stop submission (inline errors will be shown)
         if (hasErrors) {
+            toast.error('Please fix all validation errors');
             return;
         }
 
@@ -475,10 +479,10 @@ export default function CreateLink() {
                                             break;
                                     }
                                 });
-
                                 setErrors(newErrors);
+                                // Show a toast for backend validation errors
+                                toast.error('Please fix the validation errors');
                             }
-
                             throw new Error(data.error || data.message || 'Failed to save link.');
                         }
 
@@ -1099,6 +1103,7 @@ export default function CreateLink() {
                             toast.error('An unexpected error occurred. Please try again.');
                         }
                     } else {
+                        toast.dismiss();
                         toast.error('Please fix the validation errors before saving');
                     }
                 },
