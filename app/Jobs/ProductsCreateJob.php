@@ -12,6 +12,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Osiset\ShopifyApp\Objects\Values\ShopDomain;
 use App\Repositories\Product\ProductRepositoryInterface;
 use Osiset\ShopifyApp\Contracts\Queries\Shop as IShopQuery;
+use Illuminate\Support\Facades\Log;
 
 
 class ProductsCreateJob implements ShouldQueue
@@ -61,6 +62,7 @@ class ProductsCreateJob implements ShouldQueue
         $this->getProductRepository(app(ProductRepositoryInterface::class));
 
         if($this->storeData($payload , $user )){
+            Log::info("Product Create Job Successfull for shop: " . json_encode($payload, JSON_PRETTY_PRINT));
             $this->logData("Product Create Job Successfull.");
         }else{
             $this->logData("Product Create Job Failed");
