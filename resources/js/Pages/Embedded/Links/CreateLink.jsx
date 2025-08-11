@@ -1265,7 +1265,8 @@ export default function CreateLink() {
                                                                         )}
                                                                     </div>
                                                                 ))}
-                                                            {currentPage < totalPages && (
+                                                            {/* Show pagination only if needed - when there's more than one page */}
+                                                            {(currentPage > 1 || currentPage < totalPages) && (
                                                                 <Box paddingBlockStart="200" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', paddingTop: '8px' }}>
                                                                     <Pagination
                                                                         hasPrevious={currentPage > 1 && !isLoading}
@@ -2062,7 +2063,8 @@ export default function CreateLink() {
                                 ))
                             )}
                         </div>
-                        {currentPage < totalPages && (
+                        {/* Show pagination only if needed - when there's more than one page */}
+                        {(currentPage > 1 || currentPage < totalPages) && (
                             <Box
                                 paddingBlockStart="200"
                                 style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
@@ -2074,6 +2076,7 @@ export default function CreateLink() {
                                     onNext={handleNext}
                                     disabled={isLoading}
                                 />
+                                {isLoading && <Spinner size="small" />}
                             </Box>
                         )}
                     </BlockStack>
