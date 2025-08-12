@@ -10,7 +10,7 @@ class Product extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id', 'shopify_product_id', 'title', 'vendor', 'status'];
+    protected $fillable = ['user_id', 'shopify_product_id', 'title', 'vendor', 'status', 'published'];
 
     public function user()
     {

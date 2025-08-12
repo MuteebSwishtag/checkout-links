@@ -66,10 +66,10 @@ class OrdersUpdatedJob implements ShouldQueue
 
         $this->getOrderRepository(app(OrderRepositoryInterface::class));
 
-        if ($this->storeData($payload, $user, true)) {
-            $this->logInfo("Order Update Job Successfully");
-        } else {
-            $this->logInfo("Order Update Job Failed");
-        }
+        // if ($this->storeData($payload, $user, true)) {
+        //     $this->logInfo("Order Update Job Successfully");
+        // } else {
+        //     $this->logInfo("Order Update Job Failed");
+        // }
     }
 }

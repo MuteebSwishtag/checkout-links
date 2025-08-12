@@ -15,16 +15,20 @@ trait ShopifyProductTrait
     }
     public function getProductsFromShopify(User $user)
     {
+        Log::info('Fetching products from Shopify for user ID: ' . $user->id);
         try {
             $productCount = $this->getProductsCountFromShopify($user);
+            Log::info('Total Products Count: ' . $productCount);
             $cursor = 'null';
             $loop = ceil($productCount / 250);
             $hasErrors = false;
             for ($i = 1; $i <= $loop; $i++) {
                 [$products, $nextCursor] = $this->shopifyGraphqlProductQuery($user, $cursor);
+                Log::info("Fetched Products: " . json_encode($products, JSON_PRETTY_PRINT));
                 if ($products && $nextCursor) {
                     $cursor = '"' . $nextCursor . '"';
                     foreach ($products as $product) {
+                        Log::info(json_encode($product, JSON_PRETTY_PRINT));
                         $product = $this->transformShopifyProductData($product);
                         if (!$this->storeData($this->arrayToObject($product), $user)) {
                             $hasErrors = true;
@@ -61,7 +65,7 @@ trait ShopifyProductTrait
     {
         $query = <<<QUERY
             query {
-                products(first: 250, after: $cursor) {
+                products(first: 250, after: $cursor,query: "published_status:published") {
                     edges {
                         node {
                             id
@@ -104,12 +108,13 @@ trait ShopifyProductTrait
                     }
                 }
             }
-        QUERY;
+QUERY;
         $result = $this->arrayToObject($user->api()->graph($query));
         if ($result->errors) {
             return [null, null];
         } else {
             $products = $result->body->data->products->edges;
+            Log::info("Fetched Products: " . json_encode($products, JSON_PRETTY_PRINT));
             $cursor = $result->body->data->products->pageInfo->endCursor;
             return [$products, $cursor];
         }
@@ -120,6 +125,7 @@ trait ShopifyProductTrait
         DB::beginTransaction();
         try {
             $formatedData = $this->formateProductdata($product, $user);
+            Log::info("Formatted Product Data: " . json_encode($formatedData, JSON_PRETTY_PRINT));
             $this->product->updateOrCreate($formatedData);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -136,6 +142,7 @@ trait ShopifyProductTrait
             'user_id' => $user->id,
             'shopify_product_id' => $product->id,
             'title' => $product->title,
+            'published' => $product->published ?? false,
             'vendor' => $product->vendor,
             'status' => $product->status,
             'variants' => $this->formateProductvarientData($product->variants),
@@ -232,6 +239,7 @@ trait ShopifyProductTrait
             // 'product_type' => $node->productType,
             'title' => $node->title,
             'vendor' => $node->vendor,
+            'published' => $node->publishedOnCurrentPublication ?? false,
             'status' => strtolower($node->status),
             // 'tags' => $this->arrayToString($node->tags),
             'variants' => $productVariants,
@@ -258,5 +266,32 @@ trait ShopifyProductTrait
     {
         $arr = explode('/', $id);
         return end($arr);
+    }
+
+    public function fetchInventoryItemFromShopify($inventoryItemId, User $user)
+    {
+        $query = <<<GQL
+        query {
+            inventoryItem(id: "gid://shopify/InventoryItem/{$inventoryItemId}") {
+                id
+                tracked
+                sku
+                inventoryLevel(locationId: "gid://shopify/Location/#{$user->location_id}") {
+                    available
+                    incoming
+                    locationId
+                }
+            }
+        }
+        GQL;
+
+        // Use the user's API to make the GraphQL request
+        $result = $this->arrayToObject($user->api()->graph($query));
+
+        if (!isset($result->errors)) {
+            return $result->body->data->inventoryItem ?? null;
+        }
+
+        return null;
     }
 }

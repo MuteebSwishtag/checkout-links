@@ -63,7 +63,6 @@ export default function CreateLink() {
     const app = useAppBridge();
     const { link } = props;
     const [shop, setShop] = useState('');
-
     // Function to fetch a unique ID from the backend
     const fetchUniqueId = async () => {
         try {
@@ -84,7 +83,7 @@ export default function CreateLink() {
 
     useEffect(() => {
         if (link) {
-            console.log("Link data:", link);
+            // console.log("Link data:", link);
             // Editing existing link - use stored values
             setLinkName(link.link_name || '');
             setLinkId(link.link_url || '');
@@ -183,6 +182,7 @@ export default function CreateLink() {
     const [popupProductChecked, setPopupProductChecked] = useState({});
     const [timerSeconds, setTimerSeconds] = useState(0);
     const [isTimerActive, setIsTimerActive] = useState(false);
+    const [initialLinkDataLoaded, setInitialLinkDataLoaded] = useState(false);
     const [discountData, setDiscountData] = useState({
         freeShipping: false,
         orderDiscount: false,
@@ -275,13 +275,19 @@ export default function CreateLink() {
         // Map selected product items to include shopify variant IDs clearly
         const mappedSelectedProductItems = selectedProductItems.map(item => ({
             ...item,
-            shopify_variant_id: item.shopifyVariantId || item.variantId, // Ensure we use the correct Shopify variant ID
+            shopify_variant_id: item.shopifyVariantId || item.variantId || null, // Ensure we use the correct Shopify variant ID with fallback
+            quantity: item.quantity || 1 // Ensure quantity is always present
         }));
 
-        // Extract the actual Shopify variant IDs from the selected products
-        const actualVariantIds = selectedProductItems.map(item => item.shopifyVariantId || item.variantId);
-        // console.log("Sending Shopify variant IDs:", actualVariantIds);
+        // Ensure we have products selected
+        if (mappedSelectedProductItems.length === 0) {
+            toast.error('Please select at least one product');
+            return null;
+        }
 
+        // Extract the actual Shopify variant IDs from the selected products
+        const actualVariantIds = selectedProductItems.map(item => item.shopifyVariantId || item.variantId || null);
+        console.log("Sending Shopify variant IDs:", actualVariantIds);
         return {
             linkName,
             linkId,
@@ -295,9 +301,10 @@ export default function CreateLink() {
     };
 
     const saveLinkData = useCallback(async () => {
-        // Add a direct toast call to test if toast is working
-        toast('Starting validation...', { duration: 1000 });
-
+        // Clear any existing toast notifications to avoid multiple stacked errors
+        toast.dismiss();
+        // Optional: Show a loading toast only if needed
+        // toast('Validating...', { duration: 1000 });
         // Reset all errors first
         setErrors({
             linkName: '',
@@ -319,7 +326,6 @@ export default function CreateLink() {
 
         // Perform frontend validation
         let hasErrors = false;
-
         // Validate link name
         if (!linkName.trim()) {
             setErrors(prev => ({ ...prev, linkName: 'Link name is required' }));
@@ -383,14 +389,19 @@ export default function CreateLink() {
             }
         }
 
-        // If there are errors, show a toast and stop submission (inline errors will be shown)
+        // If there are frontend validation errors, show error toast and return
         if (hasErrors) {
-            toast.error('Please fix all validation errors');
+            toast.error('Please fix the validation errors');
             return;
         }
 
         try {
             const allData = collectAllPageData();
+            // If collectAllPageData returns null, there was an error
+            if (!allData) {
+                return;
+            }
+
             // console.log('Saving link data:', allData);
             // console.log('SHOPIFY VARIANT IDs BEING SENT:', allData.selectedProductItems.map(item => ({
             //     id: item.id,
@@ -401,6 +412,8 @@ export default function CreateLink() {
             const url = isEdit ? route('links.update', { ...query, id: link.id }) : route('products.save', query);
             const method = isEdit ? 'PUT' : 'POST';
 
+            // Clear any existing toast notifications before starting the promise
+            toast.dismiss();
             await toast.promise(
                 (async () => {
                     try {
@@ -408,19 +421,18 @@ export default function CreateLink() {
                             method,
                             headers: {
                                 'Content-Type': 'application/json',
+                                'Accept': 'application/json'
                             },
                             body: JSON.stringify(allData),
                         });
-
                         const data = await response.json();
-
                         if (!response.ok || !data.success) {
                             console.error('Error saving link:', data);
-
-                            // Handle backend validation errors
-                            if (data.errors) {
+                            // Handle backend validation errors specifically
+                            if (data.errors && typeof data.errors === 'object' && Object.keys(data.errors).length > 0) {
                                 // Map backend errors to our error state
                                 const backendErrors = data.errors;
+                                // console.log('Backend validation errors:', backendErrors);
                                 const newErrors = {
                                     linkName: '',
                                     linkId: '',
@@ -443,68 +455,92 @@ export default function CreateLink() {
                                     // Map backend error fields to our frontend error state
                                     switch (key) {
                                         case 'linkName':
-                                            newErrors.linkName = backendErrors[key][0];
+                                            newErrors.linkName = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
                                             break;
                                         case 'linkId':
-                                            newErrors.linkId = backendErrors[key][0];
+                                            newErrors.linkId = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
                                             break;
                                         case 'selectedProductItems':
-                                            newErrors.selectedProducts = backendErrors[key][0];
+                                            newErrors.selectedProducts = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
+                                            setProductsOpen(true);
+                                            break;
+                                        case 'selectedProductItems.0.productId':
+                                        case 'selectedProductItems.1.productId':
+                                        case 'selectedProductItems.2.productId':
+                                        case 'selectedProductItems.3.productId':
+                                        case 'selectedProductItems.4.productId':
+                                            // Handle product validation errors
+                                            newErrors.selectedProducts = 'One or more products have invalid data';
                                             setProductsOpen(true);
                                             break;
                                         case 'discountData.discountValue':
                                         case 'discountValue':
-                                            newErrors.discountValue = backendErrors[key][0];
+                                            newErrors.discountValue = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
                                             setDiscountsOpen(true);
                                             break;
                                         case 'discountData.discountCodeValue':
                                         case 'discountCodeValue':
-                                            newErrors.discountCodeValue = backendErrors[key][0];
+                                            newErrors.discountCodeValue = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
                                             setDiscountsOpen(true);
                                             break;
                                         // Map popup message errors
                                         case 'popupMessageData.headingText':
                                         case 'popupMessage.headingText':
-                                            newErrors.popupMessage.headingText = backendErrors[key][0];
+                                            newErrors.popupMessage.headingText = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
                                             setPopupMessageOpen(true);
                                             break;
                                         case 'popupMessageData.messageText':
                                         case 'popupMessage.messageText':
-                                            newErrors.popupMessage.messageText = backendErrors[key][0];
+                                            newErrors.popupMessage.messageText = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
                                             setPopupMessageOpen(true);
                                             break;
                                         default:
-                                            // Handle other errors
-                                            // console.log('Unhandled validation key:', key);
+                                            // Handle dynamic product validation errors
+                                            console.log('Unhandled validation key:', key);
+                                            if (key.startsWith('selectedProductItems.') && key.includes('.productId')) {
+                                                newErrors.selectedProducts = 'One or more products have invalid data';
+                                                setProductsOpen(true);
+                                            }
+                                            console.log('Unhandled validation key:', key);
                                             break;
                                     }
                                 });
                                 setErrors(newErrors);
-                                // Show a toast for backend validation errors
-                                toast.error('Please fix the validation errors');
+                                // Throw a special error that we can catch to show validation errors
+                                throw new Error('VALIDATION_ERROR');
                             }
-                            throw new Error(data.error || data.message || 'Failed to save link.');
                         }
-
-                        // if (data.success) {
-                        //     window.location.href = route('home', query);
-                        // }
 
                         return data.message || (isEdit ? 'Link updated successfully!' : 'Link created successfully!');
                     } catch (error) {
                         console.error('Error in fetch operation:', error);
-                        throw new Error(error.message || 'An unexpected error occurred while saving the link.');
+                        // Don't modify the error, just re-throw it
+                        throw error;
                     }
                 })(),
                 {
                     loading: isEdit ? 'Updating link...' : 'Saving link...',
-                    success: (msg) => msg,
-                    error: (err) => err.message || 'Failed to save the link. Please try again.',
+                    success: (msg) => {
+                        // Redirect to home route immediately after success
+                        console.log("Save/update successful, redirecting to home...");
+
+                        // Use window.location.href for direct navigation
+                        window.location.href = route('links', query);
+
+                        return msg; // Show success message
+                    },
+                    error: (error) => {
+                        // Handle validation errors differently
+                        if (error.message === 'VALIDATION_ERROR') {
+                            return 'Please fix the validation errors';
+                        }
+                        return error.message || 'Failed to save the link. Please try again.';
+                    }
                 }
             );
         } catch (error) {
             console.error('Error in saveLinkData:', error);
-            toast.error(error.message || 'Failed to save the link. Please try again.');
+            // The toast.promise will handle showing the error toast, so we don't need to do anything here
         }
     }, [selectedProductItems, linkName, linkId, selectedProducts, discountData, popupMessageData, selectedVariantIds, link, query]);
 
@@ -577,11 +613,11 @@ export default function CreateLink() {
     // Log productData when it changes to help debug
     useEffect(() => {
         if (productData.length > 0) {
-            console.log("Product data loaded:", productData);
+            // console.log("Product data loaded:", productData);
 
-            // Check if we need to update selected variant IDs based on Shopify IDs
-            if (link && Array.isArray(link.linked_variants) && link.linked_variants.length > 0) {
-                console.log("Re-syncing selected variant IDs from link data with loaded product data");
+            // Only sync from link data on initial load, not after user selections
+            if (link && Array.isArray(link.linked_variants) && link.linked_variants.length > 0 && !initialLinkDataLoaded) {
+                // console.log("Re-syncing selected variant IDs from link data with loaded product data");
 
                 // We need to match each linked variant to its corresponding product/variant in productData
                 const updatedIds = [];
@@ -608,6 +644,8 @@ export default function CreateLink() {
                 if (updatedIds.length > 0) {
                     console.log("Updating selected variant IDs after product data load:", updatedIds);
                     setSelectedVariantIds(updatedIds);
+                    // Mark that we've loaded the initial link data
+                    setInitialLinkDataLoaded(true);
                 }
             }
         }
@@ -629,29 +667,84 @@ export default function CreateLink() {
     const handleDiscountsToggle = useCallback(() => setDiscountsOpen(!discountsOpen), [discountsOpen]);
     const handlePopupMessageToggle = useCallback(() => setPopupMessageOpen(!popupMessageOpen), [popupMessageOpen]);
     const handleProductModalOpen = useCallback(() => {
+        // Create a map of existing selections for tempSelectedProductItems when opening the modal
         const obj = {};
         selectedProductItems.forEach(item => { obj[item.id] = item; });
         setTempSelectedProductItems(obj);
+
+        // Also update selectedVariantIds to match exactly what's in selectedProductItems
+        const selectedIds = selectedProductItems.map(item => item.id);
+        setSelectedVariantIds(selectedIds);
+
+        // Initialize popup product checked state to match current selections
+        const checkedState = {};
+        selectedProductItems.forEach(product => {
+            checkedState[product.id] = true;
+        });
+        setPopupProductChecked(checkedState);
         setIsProductModalOpen(true);
         setProductSearchValue('');
     }, [selectedProductItems]);
+
     const handleProductModalClose = useCallback(() => {
-        setTempSelectedProductItems({});
+        // Just close the modal without changing selections
+        console.log("Closing product modal without changing selections");
         setIsProductModalOpen(false);
         setProductSearchValue('');
     }, []);
 
     const handleProductModalDone = useCallback(() => {
+        // Get all selected product items from the temporary state
         const selectedArray = Object.values(tempSelectedProductItems);
-        setSelectedProductItems(selectedArray);
+
+        console.log("Product modal done with selections:", selectedArray.map(item => ({
+            id: item.id,
+            title: item.title,
+            variant: item.variant
+        })));
+        // Extract the variant IDs first to ensure they're preserved correctly
+        const variantIds = selectedArray.map(product => product.id);
+        console.log("Setting selectedVariantIds from done button:", variantIds);
+        // Ensure we don't re-load from link data since we have user selections now
+        setInitialLinkDataLoaded(true);
+        // Update the states in a specific order to avoid race conditions
+        setSelectedVariantIds(variantIds);
+
+        // Update selected product count immediately to match the total selections
         setSelectedProducts(selectedArray.length);
+
+        // Use the selections from tempSelectedProductItems but preserve existing item data
+        setSelectedProductItems(prevItems => {
+            // Create a map of existing items for quick lookup
+            const existingItemsMap = {};
+            prevItems.forEach(item => {
+                existingItemsMap[item.id] = item;
+            });
+
+            // Process the selections from tempSelectedProductItems
+            return selectedArray.map(item => {
+                // Keep existing item data when available to preserve any custom values
+                const existingItem = existingItemsMap[item.id];
+                if (existingItem) {
+                    return existingItem;
+                }
+                // Otherwise use the new item data
+                return {
+                    ...item,
+                    quantity: item.quantity || 1
+                };
+            });
+        });
+
+        // Update popup product checked state
         const checkedState = {};
         selectedArray.forEach(product => {
             checkedState[product.id] = true;
         });
         setPopupProductChecked(checkedState);
+
+        // Close the modal
         setIsProductModalOpen(false);
-        setTempSelectedProductItems({});
         setProductSearchValue('');
     }, [tempSelectedProductItems]);
 
@@ -679,9 +772,8 @@ export default function CreateLink() {
                 } else {
                     newIds = prev.filter(vid => !variantIds.includes(vid));
                 }
-                // Update selectedProductItems
+                // Don't call updateSelectedProductItems here - let useEffect handle it
                 console.log("New selected variant IDs:", newIds);
-                updateSelectedProductItems(newIds);
                 return newIds;
             });
         } else {
@@ -693,9 +785,8 @@ export default function CreateLink() {
                 } else {
                     newIds = prev.filter(vid => vid !== id);
                 }
-                // Update selectedProductItems
+                // Don't call updateSelectedProductItems here - let useEffect handle it
                 console.log("New selected variant IDs (variant toggle):", newIds);
-                updateSelectedProductItems(newIds);
                 return newIds;
             });
         }
@@ -728,72 +819,110 @@ export default function CreateLink() {
 
         console.log("Selected UI IDs to update product items:", variantIds);
 
-        const selected = [];
-        const seen = new Set();
-        allVariants.forEach(v => {
-            // The id in variantIds matches the composite id structure
-            if (variantIds.includes(v.id) && !seen.has(v.id)) {
-                console.log(`Adding variant to selection: ${v.title} ${v.variant || ''} (ID: ${v.id})`);
-                selected.push(v);
-                seen.add(v.id);
+        // Keep all existing selections that are not on the current page
+        // and add new selections from the current page
+        setSelectedProductItems(prev => {
+            const currentPageItems = [];
+            const currentPageIds = new Set();
+            const seen = new Set();
+
+            // Identify which IDs are on the current page
+            allVariants.forEach(v => {
+                currentPageIds.add(v.id);
+            });
+
+            // Keep all previous selections that are still in variantIds
+            // (regardless of whether they're on the current page or not)
+            const previousSelections = prev.filter(item =>
+                variantIds.includes(item.id) && !currentPageIds.has(item.id)
+            );            // Add items from the current page that are selected
+            allVariants.forEach(v => {
+                if (variantIds.includes(v.id) && !seen.has(v.id)) {
+                    console.log(`Adding variant to selection: ${v.title} ${v.variant || ''} (ID: ${v.id})`);
+                    currentPageItems.push(v);
+                    seen.add(v.id);
+                }
+            });
+
+            // Combine previous selections with current page selections
+            const mergedSelections = [...previousSelections, ...currentPageItems];
+
+            // Clear selectedProducts error if products are selected
+            if (mergedSelections.length > 0) {
+                setErrors(prev => ({ ...prev, selectedProducts: '' }));
             }
+
+            // Update the selected products count to reflect all selections
+            setSelectedProducts(mergedSelections.length);
+
+            return mergedSelections;
         });
-
-        // console.log("Selected product items:", selected.map(v => ({ id: v.id, shopifyVariantId: v.shopifyVariantId })));
-        setSelectedProductItems(selected);
-
-        // Clear selectedProducts error if products are selected
-        if (selected.length > 0) {
-            setErrors(prev => ({ ...prev, selectedProducts: '' }));
-        }
     };
+
+    // Update selectedProductItems when selectedVariantIds changes
+    useEffect(() => {
+        if (productData.length > 0) {
+            updateSelectedProductItems(selectedVariantIds);
+        }
+    }, [selectedVariantIds, productData]);
 
     // Update tempSelectedProductItems when selectedVariantIds changes
     useEffect(() => {
-        setTempSelectedProductItems(prev => {
-            const allVariants = productData.flatMap(product => product.variants.length > 0 ? product.variants : [{
-                id: product.id,
-                productId: product.id,
-                title: product.title,
-                variantTitle: null,
-                price: product.price,
-                image: product.image,
-                available: product.available,
-                variantId: null,
-            }]);
-            let updated = { ...prev };
-            selectedVariantIds.forEach(id => {
-                if (!updated[id]) {
-                    const item = allVariants.find(v => v.id === id);
+        if (productData.length > 0 && selectedVariantIds.length > 0) {
+            console.log("Updating tempSelectedProductItems from selectedVariantIds:", selectedVariantIds);
 
-                    if (item) {
-                        updated[id] = {
+            setTempSelectedProductItems(prev => {
+                const allVariants = productData.flatMap(product => product.variants.length > 0 ? product.variants : [{
+                    id: product.id,
+                    productId: product.id,
+                    title: product.title,
+                    variantTitle: null,
+                    price: product.price,
+                    image: product.image,
+                    available: product.available,
+                    variantId: null,
+                }]);
+
+                // Create a copy of previous selections to retain items from other pages
+                let updated = { ...prev };
+                const currentPageIds = new Set(allVariants.map(v => v.id));
+
+                // Update selections from current page
+                allVariants.forEach(item => {
+                    const isSelected = selectedVariantIds.includes(item.id);
+
+                    if (isSelected) {
+                        // This item is selected, add or update it
+                        updated[item.id] = {
                             id: item.id,
                             productId: item.productId,
                             title: item.title,
                             variant: item.variantTitle,
                             variantId: item.variantId,
                             shopifyVariantId: item.variantId, // Store the actual Shopify variant ID
-                            quantity: 1,
+                            quantity: updated[item.id]?.quantity || 1,
                             price: item.price,
                             image: item.image
                         };
-
-                        // console.log("Added to temp selection:", {
-                        //     id: item.id,
-                        //     shopifyVariantId: item.variantId
-                        // });
+                    } else if (currentPageIds.has(item.id)) {
+                        // Item is on current page but not selected, remove it
+                        delete updated[item.id];
                     }
-                }
+                });
+
+                // Now handle IDs that are in selectedVariantIds but not on current page
+                // We keep them as they are from previous selections
+
+                // Finally, remove any selections that aren't in selectedVariantIds anymore
+                Object.keys(updated).forEach(id => {
+                    if (!selectedVariantIds.includes(id)) {
+                        delete updated[id];
+                    }
+                });
+
+                return updated;
             });
-            // Remove items that are no longer selected
-            Object.keys(updated).forEach(id => {
-                if (!selectedVariantIds.includes(id)) {
-                    delete updated[id];
-                }
-            });
-            return updated;
-        });
+        }
     }, [selectedVariantIds, productData]);
 
     const handleDragEnd = useCallback((result) => {
@@ -951,10 +1080,10 @@ export default function CreateLink() {
 
     // Copy to clipboard handler
     const handleCopyLink = useCallback(async () => {
-        // Use fullUrl if available, otherwise use a default format with linkId
-        // console.log("Copying link:", { fullUrl, linkId, shop });
-        const linkUrl = fullUrl || (linkId ? `${shop}/checkout/${linkId}` : "");
-        // console.log("Final link URL to copy:", linkUrl);
+        toast.dismiss(); // Clear any existing toasts
+        // Get the text value from the link-url-field TextField
+        const linkUrlField = document.getElementById('link-url-field');
+        const linkUrl = linkUrlField ? linkUrlField.value : (fullUrl || (linkId ? `${shop}/checkout/${linkId}` : ""));
 
         if (!linkUrl) {
             if (app && app.toast) {
@@ -1097,12 +1226,20 @@ export default function CreateLink() {
                             // console.log('Selected Products:', selectedProductItems);
                             // console.log('Discount Data:', discountData);
                             // console.log('Popup Message Data:', popupMessageData);
+
+                            // Clear any existing toast notifications before trying to save
+                            toast.dismiss();
                             saveLinkData();
                         } catch (error) {
                             console.error('Error when saving link:', error);
-                            toast.error('An unexpected error occurred. Please try again.');
+                            // Only show error if it's not a validation error (which already shows a toast)
+                            if (!error.message || !error.message.includes('validation errors')) {
+                                toast.dismiss();
+                                toast.error('An unexpected error occurred. Please try again.');
+                            }
                         }
                     } else {
+                        // Clear any existing toast notifications before showing error
                         toast.dismiss();
                         toast.error('Please fix the validation errors before saving');
                     }
@@ -1161,7 +1298,7 @@ export default function CreateLink() {
                                     {/* Show product selection error if any */}
                                     {errors.selectedProducts && (
                                         <Box paddingInline="400">
-                                            <Banner status="critical">
+                                            <Banner status="critical" title="Error" tone='critical'>
                                                 {errors.selectedProducts}
                                             </Banner>
                                         </Box>
@@ -1455,10 +1592,10 @@ export default function CreateLink() {
                                                 <div style={{ marginTop: "2px" }}>
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
-                                                <Text as="span" tone="subdued">Pre-filled cart: {selectedProducts} products selected</Text>
+                                                <Text as="span" tone="subdued">
+                                                    Pre-filled cart: {selectedProductItems.length} {selectedProductItems.length === 1 ? 'item' : 'items'} selected
+                                                </Text>
                                             </InlineStack>
-
-
                                         }
 
 
@@ -1612,7 +1749,10 @@ export default function CreateLink() {
                                                                                                 textAlign="center"
                                                                                                 truncate
                                                                                             >
-                                                                                                {product.title + (product.variant ? ` (${product.variant})` : '')}
+                                                                                                {(() => {
+                                                                                                    const text = product.title;
+                                                                                                    return text.length > 10 ? `${text.slice(0, 10)}...` : text;
+                                                                                                })()}
                                                                                             </Text>
                                                                                         </div>
 
@@ -1640,9 +1780,7 @@ export default function CreateLink() {
 
                                                                 </Box>
                                                                     <Button variant="secondary" disabled={!discountData.orderDiscount}>Apply</Button>
-                                                            </InlineStack>
-
-
+                                                                </InlineStack>
                                                             <InlineStack align="space-between">
                                                                 <Text variant="headingXs" as="p">Subtotal • {selectedProductItems.length} item{selectedProductItems.length !== 1 ? 's' : ''}</Text>
                                                                 <Text fontWeight="medium">
@@ -1808,7 +1946,7 @@ export default function CreateLink() {
                                                                 {selectedProductItems
                                                                     .filter(product => popupProductChecked[product.id] !== false)
                                                                     .map((product, index) => (
-                                                                        <InlineStack key={product.id} align="space-between" gap="400" blockAlign='center' padding="200" borderRadius="2" border="base">
+                                                                        <InlineStack key={`${product.id}_${index}`} align="space-between" gap="400" blockAlign='center' padding="200" borderRadius="2" border="base">
                                                                             <InlineStack gap="300" blockAlign='center' align='start' style={{ flex: 1, minWidth: 0 }}>
                                                                                 <div style={{ position: 'relative', display: 'inline-block' }}>
                                                                                     <Box
@@ -1959,6 +2097,7 @@ export default function CreateLink() {
                     (() => {
                         // Count products fully selected and individual variants
                         const selectedIds = Object.keys(tempSelectedProductItems);
+
                         let productCount = 0;
                         let variantCount = 0;
                         productData.forEach(product => {

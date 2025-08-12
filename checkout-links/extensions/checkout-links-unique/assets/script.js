@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         const responseText = await response.text();
-        // console.log('API response preview:', responseText);
+        console.log('API response preview:', responseText);
 
         let data;
         try {
@@ -330,21 +330,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const variants = linkData.linked_variants || linkData.linkedVariants || [];
     const allVariants = [];
 
-    variants.forEach(item => {
-      if (!item.variant) return;
+    if (variants && variants.length > 0) {
+      variants.forEach(item => {
+        if (!item.variant) return;
 
-      const mediaItem = item.variant.product?.media?.[0];
+        const mediaItem = item.variant.product?.media?.[0];
 
-      allVariants.push({
-        id: item.variant_id,
-        linkVariantId: item.id,
-        productId: item.product_id,
-        title: `${item.variant.product.title} - ${item.variant.title}`,
-        price: item.price || item.variant.price || '0.00',
-        image: mediaItem?.src || '',
-        quantity: 1 // Default quantity for all variants
+        allVariants.push({
+          id: item.variant_id,
+          linkVariantId: item.id,
+          productId: item.product_id,
+          title: `${item.variant.product.title} - ${item.variant.title}`,
+          price: item.price || item.variant.price || '0.00',
+          image: mediaItem?.src || '',
+          quantity: 1 // Default quantity for all variants
+        });
       });
-    });
+    }
     
     window.checkoutConfig.products = allVariants;
     
@@ -403,6 +405,11 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     }
     
+    // Make sure window.checkoutConfig.products exists but can be empty
+    if (!window.checkoutConfig.products) {
+      window.checkoutConfig.products = [];
+    }
+    
     updateModalContent();
   }
 
@@ -448,10 +455,56 @@ document.addEventListener('DOMContentLoaded', function() {
       countdownEl.appendChild(countdownTimeEl);
     }
     
+    // Create an expiration message element that will be shown when timer expires
+    const expirationMessageEl = document.createElement('div');
+    expirationMessageEl.className = 'expiration-message';
+    expirationMessageEl.style.color = '#e74c3c';
+    expirationMessageEl.style.fontWeight = 'bold';
+    expirationMessageEl.style.marginTop = '10px';
+    expirationMessageEl.style.display = 'none';
+    expirationMessageEl.textContent = 'Offer expired! Discount no longer available.';
+    countdownEl.appendChild(expirationMessageEl);
+    
     function updateDisplay() {
       const minutes = Math.floor(secondsRemaining / 60);
       const seconds = secondsRemaining % 60;
       countdownTimeEl.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+    }
+    
+    function handleExpiration() {
+      // Show expiration message
+      expirationMessageEl.style.display = 'block';
+      countdownTimeEl.style.color = '#e74c3c';
+      
+      // Remove any discount from the checkout config
+      if (window.checkoutConfig.discount) {
+        window.checkoutConfig.discount.code = '';
+        window.checkoutConfig.discount.value = 0;
+      }
+      
+      // Update UI to reflect discount removal
+      const discountRowEl = document.querySelector('.discount-row');
+      if (discountRowEl) {
+        discountRowEl.style.display = 'none';
+      }
+      
+      // Update total calculation to remove discount
+      updateTotal();
+      
+      // Change the confirm button text
+      const confirmBtn = document.querySelector('.confirm-btn');
+      if (confirmBtn) {
+        confirmBtn.textContent = 'Continue Without Discount';
+      }
+      
+      // Optionally automatically add to cart without discount after a short delay
+      setTimeout(() => {
+        const confirmBtn = document.querySelector('.confirm-btn');
+        if (confirmBtn && !confirmBtn.disabled) {
+          // Trigger a click on the confirm button to add products to cart without discount
+          confirmBtn.click();
+        }
+      }, 5000); // Wait 5 seconds before automatically proceeding
     }
     
     updateDisplay();
@@ -459,8 +512,7 @@ document.addEventListener('DOMContentLoaded', function() {
       secondsRemaining--;
       if (secondsRemaining <= 0) {
         clearInterval(interval);
-        // Optional: Close the modal when timer expires
-        // closeModal();
+        handleExpiration();
       } else {
         updateDisplay();
       }
@@ -472,8 +524,40 @@ document.addEventListener('DOMContentLoaded', function() {
     const modalContent = document.querySelector('.modal-content');
     if (!modalContent || !window.checkoutConfig) return;
     
+    // Check if there are any products linked to this link
+    const hasProducts = window.checkoutConfig.products && window.checkoutConfig.products.length > 0;
+    
+    if (!hasProducts) {
+      // Display message when no products are linked to this link ID
+      modalContent.innerHTML = `
+        <span class="close-button" onclick="window.forceCloseModal(); return false;"></span>
+        <div class="modal-body p-4 text-center">
+          <h2 class="order-title">${window.checkoutConfig.popupMessage?.heading_text || 'Order Summary'}</h2>
+          <div class="no-products-message" style="margin: 30px 0; padding: 20px; background: #f8f9fa; border-radius: 8px; text-align: center;">
+            <p style="margin-bottom: 15px; font-size: 16px;">No products linked with this link.</p>
+            <p style="font-size: 14px; color: #666;">This link may be invalid or all products have been removed.</p>
+          </div>
+          <a href="${window.checkoutConfig.popupMessage?.close_button_link || '#'}" class="no-thanks" style="display: inline-block; margin-top: 15px;">${window.checkoutConfig.popupMessage?.close_button_text || 'No thanks'}</a>
+        </div>
+      `;
+      
+      // Add event listener for the close button
+      const closeBtn = modalContent.querySelector('.no-thanks');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeModal();
+          window.forceCloseModal();
+          return false;
+        });
+      }
+      
+      return; // Exit the function as we don't need to do anything else
+    }
+    
     // Calculate prices
-    let subtotal = window.checkoutConfig.products?.reduce((sum, p) => sum + (parseFloat(p.price) || 0), 0) || 0;
+    let subtotal = window.checkoutConfig.products.reduce((sum, p) => sum + (parseFloat(p.price) || 0), 0) || 0;
     let discountAmount = 0;
     
     if (window.checkoutConfig.discount?.value) {
@@ -489,6 +573,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Build modal HTML
     modalContent.innerHTML = `
+      <span class="close-button" onclick="window.forceCloseModal(); return false;"></span>
       <div class="modal-body p-4">
         <h2 class="order-title">${window.checkoutConfig.popupMessage?.heading_text || 'Order Summary'}</h2>
         <p class="order-desc">${window.checkoutConfig.popupMessage?.message_text || ''}</p>
@@ -538,7 +623,7 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
         ` : ''}
         <button class="confirm-btn">${window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm'}</button>
-        <a href="#" class="no-thanks" onclick="window.forceCloseModal(); return false;">${window.checkoutConfig.popupMessage?.close_button_text || 'No thanks'}</a>
+        <a href="${window.checkoutConfig.popupMessage?.close_button_link || '#'}" class="no-thanks">${window.checkoutConfig.popupMessage?.close_button_text || 'No thanks'}</a>
       </div>
     `;
     
@@ -548,6 +633,25 @@ document.addEventListener('DOMContentLoaded', function() {
   // Helper function to add items to cart with error handling
   async function addItemsToCart(cartItems, confirmBtn) {
     try {
+      // First, clear the existing cart to ensure a fresh start
+      confirmBtn.textContent = 'Clearing cart...';
+      
+      // Clear the cart using the /cart/clear endpoint
+      const clearResponse = await fetch('/cart/clear.js', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }
+      });
+      
+      if (!clearResponse.ok) {
+        throw new Error(`Failed to clear cart: ${clearResponse.status}`);
+      }
+      
+      confirmBtn.textContent = 'Adding to cart...';
+      
+      // Now add the selected items to the cart
       const response = await fetch(window.Shopify.routes?.root ? `${window.Shopify.routes.root}cart/add.js` : '/cart/add.js', {
         method: 'POST',
         headers: {
@@ -557,10 +661,11 @@ document.addEventListener('DOMContentLoaded', function() {
         body: JSON.stringify({ 
           items: cartItems,
           attributes: {
-      'checkout_link_id': window.checkoutConfig.link_id,
-      'source': 'checkout-links-unique',
-      // Add any other cart-level attributes
-    }
+            'checkout_link_id': window.checkoutConfig.link_id,
+            'source': 'checkout-links-unique',
+            'discount_expired': document.querySelector('.expiration-message')?.style.display === 'block' ? 'true' : 'false',
+            // Add any other cart-level attributes
+          }
         })
       });
 
@@ -582,13 +687,28 @@ document.addEventListener('DOMContentLoaded', function() {
       const data = await response.json();
       // console.log('Products added to cart:', data);
       
-      // Store cart session data for potential order counting
+      // Store cart session data for potential order counting and discount persistence
       if (window.checkoutConfig?.link_id) {
+        // Store in session storage for immediate use
         sessionStorage.setItem('checkout_links_session', JSON.stringify({
           link_id: window.checkoutConfig.link_id,
           cart_created: new Date().toISOString(),
-          items: cartItems
+          items: cartItems,
+          discount_expired: document.querySelector('.expiration-message')?.style.display === 'block' ? true : false
         }));
+        
+        // Also store discount information in localStorage for persistence
+        if (window.checkoutConfig.discount && window.checkoutConfig.discount.code && !document.querySelector('.expiration-message')?.style.display === 'block') {
+          localStorage.setItem('checkout_links_discount', JSON.stringify({
+            link_id: window.checkoutConfig.link_id,
+            discount_code: window.checkoutConfig.discount.code,
+            discount_value: window.checkoutConfig.discount.value,
+            order_discount: window.checkoutConfig.discount.orderDiscount,
+            free_shipping: window.checkoutConfig.discount.freeShipping,
+            specific_products: cartItems.map(item => parseInt(item.id)), // Store the specific product IDs
+            expires: new Date(new Date().getTime() + (24 * 60 * 60 * 1000)).toISOString() // 24 hours from now
+          }));
+        }
       }
       
       // Reset button state
@@ -598,11 +718,17 @@ document.addEventListener('DOMContentLoaded', function() {
       // Close modal and redirect to cart page
       closeModal();
       setTimeout(() => {
-        // If we have a discount code, redirect to checkout with discount applied
+        // Check if timer has expired
+        const discountExpired = document.querySelector('.expiration-message')?.style.display === 'block';
+        
+        // If we have a discount code and the timer hasn't expired, redirect to checkout with discount applied
         const discountCode = window.checkoutConfig.discount?.code || '';
-        if (discountCode) {
-          // console.log('Redirecting to checkout with discount:', discountCode);
-          window.location.href = `/checkout?discount=${encodeURIComponent(discountCode)}`;
+        if (discountCode && !discountExpired) {
+          // Get the specific product IDs that the discount applies to
+          const specificProductIds = cartItems.map(item => parseInt(item.id)).join(',');
+          
+          // Redirect to checkout with discount applied to specific products
+          window.location.href = `/checkout?discount=${encodeURIComponent(discountCode)}&discount_specific_products=${specificProductIds}`;
         } else {
           // console.log('Redirecting to checkout without discount');
           window.location.href = '/checkout';
@@ -737,7 +863,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Confirm button click
     const confirmBtn = document.querySelector('.confirm-btn');
     if (confirmBtn) {
-      confirmBtn.addEventListener('click', () => {
+      confirmBtn.addEventListener('click', async () => {
         // Get only the checked products
         const selectedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked'))
           .map(checkbox => {
@@ -749,8 +875,6 @@ document.addEventListener('DOMContentLoaded', function() {
           })
           .filter(Boolean); // Remove any undefined values
         
-        // console.log('Selected products to add to cart:', selectedProducts);
-        
         // If no products are selected, show a message and prevent adding to cart
         if (selectedProducts.length === 0) {
           alert('Please select at least one product to continue');
@@ -758,23 +882,42 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         
         // Prepare items for cart addition - ONLY checked items
-        // console.log('Preparing items for cart addition:', selectedProducts);
         const cartItems = selectedProducts.map(product => ({
           'id': parseInt(product.id),
           'quantity': 1
         }));
         
         // Show loading state
-        confirmBtn.textContent = 'Adding to cart...';
+        confirmBtn.textContent = 'Clearing cart...';
         confirmBtn.disabled = true;
-        
-        // Get the discount code either from URL or from config
-        const discountCode = window.checkoutConfig.discount?.code || '';
-        // console.log('Using discount code for cart:', discountCode);
-        
-        // Add to cart using Shopify AJAX API
-        // First try to add items to cart
-        addItemsToCart(cartItems, confirmBtn);
+
+        try {
+          // First clear the existing cart
+          const clearResponse = await fetch('/cart/clear.js', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            }
+          });
+          
+          if (!clearResponse.ok) {
+            throw new Error(`Failed to clear cart: ${clearResponse.status}`);
+          }
+          
+          // Now add the new items
+          confirmBtn.textContent = 'Adding to cart...';
+          
+          // Add to cart using Shopify AJAX API
+          addItemsToCart(cartItems, confirmBtn);
+        } catch (error) {
+          console.error('Error clearing cart:', error);
+          confirmBtn.textContent = 'Error clearing cart. Please try again.';
+          confirmBtn.disabled = false;
+          setTimeout(() => {
+            confirmBtn.textContent = window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm';
+          }, 3000);
+        }
       });
     }
     
@@ -782,50 +925,16 @@ document.addEventListener('DOMContentLoaded', function() {
     const noThanksBtn = document.querySelector('.no-thanks');
     if (noThanksBtn) {
       noThanksBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        // console.log('No thanks button clicked');
-        
-        // First try our regular closeModal
+        // Don't prevent default behavior - allow the redirect to happen
+        // First close the modal
         closeModal();
         
-        // Then use the global force close
+        // Then use the global force close to ensure it's hidden
         if (window.forceCloseModal) {
           window.forceCloseModal();
         }
         
-        // Force close with direct manipulation as a fallback
-        setTimeout(function() {
-          // console.log('Force closing with direct DOM manipulation');
-          const modal = document.getElementById('orderSummaryModal');
-          if (modal) {
-            modal.style.display = 'none';
-            modal.style.visibility = 'hidden';
-            modal.style.opacity = '0';
-            modal.setAttribute('aria-hidden', 'true');
-            modal.classList.remove('show');
-            
-            // Try the most aggressive approach - remove from DOM
-            try {
-              const parent = modal.parentNode;
-              if (parent) {
-                parent.removeChild(modal);
-              }
-            } catch(e) {
-              // console.error('Failed to remove modal from DOM:', e);
-            }
-          }
-          
-          // Remove any backdrops
-          document.querySelectorAll('.modal-backdrop, #simple-modal-backdrop').forEach(el => el.remove());
-          
-          // Reset body
-          document.body.classList.remove('modal-open');
-          document.body.style.overflow = '';
-          document.body.style.paddingRight = '';
-        }, 50);
-        
-        return false;
+        // We'll let the default link navigation happen
       });
     }
     
@@ -844,7 +953,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // console.log('Calculated subtotal from checked products:', subtotal);
     
     let discount = 0;
-    if (window.checkoutConfig.discount?.value) {
+    let hasValidDiscount = false;
+    
+    // Check if discount is still valid (not expired)
+    const expirationMessage = document.querySelector('.expiration-message');
+    const discountExpired = expirationMessage && expirationMessage.style.display === 'block';
+    
+    if (window.checkoutConfig.discount?.value && !discountExpired) {
+      hasValidDiscount = true;
       const discountValue = parseFloat(window.checkoutConfig.discount.value) || 0;
       discount = window.checkoutConfig.discount.orderDiscount 
         ? subtotal * (discountValue / 100)
@@ -860,7 +976,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Update discount amount if applicable
     const discountAmountEl = document.querySelector('.discount-amount');
     if (discountAmountEl) {
-      discountAmountEl.textContent = `-$${discount.toFixed(2)}`;
+      if (hasValidDiscount) {
+        discountAmountEl.textContent = `-$${discount.toFixed(2)}`;
+        discountAmountEl.closest('.discount-row').style.display = '';
+      } else {
+        discountAmountEl.closest('.discount-row').style.display = 'none';
+      }
     }
     
     // Update the confirm button state based on checked products
@@ -871,9 +992,13 @@ document.addEventListener('DOMContentLoaded', function() {
       confirmBtn.style.opacity = hasCheckedProducts ? '1' : '0.6';
       
       // Change button text if no products are selected
-      confirmBtn.textContent = hasCheckedProducts 
-        ? (window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm')
-        : 'Select products to continue';
+      if (!hasCheckedProducts) {
+        confirmBtn.textContent = 'Select products to continue';
+      } else if (discountExpired && hasCheckedProducts) {
+        confirmBtn.textContent = 'Continue Without Discount';
+      } else {
+        confirmBtn.textContent = window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm';
+      }
     }
   }
 
@@ -974,15 +1099,20 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.style.overflow = '';
     document.body.style.paddingRight = '';
     
-    // As a last resort, reload the page
-    // Uncomment this if needed:
-    // setTimeout(function() { window.location.reload(); }, 100);
-    
     return false; // Prevent default
   };
 
   // Event listeners for modal
   document.addEventListener('DOMContentLoaded', function() {
+    // Check for stored discount and apply it if we're on the cart or checkout page
+    checkAndApplyStoredDiscount();
+    
+    // Add CSS for the close button
+    const styleSheet = document.createElement("link");
+    styleSheet.rel = "stylesheet";
+    styleSheet.href = "https://cdn.shopify.com/extensions/[EXTENSION_ID]/[VERSION]/assets/styles.css";
+    document.head.appendChild(styleSheet);
+    
     const modal = document.getElementById('orderSummaryModal');
     if (modal) {
       modal.addEventListener('click', function(e) {
@@ -999,9 +1129,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Add direct click handlers to the No Thanks button
     document.body.addEventListener('click', function(e) {
-      if (e.target.classList.contains('no-thanks-btn') || 
-          e.target.closest('.no-thanks-btn')) {
-        // console.log('No thanks button clicked via body delegate');
+      if (e.target.classList.contains('close-button')) {
         e.preventDefault();
         e.stopPropagation();
         closeModal();
@@ -1081,5 +1209,155 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.classList.remove('modal-open');
     document.body.style.overflow = '';
     document.body.style.paddingRight = '';
+  }
+  
+  // Function to check for stored discount and apply it
+  function checkAndApplyStoredDiscount() {
+    try {
+      // Check if we're on cart or checkout page
+      const isCartPage = window.location.pathname.includes('/cart');
+      const isCheckoutPage = window.location.pathname.includes('/checkout');
+      
+      if (isCartPage || isCheckoutPage) {
+        // Check if we have a stored discount
+        const storedDiscountJson = localStorage.getItem('checkout_links_discount');
+        if (storedDiscountJson) {
+          const storedDiscount = JSON.parse(storedDiscountJson);
+          
+          // Check if discount is expired
+          const now = new Date();
+          const expires = new Date(storedDiscount.expires);
+          if (now > expires) {
+            // Discount expired, remove it
+            localStorage.removeItem('checkout_links_discount');
+            return;
+          }
+          
+          // Get specific product IDs if they exist
+          const specificProducts = storedDiscount.specific_products || [];
+          const hasSpecificProducts = specificProducts.length > 0;
+          
+          // Apply discount to checkout
+          if (isCheckoutPage && storedDiscount.discount_code) {
+            // Check if discount is already applied (look for discount code in URL or page content)
+            const discountInUrl = window.location.search.includes(`discount=${storedDiscount.discount_code}`);
+            const discountInPage = document.body.textContent.includes(storedDiscount.discount_code);
+            
+            if (!discountInUrl && !discountInPage) {
+              // Redirect to apply discount
+              const separator = window.location.search ? '&' : '?';
+              
+              // Create URL with product-specific parameters if needed
+              let redirectUrl = `${window.location.href}${separator}discount=${storedDiscount.discount_code}`;
+              if (hasSpecificProducts) {
+                redirectUrl += `&discount_specific_products=${specificProducts.join(',')}`;
+              }
+              
+              window.location.href = redirectUrl;
+            }
+          }
+          
+          // If on cart page, make sure visual indicators show discount is applied
+          if (isCartPage) {
+            // Wait for cart to fully load
+            setTimeout(() => {
+              const discountNotice = document.createElement('div');
+              discountNotice.className = 'checkout-links-discount-notice';
+              discountNotice.style.padding = '10px';
+              discountNotice.style.margin = '10px 0';
+              discountNotice.style.backgroundColor = '#f8f9fa';
+              discountNotice.style.border = '1px solid #ddd';
+              discountNotice.style.borderRadius = '4px';
+              discountNotice.style.fontSize = '14px';
+              
+              // Different messaging based on whether discount is for specific products or not
+              if (hasSpecificProducts) {
+                discountNotice.innerHTML = `
+                  <p style="margin: 0; font-weight: bold;">Your discount code <span style="color: #28a745;">${storedDiscount.discount_code}</span> will be applied at checkout to your checkout link products only.</p>
+                `;
+                
+                // Optionally highlight the specific products in the cart
+                highlightSpecificProducts(specificProducts);
+              } else {
+                discountNotice.innerHTML = `
+                  <p style="margin: 0; font-weight: bold;">Your discount code <span style="color: #28a745;">${storedDiscount.discount_code}</span> will be applied at checkout.</p>
+                `;
+              }
+              
+              // Find a good place to insert this notice
+              const cartForm = document.querySelector('form[action="/cart"]');
+              if (cartForm) {
+                const subtotalRow = cartForm.querySelector('.cart__subtotal') || 
+                                  cartForm.querySelector('.cart-subtotal') || 
+                                  cartForm.querySelector('.totals');
+                if (subtotalRow) {
+                  subtotalRow.parentNode.insertBefore(discountNotice, subtotalRow);
+                } else {
+                  const checkoutButton = cartForm.querySelector('button[name="checkout"]');
+                  if (checkoutButton) {
+                    checkoutButton.parentNode.insertBefore(discountNotice, checkoutButton);
+                  }
+                }
+              }
+            }, 1000);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Error checking/applying stored discount:', e);
+    }
+  }
+  
+  // Helper function to highlight specific products in the cart
+  function highlightSpecificProducts(productIds) {
+    setTimeout(() => {
+      // Find all cart items
+      const cartItems = document.querySelectorAll('.cart-item, .cart__item, .cart_item, [data-cart-item]');
+      cartItems.forEach(item => {
+        // Try to find the variant ID in this cart item
+        const variantIdEl = item.querySelector('[data-variant-id], [name*="id"][value]');
+        let variantId = null;
+        
+        if (variantIdEl) {
+          variantId = parseInt(variantIdEl.dataset?.variantId || variantIdEl.value);
+        } else {
+          // Try to extract from the item's data attributes or class
+          const itemId = item.dataset.variantId || item.dataset.id || item.dataset.cartItemKey;
+          if (itemId) {
+            // Extract numbers only
+            const matches = itemId.match(/\d+/);
+            if (matches) {
+              variantId = parseInt(matches[0]);
+            }
+          }
+        }
+        
+        // If this is one of our specific products, highlight it
+        if (variantId && productIds.includes(variantId)) {
+          // Add a visual indicator
+          const indicator = document.createElement('div');
+          indicator.className = 'checkout-link-product-indicator';
+          indicator.style.background = '#f0f9ff';
+          indicator.style.border = '1px solid #bde3ff';
+          indicator.style.borderRadius = '3px';
+          indicator.style.padding = '2px 6px';
+          indicator.style.fontSize = '11px';
+          indicator.style.marginTop = '4px';
+          indicator.style.display = 'inline-block';
+          indicator.textContent = 'Discount applies to this product';
+          
+          // Find a good place to append this
+          const priceEl = item.querySelector('.cart-item__price, .product-price, .cart__item-price-container');
+          if (priceEl) {
+            priceEl.appendChild(indicator);
+          } else {
+            const itemDetails = item.querySelector('.cart-item__details, .cart-item__content, .cart__item-details');
+            if (itemDetails) {
+              itemDetails.appendChild(indicator);
+            }
+          }
+        }
+      });
+    }, 500);
   }
 });

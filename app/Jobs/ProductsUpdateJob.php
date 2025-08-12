@@ -1,6 +1,9 @@
 <?php
 namespace App\Jobs;
 
+use App\Models\Products\Product;
+use App\Models\Products\ProductMedia;
+use App\Models\Products\ProductVarient;
 use Log;
 use stdClass;
 use App\Models\User;
@@ -58,12 +61,45 @@ class ProductsUpdateJob implements ShouldQueue
         $shop = $shopQuery->getByDomain($this->shopDomain);
         $user = User::where('name', $shop->name)->first();
         $payload = $this->data;
-        $this->getProductRepository(app(ProductRepositoryInterface::class));
 
+        // Extract product ID from webhook payload
+        $productId = $payload->id ?? null;
+        if (!$productId) {
+            Log::error("Product ID not found in payload: " . json_encode($payload, JSON_PRETTY_PRINT));
+            return;
+        }
+
+        // Fetch product record in our DB
+        $product = Product::where('shopify_product_id', $productId)->first();
+        if (!$product) {
+            Log::error("Product not found in database for Shopify product ID: {$productId}");
+            return;
+        }
+
+        // Delete related variants first
+        $variantsDeleted = ProductVarient::where('product_id', $product->id)->delete();
+        if ($variantsDeleted === false) {
+            Log::error("Failed to delete product variants for product ID: {$product->id}");
+            return;
+        }
+
+        // Delete related media
+        $mediaDeleted = ProductMedia::where('product_id', $product->id)->delete();
+        if ($mediaDeleted === false) {
+            Log::error("Failed to delete product media for product ID: {$product->id}");
+            return;
+        }
+
+        // Log before re-storing
+        Log::info("Product Update Job started for shop: " . json_encode($payload, JSON_PRETTY_PRINT));
+
+        // Process and store updated product data
+        $this->getProductRepository(app(ProductRepositoryInterface::class));
         if ($this->storeData($payload, $user)) {
-            $this->logInfo("Product Update Job Successfull.");
+            $this->logInfo("Product Update Job Successful.");
         } else {
-            $this->logInfo("Product Update Job Failed");
+            $this->logInfo("Product Update Job Failed.");
         }
     }
+
 }
