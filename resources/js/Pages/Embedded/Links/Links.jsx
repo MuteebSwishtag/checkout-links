@@ -23,6 +23,7 @@ import { EditIcon, DeleteIcon, DuplicateIcon } from '@shopify/polaris-icons'
 import React, { useState, useCallback, useEffect } from 'react'
 import { Link, router, usePage } from '@inertiajs/react'
 import toast from 'react-hot-toast';
+import SweetAlert2 from 'react-sweetalert2';
 import '../../../../css/links.css'
 
 const LinksIndex = () => {
@@ -36,10 +37,7 @@ const LinksIndex = () => {
     const [perPage] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
     const [totalLinks, setTotalLinks] = useState(0);
-
-
     const [loading, setLoading] = useState(false); // Add loading state
-
     const fetchLinks = async (page = 1, search = '') => {
         setLoading(true); // Set loading when starting fetch
         try {
@@ -174,43 +172,69 @@ const LinksIndex = () => {
         router.get(route('links.edit', { ...query, id: linkId }));
     };
 
+    const [swalProps, setSwalProps] = useState({});
+
     const handleDelete = async (linkId) => {
-        try {
-            await toast.promise(
-                (async () => {
-                    const response = await fetch(route('links.delete', { ...query, id: linkId }), {
-                        method: 'DELETE',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json',
-                        },
-                    });
+        // Show confirmation dialog
+        setSwalProps({
+            show: true,
+            title: 'Are you sure?',
+            text: 'You will not be able to recover this link!',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Yes, delete it!',
+            cancelButtonText: 'No, cancel!',
+            reverseButtons: true,
+            onConfirm: async () => {
+                try {
+                    await toast.promise(
+                        (async () => {
+                            const response = await fetch(route('links.delete', { ...query, id: linkId }), {
+                                method: 'DELETE',
+                                headers: {
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json',
+                                },
+                            });
 
-                    const result = await response.json();
+                            const result = await response.json();
 
-                    if (!response.ok || !result.success) {
-                        throw new Error(result.message || 'Unexpected error.');
-                    }
+                            if (!response.ok || !result.success) {
+                                throw new Error(result.message || 'Unexpected error.');
+                            }
 
-                    await fetchLinks(); // Refresh the list
-                    return result.message || 'Link deleted successfully.';
-                })(),
-                {
-                    loading: 'Deleting link...',
-                    success: (msg) => msg,
-                    error: (err) => err.message || 'Failed to delete the link. Please try again.',
+                            await fetchLinks(); // Refresh the list
+                            return result.message || 'Link deleted successfully.';
+                        })(),
+                        {
+                            loading: 'Deleting link...',
+                            success: (msg) => msg,
+                            error: (err) => err.message || 'Failed to delete the link. Please try again.',
+                        }
+                    );
+                } catch (error) {
+                    console.error('Error in handleDelete:', error);
                 }
-            );
-        } catch (error) {
-            console.error('Error in handleDelete:', error);
-        }
+                // Reset swalProps to hide the dialog after confirmation
+                setSwalProps({});
+            },
+            // Add onCancel to reset the dialog when canceled
+            onCancel: () => {
+                setSwalProps({});
+            },
+            // Add onClose to handle clicking outside or pressing ESC
+            onClose: () => {
+                setSwalProps({});
+            }
+        });
     };
 
     const rowMarkup = links.map(
         ({ id, linkName, urlCode, status, clicks, placedOrder }, index) => {
             const handleCopy = () => {
                 //with toast notification
+                toast.dismiss(); // Clear any existing toasts
                 toast.success('URL code copied to clipboard!', {
                     position: 'bottom-center',
                     style: {
@@ -282,6 +306,13 @@ const LinksIndex = () => {
 
     return (
         <div>
+            <SweetAlert2
+                {...swalProps}
+                didClose={() => {
+                    // Reset state when alert is closed by any means
+                    setSwalProps({});
+                }}
+            />
             <Page 
                 title="Links"
                 primaryAction={{

@@ -1,5 +1,6 @@
 {{ 'bootstrap.css' | asset_url | stylesheet_tag }}
 <script src="{{ 'script.js' | asset_url }}" defer></script>
+<script src="{{ 'discount-persister.js' | asset_url }}" defer></script>
 <script>
   // Initialize checkout config object for data from backend
   window.checkoutConfig = {
@@ -60,6 +61,59 @@
   align-items: center;
   justify-content: center;
 }
+/* Modal close button */
+.close-button {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  color: #888;
+  z-index: 10;
+  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: #f0f0f0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.close-button:hover {
+  color: #333;
+  background-color: #e0e0e0;
+}
+
+.close-button::before,
+.close-button::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 2px;
+  background-color: currentColor;
+  border-radius: 1px;
+}
+
+.close-button::before {
+  transform: rotate(45deg);
+}
+
+.close-button::after {
+  transform: rotate(-45deg);
+}
+
+/* Modal content positioning */
+.modal-content {
+  position: relative;
+  padding-top: 10px;
+}
+
+/* Make sure the modal body has proper spacing from the close button */
+.modal-body {
+  padding-top: 15px;
+}
+
   .modal-content {
     border-radius: 8px !important;
     padding: 0;
@@ -137,7 +191,7 @@
   }
   .item-details {
     flex: 1;
-    font-size: 1rem;
+    font-size: 1.5rem;
     color: #222;
     font-weight: 500;
     white-space: nowrap;
@@ -321,6 +375,28 @@
     font-size: 0.85rem;
     color: #666;
   }
+  .discount-notice {
+    background-color: #f8f9fa;
+    border: 1px solid #e2e2e2;
+    border-radius: 4px;
+    padding: 10px;
+    margin: 10px 0;
+    font-size: 14px;
+    text-align: center;
+  }
+  .discount-code {
+    font-weight: bold;
+    color: #28a745;
+  }
+  .checkout-link-product-indicator {
+    background: #f0f9ff;
+    border: 1px solid #bde3ff;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 11px;
+    margin-top: 4px;
+    display: inline-block;
+  }
   @media (max-width: 360px) {
     .modal-dialog {
       max-width: 98vw !important;
@@ -350,6 +426,7 @@
     { "type": "text", "id": "message_text", "label": "Message Text" },
     { "type": "checkbox", "id": "show_price", "label": "Show Product Prices", "default": true },
     { "type": "checkbox", "id": "show_order_total", "label": "Show Order Total", "default": true },
+    { "type": "checkbox", "id": "clear_cart", "label": "Always Clear Cart Before Adding Products", "default": false, "info": "If enabled, the cart will be emptied before adding link products" },
     { "type": "text", "id": "currency_code", "label": "Currency Code", "default": "AUD" },
     { "type": "text", "id": "checkout_button_text", "label": "Checkout Button Text", "default": "Confirm" },
     { "type": "text", "id": "close_button_text", "label": "Close Button Text", "default": "No thanks" },

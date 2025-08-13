@@ -65,14 +65,16 @@ class OrdersCreateJob implements ShouldQueue
         $user = User::where('name', $shop->name)->first();
         $payload = $this->data;
         $this->getOrderRepository(app(OrderRepositoryInterface::class));
-        if($this->storeData($payload , $user)){
-            // Extract checkout link ID from note attributes and update the placed order count
-            $this->updateLinkOrderCount($payload);
-            $this->logInfo("Order Create Job Successfully Completed");
-        }
-        else{
-            $this->logInfo("Order Create Job Failed");
-        }
+        // if($this->storeData($payload , $user)){
+        //     // Extract checkout link ID from note attributes and update the placed order count
+
+        //     $this->logInfo("Order Create Job Successfully Completed");
+        // }
+        // else{
+        //     $this->logInfo("Order Create Job Failed");
+        // }
+        Log::info("payload: " . json_encode($payload, JSON_PRETTY_PRINT));
+        $this->updateLinkOrderCount($payload);
     }
 
     /**
@@ -94,12 +96,12 @@ class OrdersCreateJob implements ShouldQueue
                     break;
                 }
             }
-
-            log(`Checkout Link ID: {$checkoutLinkId}`);
+            Log::info("Checkout Link ID: {$checkoutLinkId}");
             // If we found a checkout_link_id, update the Link record
             if ($checkoutLinkId) {
                 $link = Link::find($checkoutLinkId);
                 if ($link) {
+                    Log::info("Found link with ID: {$checkoutLinkId}");
                     // Increment the placed_order count by 1
                     $link->increment('placed_order', 1);
                     $this->logInfo("Updated placed order count for link ID: {$checkoutLinkId}");
