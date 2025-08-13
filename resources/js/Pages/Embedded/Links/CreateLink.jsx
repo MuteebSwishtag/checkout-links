@@ -63,8 +63,9 @@ export default function CreateLink() {
     const app = useAppBridge();
     const { link } = props;
     const [shop, setShop] = useState('');
-    const[variantsModal, setVariantsModal]=useState(false)
-    const [variantQuantity, setVariantQuantity] = useState(null);
+    const [variantsModal, setVariantsModal] = useState(false);
+    const [variantQuantity, setVariantQuantity] = useState(1);
+    const [currentEditingVariant, setCurrentEditingVariant] = useState(null);
     // Function to fetch a unique ID from the backend
     const fetchUniqueId = async () => {
         try {
@@ -595,6 +596,29 @@ export default function CreateLink() {
         const ids = product.variants.length > 0 ? product.variants.map(v => v.id) : [product.id];
         console.log(`Getting all variant IDs for product ${product.title}:`, ids);
         return ids;
+    };
+
+    // Handle opening the variants modal with the specific variant
+    const handleEditVariant = (product) => {
+        setCurrentEditingVariant(product);
+        setVariantQuantity(product.quantity || 1);
+        setVariantsModal(true);
+    };
+
+    // Save the updated quantity for the current variant
+    const handleSaveVariantQuantity = () => {
+        if (!currentEditingVariant) return;
+
+        // Update the selected product items with the new quantity
+        setSelectedProductItems(prevItems =>
+            prevItems.map(item =>
+                item.id === currentEditingVariant.id
+                    ? { ...item, quantity: parseInt(variantQuantity) || 1 }
+                    : item
+            )
+        );
+
+        setVariantsModal(false);
     };
 
     // Handle product or variant checkbox change
@@ -1322,11 +1346,7 @@ export default function CreateLink() {
                                                                                             </Box>
                                                                                         </InlineStack>
                                                                                         <InlineStack gap="200">
-                                                                                            <Button variant="plain" onClick={()=>{
-                                                                                                console.log('hello');
-                                                                                                
-                                                                                                setVariantsModal(true);
-                                                                                            }} >
+                                                                                            <Button variant="plain" onClick={() => handleEditVariant(product)}>
                                                                                                     Edit 
                                                                                             </Button>
                                                                                             <Button variant="plain" onClick={() => handleRemoveProduct(product.id)}>
@@ -1961,10 +1981,10 @@ export default function CreateLink() {
            <Modal
   open={variantsModal}
   onClose={() => setVariantsModal(false)}
-  title="Edit Variants"
+                title="Edit Variant Quantity"
   primaryAction={{
     content: 'Save',
-    onAction: ()=>{},
+      onAction: handleSaveVariantQuantity,
   }}
   secondaryActions={[
     {
@@ -1973,16 +1993,28 @@ export default function CreateLink() {
     },
   ]}
 >
-    <Box padding="400" background="bg-subdued">
-    <TextField
-        label="Quantity"
-        value={variantQuantity}
-        min={0}
-        type="number"
-        onChange={(value) => setVariantQuantity(value)}
-    />
-
-  </Box>
+                <Modal.Section>
+                    <BlockStack gap="400">
+                        {currentEditingVariant && (
+                            <InlineStack gap="400" align="center">
+                                <Thumbnail
+                                    source={currentEditingVariant.image || ""}
+                                    alt={currentEditingVariant.title}
+                                    size="small"
+                                />
+                                <Text fontWeight="medium">{currentEditingVariant.title} {currentEditingVariant.variant ? `(${currentEditingVariant.variant})` : ''}</Text>
+                            </InlineStack>
+                        )}
+                        <TextField
+                            label="Quantity"
+                            value={variantQuantity}
+                            min={1}
+                            type="number"
+                            onChange={(value) => setVariantQuantity(value)}
+                            autoComplete="off"
+                        />
+                    </BlockStack>
+                </Modal.Section>
 </Modal>
 
             {/* --- MODAL WITH SEARCH & PAGINATION --- */}
