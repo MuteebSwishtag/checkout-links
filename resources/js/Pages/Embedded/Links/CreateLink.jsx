@@ -38,7 +38,7 @@ import {
     LinkIcon,
 } from '@shopify/polaris-icons';
 import { router, usePage } from '@inertiajs/react';
-import { useAppBridge } from '@shopify/app-bridge-react';
+import { TitleBar, useAppBridge } from '@shopify/app-bridge-react';
 import toast from 'react-hot-toast';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import Discount from './Discount';
@@ -63,6 +63,8 @@ export default function CreateLink() {
     const app = useAppBridge();
     const { link } = props;
     const [shop, setShop] = useState('');
+    const[variantsModal, setVariantsModal]=useState(false)
+    const [variantQuantity, setVariantQuantity] = useState(null);
     // Function to fetch a unique ID from the backend
     const fetchUniqueId = async () => {
         try {
@@ -1310,6 +1312,13 @@ export default function CreateLink() {
                                                                                             </Box>
                                                                                         </InlineStack>
                                                                                         <InlineStack gap="200">
+                                                                                            <Button variant="plain" onClick={()=>{
+                                                                                                console.log('hello');
+                                                                                                
+                                                                                                setVariantsModal(true);
+                                                                                            }} >
+                                                                                                    Edit 
+                                                                                            </Button>
                                                                                             <Button variant="plain" onClick={() => handleRemoveProduct(product.id)}>
                                                                                                 <Icon source={XIcon} tone='base' />
                                                                                             </Button>
@@ -1934,6 +1943,38 @@ export default function CreateLink() {
                     </BlockStack>
                 </div>
             </div>
+
+
+            {/* variants modal */}
+
+
+           <Modal
+  open={variantsModal}
+  onClose={() => setVariantsModal(false)}
+  title="Edit Variants"
+  primaryAction={{
+    content: 'Save',
+    onAction: ()=>{},
+  }}
+  secondaryActions={[
+    {
+      content: 'Cancel',
+      onAction: () => setVariantsModal(false),
+    },
+  ]}
+>
+    <Box padding="400" background="bg-subdued">
+    <TextField
+        label="Quantity"
+        value={variantQuantity}
+        min={0}
+        type="number"
+        onChange={(value) => setVariantQuantity(value)}
+    />
+
+  </Box>
+</Modal>
+
             {/* --- MODAL WITH SEARCH & PAGINATION --- */}
             <Modal
                 open={isProductModalOpen}
@@ -2061,6 +2102,7 @@ export default function CreateLink() {
                                 ))
                             )}
                         </div>
+                      
                         {/* Show pagination only if needed - when there's more than one page */}
                         {(currentPage > 1 || currentPage < totalPages) && (
                             <Box
