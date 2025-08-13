@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 class LinkProductVarient extends Model {
     use HasFactory;
 
-    protected $fillable = ['link_id', 'product_id', 'variant_id', 'price'];
+    protected $fillable = ['link_id', 'product_id', 'variant_id', 'price', 'quantity'];
 
     public function link() {
         return $this->belongsTo(Link::class);

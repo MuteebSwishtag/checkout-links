@@ -127,6 +127,7 @@ class LinkController extends Controller
                             'product_id' => $item['productId'] ?? null,
                             'variant_id' => $variantId,
                             'price' => $item['price'] ?? null,
+                            'quantity' => $item['quantity'] ?? 1,
                         ]);
                     }
                 }
@@ -210,7 +211,16 @@ public function getLinks(Request $request)
     public function edit($id) {
     $link = Link::findOrFail($id);
     $link->load(['popupMessage', 'linkedVariants.variant.product.media']);
-    Log::info(json_encode($link, JSON_PRETTY_PRINT));
+
+        // Transform the data to include quantity for frontend
+        if ($link->linkedVariants) {
+            foreach ($link->linkedVariants as $linkedVariant) {
+                // Make sure quantity is included in the response
+                $linkedVariant->quantity = $linkedVariant->quantity ?? 1;
+            }
+        }
+
+        Log::info(json_encode($link, JSON_PRETTY_PRINT));
     return inertia('Embedded/Links/CreateLink', ['link' => $link]);
 }
 public function update(Request $request, $id)
@@ -332,6 +342,7 @@ public function update(Request $request, $id)
                             'product_id' => $item['productId'] ?? null,
                             'variant_id' => $variantId,
                             'price' => $item['price'] ?? null,
+                            'quantity' => $item['quantity'] ?? 1,
                         ]);
                     }
                 }
@@ -375,6 +386,11 @@ public function update(Request $request, $id)
                 'linkedVariants.variant.product',
                 'linkedVariants.variant.product.media'
             ]);
+
+            // Ensure quantity is properly included in the response
+            foreach ($link->linkedVariants as $linkedVariant) {
+                $linkedVariant->quantity = $linkedVariant->quantity ?? 1;
+            }
 
             // Log the loaded data for debugging
             Log::info('Link data loaded for ID: ' . $id, ['link_data' => $link->toArray()]);
