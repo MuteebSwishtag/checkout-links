@@ -320,14 +320,15 @@
     margin-bottom: 15px;
     padding: 8px 15px;
     background-color: #f1f1f1;
+    font-size: 1.4rem;
   }
   .countdown-label {
-    font-size: 0.85rem;
+    font-size: 1.5rem;
     color: #666;
     margin-bottom: 2px;
   }
   .countdown-time {
-    font-size: 1rem;
+    font-size: 1.5rem;
     font-weight: 600;
     color: #d9534f;
   }
@@ -372,7 +373,7 @@
     max-width: 160px;
   }
   .product-price {
-    font-size: 0.85rem;
+    font-size: 1.5rem;
     color: #666;
   }
   .discount-notice {
@@ -415,6 +416,43 @@
     </div>
   </div>
 </div>
+
+<script>
+  // Ensure modal is ready and properly configured when the page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    const modalElement = document.getElementById('orderSummaryModal');
+    if (modalElement) {
+      // Reset modal to initial state to avoid any CSS issues
+      modalElement.style.display = 'none';
+      modalElement.style.visibility = 'hidden';
+      
+      // Add helper functions to the window object
+      window.checkModalVisibility = function() {
+        const modal = document.getElementById('orderSummaryModal');
+        console.log("Modal visibility check:", {
+          element: modal,
+          display: modal?.style.display,
+          visibility: modal?.style.visibility,
+          classList: modal?.classList.contains('show'),
+          computed: modal ? window.getComputedStyle(modal) : null
+        });
+      };
+      
+      window.showModalManually = function() {
+        const modal = document.getElementById('orderSummaryModal');
+        if (modal) {
+          modal.style.display = 'flex';
+          modal.style.visibility = 'visible';
+          modal.classList.add('show');
+          document.body.classList.add('modal-open');
+          console.log("Modal shown manually");
+          return true;
+        }
+        return false;
+      };
+    }
+  });
+</script>
 
 {% schema %}
 {

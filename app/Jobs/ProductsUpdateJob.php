@@ -1,6 +1,7 @@
 <?php
 namespace App\Jobs;
 
+use App\Models\LinkProductVarient;
 use App\Models\Products\Product;
 use App\Models\Products\ProductMedia;
 use App\Models\Products\ProductVarient;
@@ -77,22 +78,21 @@ class ProductsUpdateJob implements ShouldQueue
         }
 
         // Delete related variants first
-        $variantsDeleted = ProductVarient::where('product_id', $product->id)->delete();
+        $variantsDeleted = ProductVarient::where('product_id', $product->id)->get();
+        $linkedVariantsDeleted = LinkProductVarient::where('variant_id', $variantsDeleted->pluck('shopify_product_varient_id'))->delete();
+        $variantsDeleted->each->delete();
         if ($variantsDeleted === false) {
             Log::error("Failed to delete product variants for product ID: {$product->id}");
             return;
         }
-
         // Delete related media
         $mediaDeleted = ProductMedia::where('product_id', $product->id)->delete();
         if ($mediaDeleted === false) {
             Log::error("Failed to delete product media for product ID: {$product->id}");
             return;
         }
-
         // Log before re-storing
         Log::info("Product Update Job started for shop: " . json_encode($payload, JSON_PRETTY_PRINT));
-
         // Process and store updated product data
         $this->getProductRepository(app(ProductRepositoryInterface::class));
         if ($this->storeData($payload, $user)) {
@@ -101,5 +101,4 @@ class ProductsUpdateJob implements ShouldQueue
             $this->logInfo("Product Update Job Failed.");
         }
     }
-
 }
