@@ -251,6 +251,7 @@ export default function PopupMessage({
                                         onChange={onCloseButtonLinkChange}
                                         autoComplete="off"
                                         error={errors && errors.closeButtonLink}
+                                        prefix="https://"
                                     />
                                 </Box>
                             </Box>

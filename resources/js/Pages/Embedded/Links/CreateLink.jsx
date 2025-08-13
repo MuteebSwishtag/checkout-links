@@ -288,13 +288,23 @@ export default function CreateLink() {
         // Extract the actual Shopify variant IDs from the selected products
         const actualVariantIds = selectedProductItems.map(item => item.shopifyVariantId || item.variantId || null);
         console.log("Sending Shopify variant IDs:", actualVariantIds);
+
+        // Make sure close button link has the proper prefix for the backend
+        // The UI already has https:// prefix in the TextField
+        const formattedPopupMessageData = {
+            ...popupMessageData,
+            closeButtonLink: popupMessageData.closeButtonLink.includes('://')
+                ? popupMessageData.closeButtonLink
+                : `https://${popupMessageData.closeButtonLink}`
+        };
+
         return {
             linkName,
             linkId,
             selectedProducts,
             selectedProductItems: mappedSelectedProductItems,
             discountData,
-            popupMessageData,
+            popupMessageData: formattedPopupMessageData,
             // Send the actual Shopify variant IDs instead of the UI IDs
             selectedVariantIds: actualVariantIds,
         };
@@ -853,8 +863,8 @@ export default function CreateLink() {
     const handlePopupCheckoutButtonTextChange = useCallback((value) => setPopupMessageData(prev => ({ ...prev, checkoutButtonText: value })), []);
     const handlePopupCloseButtonTextChange = useCallback((value) => setPopupMessageData(prev => ({ ...prev, closeButtonText: value })), []);
     const handlePopupCloseButtonLinkChange = useCallback((value) => {
-        const normalizedValue = normalizeUrl(value);
-        setPopupMessageData(prev => ({ ...prev, closeButtonLink: normalizedValue }));
+        // No need to normalize as the TextField already has a prefix
+        setPopupMessageData(prev => ({ ...prev, closeButtonLink: value }));
     }, []);
 
     // -- Timer utilities
@@ -989,7 +999,7 @@ export default function CreateLink() {
     // Function to normalize URLs
     const normalizeUrl = (url) => {
         if (!/^https?:\/\//i.test(url)) {
-            return `https://${url}`;
+            return `http://${url}`;  // Changed from https to http
         }
         return url;
     };
@@ -1500,7 +1510,7 @@ export default function CreateLink() {
                         <Card>
                             <BlockStack gap="400" >
                                 <InlineStack align="space-between">
-                                    <Text variant="bodyMd">Preview </Text>
+                                    <Text variant="bodyMd" fontWeight='bold'>Preview </Text>
                                     {/* <Button variant='plain'>Test</Button> */}
                                 </InlineStack>
 
