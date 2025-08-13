@@ -334,56 +334,63 @@ export default function Dashboard() {
                             </Box>
                         </Box>
                     </Card>
-                )} 
+                )}
 
                 <Box paddingBlockStart="400">
-                    <InlineStack gap="400" align="stretch">
+                    <Grid>
 
-                        <Card sectioned>
-                            <Box>
-                                <Text variant="headingMd" as="h3">
-                                    How it works
-                                </Text>
-                                <Box paddingBlockStart="300">
-                                    <Text variant="bodyMd" tone="subdued">
-                                        Get the most out of checkout links by following these simple steps.
+                        <Grid.Cell  columnSpan={{ xs: 12, sm: 6, md: 6, lg: 4, xl: 6 }}>
+                            <Card sectioned>
+                                <Box minHeight='110px'>
+                                    <Text variant="headingMd" as="h3">
+                                        How it works
                                     </Text>
+                                    <Box paddingBlockStart="300">
+                                        <Text variant="bodyMd" tone="subdued">
+                                            Get the most out of checkout links by following these simple steps.
+                                        </Text>
+                                    </Box>
+                                    <Box paddingBlockStart="400">
+                                        <Button variant="secondary">
+                                            Learn more
+                                        </Button>
+                                    </Box>
                                 </Box>
-                                <Box paddingBlockStart="400">
-                                    <Button variant="secondary">
-                                        Learn more
-                                    </Button>
-                                </Box>
-                            </Box>
-                        </Card>
+                            </Card>
+                        </Grid.Cell>
 
-
-                        <Card sectioned>
-                            <Box width='100%' minWidth='486px'>
-                                <Text variant="headingMd" as="h3">
-                                    Need a hand? We're here to help
-                                </Text>
-                                <Box paddingBlockStart="300">
-                                    <Box paddingBlockEnd="200">
-                                        <Button variant="plain" textAlign="left" fullWidth>
-                                            💬 Start a live chat
-                                        </Button>
-                                    </Box>
-                                    <Box paddingBlockEnd="200">
-                                        <Button variant="plain" textAlign="left" fullWidth>
-                                            ✉️ Send us an email
-                                        </Button>
-                                    </Box>
-                                    <Box>
-                                        <Button variant="plain" textAlign="left" fullWidth>
-                                            ❓ See our FAQs
-                                        </Button>
+                        <Grid.Cell columnSpan={{ xs: 12, sm: 6, md: 6, lg: 4, xl: 6 }}>
+                            <Card sectioned>
+                                <Box width='100%' minWidth='486px'>
+                                    <Text variant="headingMd" as="h3">
+                                        Need a hand? We're here to help
+                                    </Text>
+                                    <Box paddingBlockStart="300">
+                                        <Box paddingBlockEnd="200">
+                                            <Button variant="plain" textAlign="left" fullWidth>
+                                                💬 Start a live chat
+                                            </Button>
+                                        </Box>
+                                        <Box paddingBlockEnd="200">
+                                            <Button variant="plain" textAlign="left" fullWidth>
+                                                ✉️ Send us an email
+                                            </Button>
+                                        </Box>
+                                        <Box>
+                                            <Button variant="plain" textAlign="left" fullWidth>
+                                                ❓ See our FAQs
+                                            </Button>
+                                        </Box>
                                     </Box>
                                 </Box>
-                            </Box>
-                        </Card>
-                    </InlineStack>
+                            </Card>
+                        </Grid.Cell>
+                    </Grid>
+
                 </Box>
+
+
+
                 <Box paddingBlockStart="400">
                     <Card sectioned>
                         <Box>
