@@ -162,7 +162,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     return { linkId, backendUrl, discountCode };
   }
-
   // Fetch link data
   async function fetchLinkData(linkId) {
     // console.log('Fetching link data for ID:', linkId);
@@ -197,7 +196,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     const endpointsToTry = [
-      `${backendUrl}/links/${linkId}`,
+      // `${backendUrl}/links/${linkId}`,
       `${backendUrl}/api/links/${linkId}`,
     ];
 
@@ -472,9 +471,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function handleExpiration() {
+      // Remove the timer element
+      countdownTimeEl.style.display = 'none';
+
       // Show expiration message
       expirationMessageEl.style.display = 'block';
-      countdownTimeEl.style.color = '#e74c3c';
+      expirationMessageEl.style.color = '#e74c3c';
+      expirationMessageEl.style.fontWeight = 'bold';
+      expirationMessageEl.style.marginTop = '10px';
+      expirationMessageEl.textContent = 'Offer expired! Discount no longer available.';
       
       // Remove any discount from the checkout config
       if (window.checkoutConfig.discount) {
@@ -618,14 +623,21 @@ document.addEventListener('DOMContentLoaded', function() {
           <div class="total-label">Total</div>
           <div class="total-amount">
             <span class="total-currency">${currencyCode}</span>
-            <span class="total-value">$${total.toFixed(2)}</span>
+            <span class="total-value">${total.toFixed(2)}</span>
           </div>
+          <div class="discount-info" style="font-size: 12px; color: #5c5c5c; margin-top: 5px;">Includes ${window.checkoutConfig.discount.orderDiscount ? window.checkoutConfig.discount.value + '% OFF' : '$' + window.checkoutConfig.discount.value + ' OFF'}</div>
         </div>
         ` : ''}
         <button class="confirm-btn">${window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm'}</button>
         <a href="${window.checkoutConfig.popupMessage?.close_button_link || '#'}" class="no-thanks">${window.checkoutConfig.popupMessage?.close_button_text || 'No thanks'}</a>
       </div>
     `;
+    
+    // Locate the close button and ensure it opens in a new window
+    const noThanksBtn = document.querySelector('.no-thanks');
+    if (noThanksBtn) {
+        noThanksBtn.setAttribute('target', '_blank');
+    }
     
     attachEventListeners();
   }
@@ -650,7 +662,6 @@ document.addEventListener('DOMContentLoaded', function() {
       }
       
       confirmBtn.textContent = 'Adding to cart...';
-      
       // Now add the selected items to the cart
       const response = await fetch(window.Shopify.routes?.root ? `${window.Shopify.routes.root}cart/add.js` : '/cart/add.js', {
         method: 'POST',
@@ -1050,13 +1061,17 @@ document.addEventListener('DOMContentLoaded', function() {
   function showModal() {
     // Only show modal if we have a valid link ID
     if (!window.checkoutConfig?.link_id) {
-      // console.log('Cannot show modal: No link ID');
+      console.log('Cannot show modal: No link ID');
       return;
     }
     
     const modalElement = document.getElementById('orderSummaryModal');
-    if (!modalElement) return;
+    if (!modalElement) {
+      console.log('Modal element not found');
+      return;
+    }
     
+    // Force the modal to be visible with multiple approaches
     modalElement.classList.add('show');
     modalElement.style.display = 'flex';
     modalElement.style.visibility = 'visible';
@@ -1064,6 +1079,14 @@ document.addEventListener('DOMContentLoaded', function() {
     modalElement.style.zIndex = '1050';
     modalElement.setAttribute('aria-hidden', 'false');
     document.body.classList.add('modal-open');
+    
+    // Log to confirm the modal is being shown
+    console.log('Modal should be visible now:', {
+      classList: modalElement.classList.contains('show'),
+      display: modalElement.style.display,
+      visibility: modalElement.style.visibility,
+      zIndex: modalElement.style.zIndex
+    });
     
     // Don't create backdrop if we're using the modal's own background
     if (!document.getElementById('simple-modal-backdrop') && false) { // disabled backdrop creation
@@ -1076,7 +1099,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Add a global closeModal function that can be called from anywhere
   window.forceCloseModal = function() {
-    // console.log('Force close modal called from global scope');
+    console.log('Force close modal called from global scope');
     const modal = document.getElementById('orderSummaryModal');
     if (modal) {
       modal.style.display = 'none';
@@ -1090,7 +1113,7 @@ document.addEventListener('DOMContentLoaded', function() {
           parent.removeChild(modal);
         }
       } catch(e) {
-        // console.error('Failed to remove modal from DOM:', e);
+        console.error('Failed to remove modal from DOM:', e);
       }
     }
     
@@ -1100,6 +1123,27 @@ document.addEventListener('DOMContentLoaded', function() {
     document.body.style.paddingRight = '';
     
     return false; // Prevent default
+  };
+  
+  // Add a global function to force show the modal
+  window.forceShowModal = function() {
+    console.log('Force show modal called from global scope');
+    const modal = document.getElementById('orderSummaryModal');
+    if (modal) {
+      // Force the modal to be visible with multiple approaches
+      modal.classList.add('show');
+      modal.style.display = 'flex !important';
+      modal.style.visibility = 'visible !important';
+      modal.style.opacity = '1';
+      modal.style.zIndex = '1050';
+      document.body.classList.add('modal-open');
+      
+      // Force display with !important via attribute
+      modal.setAttribute('style', 'display: flex !important; visibility: visible !important; opacity: 1 !important; z-index: 1050 !important;');
+      
+      return true;
+    }
+    return false;
   };
 
   // Event listeners for modal
@@ -1154,26 +1198,54 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Initialize
   const { linkId, discountCode } = getParamsFromUrl();
+  console.log('Init with link ID:', linkId, 'and discount code:', discountCode);
+  
   if (linkId) {
     fetchLinkData(linkId).then(() => {
       // After fetching data, ensure discount code from URL takes precedence
       if (discountCode) {
-        // console.log('Setting discount code from URL parameter:', discountCode);
+        console.log('Setting discount code from URL parameter:', discountCode);
         window.checkoutConfig.discount.code = discountCode;
       }
-      // Show modal after data is loaded
-      showModal();
+      
+      // Ensure the modal HTML is in the correct state before showing
+      const modalElement = document.getElementById('orderSummaryModal');
+      if (modalElement) {
+        // Make sure modal content is populated before showing
+        if (!modalElement.querySelector('.modal-content').children.length) {
+          console.log('Modal content is empty, updating content before showing');
+          updateModalContent();
+        }
+      }
+      
+      // Show modal with slight delay to ensure DOM is ready
+      setTimeout(() => {
+        console.log('About to show modal');
+        showModal();
+        
+        // Double-check modal visibility after a short delay
+        setTimeout(() => {
+          const modalCheck = document.getElementById('orderSummaryModal');
+          if (modalCheck && (modalCheck.style.display !== 'flex' || modalCheck.style.visibility !== 'visible')) {
+            console.log('Modal still not visible, forcing display');
+            modalCheck.style.display = 'flex !important';
+            modalCheck.style.visibility = 'visible !important';
+            modalCheck.classList.add('show');
+          }
+        }, 500);
+      }, 100);
       
       // Initialize order counting
       window.orderCounter.checkAndCount();
-    }).catch(() => {
+    }).catch((error) => {
+      // Log detailed error
+      console.error('Error fetching link data:', error);
       // Don't show modal on error but ensure backdrop is removed
-      // console.log('Error fetching link data, not showing modal');
       ensureModalAndBackdropRemoved();
     });
   } else {
     // If no link ID, don't show the modal and ensure backdrop is removed
-    // console.log('No link ID found, modal will not be displayed');
+    console.log('No link ID found, modal will not be displayed');
     ensureModalAndBackdropRemoved();
     
     // Still check for order counting in case link_id is in session
@@ -1186,7 +1258,7 @@ document.addEventListener('DOMContentLoaded', function() {
           window.orderCounter.checkAndCount();
         }
       } catch (e) {
-        // console.error('Failed to parse session data:', e);
+        console.error('Failed to parse session data:', e);
       }
     }
   }

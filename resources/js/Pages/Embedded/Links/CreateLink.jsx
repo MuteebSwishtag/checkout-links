@@ -301,246 +301,75 @@ export default function CreateLink() {
     };
 
     const saveLinkData = useCallback(async () => {
-        // Clear any existing toast notifications to avoid multiple stacked errors
+        // Clear any existing toast notifications before starting the request
         toast.dismiss();
-        // Optional: Show a loading toast only if needed
-        // toast('Validating...', { duration: 1000 });
-        // Reset all errors first
-        setErrors({
-            linkName: '',
-            linkId: '',
-            selectedProducts: '',
-            discountValue: '',
-            discountCodeValue: '',
-            popupMessage: {
-                headingText: '',
-                messageText: '',
-                timerText: '',
-                copyText: '',
-                checkoutButtonText: '',
-                closeButtonText: '',
-                closeButtonLink: '',
-                general: ''
-            }
-        });
 
-        // Perform frontend validation
-        let hasErrors = false;
-        // Validate link name
-        if (!linkName.trim()) {
-            setErrors(prev => ({ ...prev, linkName: 'Link name is required' }));
-            hasErrors = true;
-        }
+        // Define the URL based on whether we are editing an existing link or creating a new one
+        const isEdit = link && link.id;
+        const url = isEdit ? route('links.update', { ...query, id: link.id }) : route('products.save', query);
+        const method = isEdit ? 'PUT' : 'POST';
 
-        // Validate link ID
-        if (!linkId) {
-            setErrors(prev => ({ ...prev, linkId: 'Link ID is required' }));
-            hasErrors = true;
-        }
-
-        // Validate selected products
-        if (selectedProductItems.length === 0) {
-            setErrors(prev => ({ ...prev, selectedProducts: 'At least one product must be selected' }));
-            hasErrors = true;
-            // Show the products section if there's an error
-            setProductsOpen(true);
-        }
-
-        // Validate discount values if enabled
-        if (discountData.orderDiscount && !discountData.discountValue) {
-            setErrors(prev => ({ ...prev, discountValue: 'Discount value is required' }));
-            hasErrors = true;
-            setDiscountsOpen(true);
-        }
-
-        if (discountData.discountCode && !discountData.discountCodeValue) {
-            setErrors(prev => ({ ...prev, discountCodeValue: 'Discount code is required' }));
-            hasErrors = true;
-            setDiscountsOpen(true);
-        }
-
-        // Validate popup message fields if active
-        if (popupMessageData.isActive) {
-            if (!popupMessageData.headingText.trim()) {
-                setErrors(prev => ({
-                    ...prev,
-                    popupMessage: { ...prev.popupMessage, headingText: 'Heading text is required' }
-                }));
-                hasErrors = true;
-                setPopupMessageOpen(true);
-            }
-
-            if (!popupMessageData.messageText.trim()) {
-                setErrors(prev => ({
-                    ...prev,
-                    popupMessage: { ...prev.popupMessage, messageText: 'Message text is required' }
-                }));
-                hasErrors = true;
-                setPopupMessageOpen(true);
-            }
-
-            if (popupMessageData.countdownActive && !popupMessageData.timerText.trim()) {
-                setErrors(prev => ({
-                    ...prev,
-                    popupMessage: { ...prev.popupMessage, timerText: 'Timer text is required' }
-                }));
-                hasErrors = true;
-                setPopupMessageOpen(true);
-            }
-        }
-
-        // If there are frontend validation errors, show error toast and return
-        if (hasErrors) {
-            toast.error('Please fix the validation errors');
-            return;
-        }
+        // Define the allData variable by calling collectAllPageData
+        const allData = collectAllPageData();
 
         try {
-            const allData = collectAllPageData();
-            // If collectAllPageData returns null, there was an error
-            if (!allData) {
-                return;
-            }
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(allData),
+            });
+            const data = await response.json();
+            if (!response.ok || !data.success) {
+                console.error('Error saving link:', data);
+                toast.error('Failed to save the link. Please try again.');
 
-            // console.log('Saving link data:', allData);
-            // console.log('SHOPIFY VARIANT IDs BEING SENT:', allData.selectedProductItems.map(item => ({
-            //     id: item.id,
-            //     shopify_variant_id: item.shopify_variant_id
-            // })));
-
-            const isEdit = link && link.id;
-            const url = isEdit ? route('links.update', { ...query, id: link.id }) : route('products.save', query);
-            const method = isEdit ? 'PUT' : 'POST';
-
-            // Clear any existing toast notifications before starting the promise
-            toast.dismiss();
-            await toast.promise(
-                (async () => {
-                    try {
-                        const response = await fetch(url, {
-                            method,
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'Accept': 'application/json'
-                            },
-                            body: JSON.stringify(allData),
-                        });
-                        const data = await response.json();
-                        if (!response.ok || !data.success) {
-                            console.error('Error saving link:', data);
-                            // Handle backend validation errors specifically
-                            if (data.errors && typeof data.errors === 'object' && Object.keys(data.errors).length > 0) {
-                                // Map backend errors to our error state
-                                const backendErrors = data.errors;
-                                // console.log('Backend validation errors:', backendErrors);
-                                const newErrors = {
-                                    linkName: '',
-                                    linkId: '',
-                                    selectedProducts: '',
-                                    discountValue: '',
-                                    discountCodeValue: '',
-                                    popupMessage: {
-                                        headingText: '',
-                                        messageText: '',
-                                        timerText: '',
-                                        copyText: '',
-                                        checkoutButtonText: '',
-                                        closeButtonText: '',
-                                        closeButtonLink: '',
-                                        general: ''
-                                    }
-                                };
-
-                                Object.keys(backendErrors).forEach(key => {
-                                    // Map backend error fields to our frontend error state
-                                    switch (key) {
-                                        case 'linkName':
-                                            newErrors.linkName = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
-                                            break;
-                                        case 'linkId':
-                                            newErrors.linkId = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
-                                            break;
-                                        case 'selectedProductItems':
-                                            newErrors.selectedProducts = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
-                                            setProductsOpen(true);
-                                            break;
-                                        case 'selectedProductItems.0.productId':
-                                        case 'selectedProductItems.1.productId':
-                                        case 'selectedProductItems.2.productId':
-                                        case 'selectedProductItems.3.productId':
-                                        case 'selectedProductItems.4.productId':
-                                            // Handle product validation errors
-                                            newErrors.selectedProducts = 'One or more products have invalid data';
-                                            setProductsOpen(true);
-                                            break;
-                                        case 'discountData.discountValue':
-                                        case 'discountValue':
-                                            newErrors.discountValue = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
-                                            setDiscountsOpen(true);
-                                            break;
-                                        case 'discountData.discountCodeValue':
-                                        case 'discountCodeValue':
-                                            newErrors.discountCodeValue = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
-                                            setDiscountsOpen(true);
-                                            break;
-                                        // Map popup message errors
-                                        case 'popupMessageData.headingText':
-                                        case 'popupMessage.headingText':
-                                            newErrors.popupMessage.headingText = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
-                                            setPopupMessageOpen(true);
-                                            break;
-                                        case 'popupMessageData.messageText':
-                                        case 'popupMessage.messageText':
-                                            newErrors.popupMessage.messageText = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
-                                            setPopupMessageOpen(true);
-                                            break;
-                                        default:
-                                            // Handle dynamic product validation errors
-                                            console.log('Unhandled validation key:', key);
-                                            if (key.startsWith('selectedProductItems.') && key.includes('.productId')) {
-                                                newErrors.selectedProducts = 'One or more products have invalid data';
-                                                setProductsOpen(true);
-                                            }
-                                            console.log('Unhandled validation key:', key);
-                                            break;
-                                    }
-                                });
-                                setErrors(newErrors);
-                                // Throw a special error that we can catch to show validation errors
-                                throw new Error('VALIDATION_ERROR');
-                            }
+                if (data.errors && typeof data.errors === 'object' && Object.keys(data.errors).length > 0) {
+                    const backendErrors = data.errors;
+                    const newErrors = {
+                        linkName: '',
+                        linkId: '',
+                        selectedProducts: '',
+                        discountValue: '',
+                        discountCodeValue: '',
+                        popupMessage: {
+                            headingText: '',
+                            messageText: '',
+                            timerText: '',
+                            copyText: '',
+                            checkoutButtonText: '',
+                            closeButtonText: '',
+                            closeButtonLink: '',
+                            general: ''
                         }
-
-                        return data.message || (isEdit ? 'Link updated successfully!' : 'Link created successfully!');
-                    } catch (error) {
-                        console.error('Error in fetch operation:', error);
-                        // Don't modify the error, just re-throw it
-                        throw error;
-                    }
-                })(),
-                {
-                    loading: isEdit ? 'Updating link...' : 'Saving link...',
-                    success: (msg) => {
-                        // Redirect to home route immediately after success
-                        console.log("Save/update successful, redirecting to home...");
-
-                        // Use window.location.href for direct navigation
-                        window.location.href = route('links', query);
-
-                        return msg; // Show success message
-                    },
-                    error: (error) => {
-                        // Handle validation errors differently
-                        if (error.message === 'VALIDATION_ERROR') {
-                            return 'Please fix the validation errors';
+                    };
+                    Object.keys(backendErrors).forEach(key => {
+                        switch (key) {
+                            case 'linkName':
+                                newErrors.linkName = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
+                                break;
+                            case 'linkId':
+                                newErrors.linkId = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
+                                break;
+                            case 'selectedProductItems':
+                                newErrors.selectedProducts = Array.isArray(backendErrors[key]) ? backendErrors[key][0] : backendErrors[key];
+                                setProductsOpen(true);
+                                break;
+                            default:
+                                break;
                         }
-                        return error.message || 'Failed to save the link. Please try again.';
-                    }
+                    });
+
+                    setErrors(newErrors);
                 }
-            );
+            } else {
+                toast.success('Link saved successfully!');
+            }
         } catch (error) {
-            console.error('Error in saveLinkData:', error);
-            // The toast.promise will handle showing the error toast, so we don't need to do anything here
+            console.error('Unexpected error:', error);
+            toast.error('An unexpected error occurred. Please try again.');
         }
     }, [selectedProductItems, linkName, linkId, selectedProducts, discountData, popupMessageData, selectedVariantIds, link, query]);
 
@@ -1023,7 +852,10 @@ export default function CreateLink() {
     const handlePopupShowOrderTotalToggle = useCallback((value) => setPopupMessageData(prev => ({ ...prev, showOrderTotal: value })), []);
     const handlePopupCheckoutButtonTextChange = useCallback((value) => setPopupMessageData(prev => ({ ...prev, checkoutButtonText: value })), []);
     const handlePopupCloseButtonTextChange = useCallback((value) => setPopupMessageData(prev => ({ ...prev, closeButtonText: value })), []);
-    const handlePopupCloseButtonLinkChange = useCallback((value) => setPopupMessageData(prev => ({ ...prev, closeButtonLink: value })), []);
+    const handlePopupCloseButtonLinkChange = useCallback((value) => {
+        const normalizedValue = normalizeUrl(value);
+        setPopupMessageData(prev => ({ ...prev, closeButtonLink: normalizedValue }));
+    }, []);
 
     // -- Timer utilities
     const parseTimeToSeconds = (timeString) => {
@@ -1098,12 +930,11 @@ export default function CreateLink() {
         try {
             // Try the modern clipboard API first
             await navigator.clipboard.writeText(linkUrl);
-            if (app && app.toast) {
-                app.toast.show('Link copied to clipboard!', {
-                    isError: false,
-                    duration: 3000
-                });
-            }
+
+            toast.success('Link copied to clipboard!', {
+                isError: false,
+                duration: 3000
+            });
         } catch (error) {
             console.error('Failed to use clipboard API, falling back to execCommand', error);
             // Fallback for browsers that don't support clipboard API
@@ -1122,23 +953,17 @@ export default function CreateLink() {
                 document.body.removeChild(textArea);
 
                 if (successful) {
-                    if (app && app.toast) {
-                        app.toast.show('Link copied to clipboard!', {
-                            isError: false,
-                            duration: 3000
-                        });
-                    }
+                    toast.success('Link copied to clipboard!', {
+                        duration: 3000
+                    });
                 } else {
                     throw new Error('execCommand copy failed');
                 }
             } catch (fallbackError) {
-                console.error('Clipboard copy failed completely', fallbackError);
-                if (app && app.toast) {
-                    app.toast.show('Failed to copy link. Please try again or copy manually.', {
-                        isError: true,
-                        duration: 3000
-                    });
-                }
+                // console.error('Clipboard copy failed completely', fallbackError);
+                toast.error('Failed to copy link. Please try again or copy manually.', {
+                    duration: 3000
+                });
             }
         }
     }, [fullUrl, linkId, app]);
@@ -1160,6 +985,22 @@ export default function CreateLink() {
         // Open the link in a new window
         window.open(linkUrl, '_blank');
     }, [fullUrl, linkId, shop, app]);
+
+    // Function to normalize URLs
+    const normalizeUrl = (url) => {
+        if (!/^https?:\/\//i.test(url)) {
+            return `https://${url}`;
+        }
+        return url;
+    };
+
+    // Example usage in the close button link logic
+    const handleCloseButtonClick = (link) => {
+        const normalizedLink = normalizeUrl(link);
+        // Use the normalized link for navigation or saving
+        console.log('Navigating to:', normalizedLink);
+        window.location.href = normalizedLink;
+    };
 
     // -- UI Render
     return (
@@ -1296,13 +1137,7 @@ export default function CreateLink() {
                                     </InlineStack>
 
                                     {/* Show product selection error if any */}
-                                    {errors.selectedProducts && (
-                                        <Box paddingInline="400">
-                                            <Banner status="critical" title="Error" tone='critical'>
-                                                {errors.selectedProducts}
-                                            </Banner>
-                                        </Box>
-                                    )}
+
 
                                     <Collapsible open={productsOpen} id="products-content">
                                         <Box>
@@ -1493,6 +1328,13 @@ export default function CreateLink() {
                                             </BlockStack>
                                         </Box>
                                     </Collapsible>
+                                    {errors.selectedProducts && (
+                                        <Box paddingInline="400">
+                                            <Banner status="critical" title="Error" tone='critical'>
+                                                {errors.selectedProducts}
+                                            </Banner>
+                                        </Box>
+                                    )}
                                 </BlockStack>
                             </Card>
                             {/* Discounts Card */}
@@ -1581,7 +1423,7 @@ export default function CreateLink() {
                         <Card>
                             <BlockStack gap="400" padding="400">
                                 <InlineStack align="space-between">
-                                    <Text variant="bodyMd">Summary</Text>
+                                    <Text variant="bodyMd" fontWeight='bold'>Summary</Text>
                                     <Button variant='plain' onClick={handleTestLink}>Test</Button>
                                 </InlineStack>
 
@@ -1860,13 +1702,9 @@ export default function CreateLink() {
                                                                                 return total + (price * quantity);
                                                                             }, 0);
                                                                             let discount = 0;
-                                                                            if (discountData.orderDiscount && discountData.discountValue && !isNaN(parseFloat(discountData.discountValue))) {
+
                                                                                 discount = subtotal * (parseFloat(discountData.discountValue || 0) / 100);
-                                                                            } else if (discountData.discountCode && discountData.discountCodeValue && !isNaN(parseFloat(discountData.discountCodeValue))) {
-                                                                                // Assuming discount code value represents a percentage
-                                                                                const codeValue = parseFloat(discountData.discountCodeValue) || 0;
-                                                                                discount = subtotal * (codeValue / 100);
-                                                                            }
+
                                                                             // Free shipping doesn't affect the product total, only shipping cost
                                                                                 return `${(subtotal - discount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                                                                         })()}
@@ -2036,12 +1874,15 @@ export default function CreateLink() {
                                                                                     }, 0);
 
                                                                                 let discount = 0;
+                                                                                let hasDiscount = false;
                                                                                 if (discountData.orderDiscount) {
                                                                                     discount = subtotal * (parseFloat(discountData.discountValue) / 100);
+                                                                                    hasDiscount = true;
                                                                                 } else if (discountData.discountCode) {
                                                                                     // Assuming discount code value represents a percentage
                                                                                     const codeValue = parseFloat(discountData.discountCodeValue) || 0;
                                                                                     discount = subtotal * (codeValue / 100);
+                                                                                    hasDiscount = true;
                                                                                 }
                                                                                 // Free shipping doesn't affect the product total, only shipping cost
 
@@ -2050,6 +1891,21 @@ export default function CreateLink() {
                                                                         </Text>
                                                                     </InlineStack>
                                                                 </InlineStack>
+
+                                                                {/* Display discount information */}
+                                                                {(discountData.orderDiscount || discountData.discountCode) && (
+                                                                    <InlineStack align="end" gap="200">
+                                                                        <Box>
+                                                                            <Icon
+                                                                                source={ProductIcon}
+                                                                                tone="subdued"
+                                                                            />
+                                                                        </Box>
+                                                                        <Text variant="bodySm" tone="subdued">
+                                                                            ${discountData.discountValue}% OFF ORDER
+                                                                        </Text>
+                                                                    </InlineStack>
+                                                                )}
                                                             </>
                                                         )}
 
@@ -2095,26 +1951,29 @@ export default function CreateLink() {
                 ]}
                 footer={
                     (() => {
-                        // Count products fully selected and individual variants
-                        const selectedIds = Object.keys(tempSelectedProductItems);
-
+                        // Group selected items by product id prefix
+                        const productVariantMap = {};
+                        selectedProductItems.forEach(item => {
+                            // Assume id format is "productId_variantId" for variants, or just "productId" for products
+                            const [productId, variantId] = item.id.split('_');
+                            if (!productVariantMap[productId]) {
+                                productVariantMap[productId] = [];
+                            }
+                            if (variantId) {
+                                productVariantMap[productId].push(variantId);
+                            } else {
+                                productVariantMap[productId].push(null); // simple product
+                            }
+                        });
+                        // Count products and variants
                         let productCount = 0;
                         let variantCount = 0;
-                        productData.forEach(product => {
-                            if (product.variants.length > 0) {
-                                const allVariantIds = product.variants.map(v => v.id);
-                                const allSelected = allVariantIds.every(id => selectedIds.includes(id));
-                                if (allSelected) {
-                                    productCount++;
-                                } else {
-                                    // Count only the selected variants for this product
-                                    variantCount += allVariantIds.filter(id => selectedIds.includes(id)).length;
-                                }
+                        Object.values(productVariantMap).forEach(variants => {
+                            if (variants.length === 1 && variants[0] === null) {
+                                productCount++;
                             } else {
-                                // Simple product (no variants)
-                                if (selectedIds.includes(product.id)) {
-                                    productCount++;
-                                }
+                                productCount++;
+                                variantCount += variants.filter(v => v !== null).length;
                             }
                         });
                         let text = '';

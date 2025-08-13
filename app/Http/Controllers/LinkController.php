@@ -444,7 +444,7 @@ public function update(Request $request, $id)
      * @param string $encryptedId The encrypted ID from URL
      * @return \Illuminate\Http\JsonResponse
      */
-    public function openCheckout($uniqueId)
+    public function openCheckout($uniqueId): JsonResponse|RedirectResponse|Response
     {
         $link = Link::with('popupMessage', 'linkedVariants.variant.product')
             ->where('link_url', $uniqueId)
@@ -454,10 +454,55 @@ public function update(Request $request, $id)
             return $this->showLinkNotFoundPage();
         }
 
-        $shopUrl = "https://" . urlencode(optional(User::find($link->user_id))->name ?? 'Guest');
+        $user = User::where('id', $link->user_id)->first();
+        $shopUrl = "https://" . urlencode($user ? $user->name : 'Guest');
 
-        // Example: redirect without encryption logic
-        $redirectUrl = $shopUrl . '?link_id=' . $link->id . '&backend_url=' . urlencode(env('APP_URL', '/checkout'));
+        // Increment clicks counter
+        $link->increment('clicks');
+
+        // Check if popup message is active
+        $popupMessageActive = $link->popupMessage && $link->popupMessage->is_active;
+
+        if (!$popupMessageActive) {
+            // If popup message is not active, create a draft order and redirect to invoice URL
+            $draftOrderResult = $this->createDraftOrder($link->id);
+            if ($draftOrderResult && isset($draftOrderResult['invoice_url'])) {
+                Log::info('Redirecting to draft order invoice: ' . $draftOrderResult['invoice_url']);
+                return redirect()->to($draftOrderResult['invoice_url']);
+            }
+        }
+
+        // Default behavior: show popup or redirect to shop
+        $backendUrl = env('APP_URL', '/checkout');
+        $discountCode = null;
+        if ($link->discount_code) {
+            // Use the existing discount code
+            $discountCode = $link->discount_code_value;
+        } elseif ($link->order_discount) {
+            // Create a discount on Shopify and retrieve the code
+            $discountResponse = $this->createDiscountOnShopify($link);
+            Log::info('Discount response from Shopify: ' . json_encode($discountResponse, JSON_PRETTY_PRINT));
+            if (isset($discountResponse->body->data->discountCodeBasicCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code)) {
+                $discountCode = $discountResponse->body->data->discountCodeBasicCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code;
+                Log::info('Discount code created: ' . $discountCode);
+            }
+        } elseif ($link->free_shipping) {
+            // Create a free shipping discount on Shopify and retrieve the code
+            $freeShippingResponse = $this->createFreeShippingOnShopify($link);
+            Log::info('Free shipping response from Shopify: ' . json_encode($freeShippingResponse, JSON_PRETTY_PRINT));
+            if (isset($freeShippingResponse->body->data->discountCodeFreeShippingCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code)) {
+                $discountCode = $freeShippingResponse->body->data->discountCodeFreeShippingCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code;
+            }
+            Log::info('Free shipping discount code created: ' . $discountCode);
+        }
+
+        // Add both the link_id and backend_url parameters to the URL for the extension to read
+        $redirectUrl = $shopUrl . '?link_id=' . $link->id . '&backend_url=' . urlencode($backendUrl);
+        if ($discountCode) {
+            Log::info('Adding discount code to redirect URL: ' . $discountCode);
+            $redirectUrl .= '&discount_code=' . urlencode($discountCode);
+        }
+        Log::info('Redirecting to: ' . $redirectUrl);
         return redirect()->to($redirectUrl);
     }
     /**
