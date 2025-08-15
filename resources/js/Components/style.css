@@ -1,5 +1,6 @@
 .scroll-wrapper {
-  height: 170dvh; /* Default height for laptops */
+  height: 190dvh;
+    /* Default height for laptops */
   overflow: hidden;
   display: flex;
 }
@@ -7,7 +8,7 @@
 
 @media (min-width: 1440px) {
   .scroll-wrapper {
-    height: 100dvh;
+    height: 120dvh;
   }
 }
 

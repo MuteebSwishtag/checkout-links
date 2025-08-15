@@ -225,6 +225,7 @@ public function getLinks(Request $request)
 }
 public function update(Request $request, $id)
 {
+    
     $user = auth()->user();
     $data = $request->all();
         Log::info('Data received for updating link:', ['data' => $data, 'link_id' => $id]);
@@ -322,6 +323,9 @@ public function update(Request $request, $id)
 
             if (!empty($data['selectedProductItems']) && is_array($data['selectedProductItems'])) {
                 Log::info('Updating product items for link:', ['items_count' => count($data['selectedProductItems'])]);
+
+                // Store IDs that we've already processed to avoid duplicates
+                $processedIds = [];
 
                 // Process variants in chunks to avoid memory issues
                 $chunks = array_chunk($data['selectedProductItems'], 100);

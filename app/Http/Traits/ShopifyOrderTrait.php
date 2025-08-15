@@ -836,7 +836,7 @@ GRAPHQL;
     GRAPHQL;
 
         $startsAt = Carbon::now()->utc()->format('Y-m-d\TH:i:s\Z');
-        $endsAt = Carbon::now()->addDays(7)->utc()->format('Y-m-d\TH:i:s\Z'); // Optional: define end date
+        $endsAt = Carbon::now()->addHour()->utc()->format('Y-m-d\TH:i:s\Z'); // Set expiration to 1 hour
 
         // Generate a unique code for free shipping
         $code = "FREESHIP" . $link->id.strtoupper(substr(md5(mt_rand()), 0, 4));
@@ -845,8 +845,9 @@ GRAPHQL;
             "freeShippingCodeDiscount" => [
                 "startsAt" => $startsAt,
                 "endsAt" => $endsAt,
-                "appliesOncePerCustomer" => false,
+                "appliesOncePerCustomer" => true,
                 "title" => "Free Shipping",
+                "usageLimit" => 1,
                 "code" => $code,
                 "minimumRequirement" => [
                     "subtotal" => [
@@ -863,7 +864,6 @@ GRAPHQL;
         ];
 
         $response = $link->user->api()->graph($mutation, $variables);
-
         return $this->arrayToObject($response);
     }
 
