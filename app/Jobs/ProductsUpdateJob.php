@@ -62,6 +62,7 @@ class ProductsUpdateJob implements ShouldQueue
         $shop = $shopQuery->getByDomain($this->shopDomain);
         $user = User::where('name', $shop->name)->first();
         $payload = $this->data;
+        Log::info("Product Update Job started for shop: " . json_encode($payload, JSON_PRETTY_PRINT));
 
         // Extract product ID from webhook payload
         $productId = $payload->id ?? null;
@@ -79,9 +80,24 @@ class ProductsUpdateJob implements ShouldQueue
 
         // Delete related variants first
         $variantsDeleted = ProductVarient::where('product_id', $product->id)->get();
-        $linkedVariantsDeleted = LinkProductVarient::where('variant_id', $variantsDeleted->pluck('shopify_product_varient_id'))->delete();
-        $variantsDeleted->each->delete();
-        if ($variantsDeleted === false) {
+
+        // Get all variant IDs as an array
+        $variantIds = $variantsDeleted->pluck('shopify_product_varient_id')->toArray();
+
+        // Only attempt to delete linked variants if there are any
+        if (!empty($variantIds)) {
+            // Delete linked variants one by one to avoid parameter binding issues
+            foreach ($variantIds as $variantId) {
+                LinkProductVarient::where('variant_id', $variantId)->delete();
+            }
+        }
+
+        // Delete product variants
+        $variantsDeleted->each(function ($variant) {
+            $variant->delete();
+        });
+
+        if ($variantsDeleted->isEmpty() && $product->variants()->count() > 0) {
             Log::error("Failed to delete product variants for product ID: {$product->id}");
             return;
         }

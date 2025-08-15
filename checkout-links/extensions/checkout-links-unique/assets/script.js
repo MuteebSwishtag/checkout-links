@@ -342,7 +342,7 @@ document.addEventListener('DOMContentLoaded', function() {
           title: `${item.variant.product.title} - ${item.variant.title}`,
           price: item.price || item.variant.price || '0.00',
           image: mediaItem?.src || '',
-          quantity: 1 // Default quantity for all variants
+          quantity: item.quantity || 1 // Use the quantity from linked_variants or default to 1
         });
       });
     }
@@ -593,7 +593,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="order-item" data-product-id="${product.id}" data-link-variant-id="${product.linkVariantId || ''}">
               <div class="item-img-wrap">
                 <img src="${product.image}" alt="${product.title}" onerror="this.onerror=null;this.src='data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%22100%22%20height%3D%22100%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20fill%3D%22%23f8f9fa%22%20width%3D%22100%22%20height%3D%22100%22%2F%3E%3Ctext%20fill%3D%22%23999%22%20font-family%3D%22Arial%2CSans%22%20font-size%3D%2212%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20x%3D%2250%22%20y%3D%2250%22%3ENo%20Image%3C%2Ftext%3E%3C%2Fsvg%3E'">
-                <div class="item-qty">1</div>
+                <div class="item-qty">${product.quantity}</div>
               </div>
               <div class="item-details">
                 <div class="product-title">${product.title}</div>
@@ -601,7 +601,7 @@ document.addEventListener('DOMContentLoaded', function() {
               </div>
               <div class="item-check">
                 <label class="checkbox-label">
-                  <input type="checkbox" ${window.checkoutConfig.popupMessage?.allow_deselect === false ? 'disabled' : ''} checked class="product-checkbox" data-price="${product.price}">
+                  <input type="checkbox" ${window.checkoutConfig.popupMessage?.allow_deselect === false ? 'disabled' : ''} checked class="product-checkbox" data-price="${product.price}" data-quantity="${product.quantity || 1}">
                   <div class="custom-checkbox">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white">
                       <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
@@ -625,7 +625,11 @@ document.addEventListener('DOMContentLoaded', function() {
             <span class="total-currency">${currencyCode}</span>
             <span class="total-value">${total.toFixed(2)}</span>
           </div>
-          <div class="discount-info" style="font-size: 12px; color: #5c5c5c; margin-top: 5px;">Includes ${window.checkoutConfig.discount.orderDiscount ? window.checkoutConfig.discount.value + '% OFF' : '$' + window.checkoutConfig.discount.value + ' OFF'}</div>
+          <div class="discount-info" style="font-size: 12px; color: #5c5c5c; margin-top: 5px;">
+            ${window.checkoutConfig.discount.code && window.checkoutConfig.discount.code.startsWith('FREESHIP') 
+              ? 'Free Shipping' 
+              : `Includes ${window.checkoutConfig.discount.orderDiscount ? window.checkoutConfig.discount.value + '% OFF' : '$' + window.checkoutConfig.discount.value + ' OFF'}`}
+          </div>
         </div>
         ` : ''}
         <button class="confirm-btn">${window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm'}</button>
@@ -895,7 +899,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Prepare items for cart addition - ONLY checked items
         const cartItems = selectedProducts.map(product => ({
           'id': parseInt(product.id),
-          'quantity': 1
+          'quantity': parseInt(product.quantity) || 1
         }));
         
         // Show loading state
@@ -958,8 +962,15 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!totalValueEl) return;
     
     // Get only checked products for calculation
-    let subtotal = Array.from(document.querySelectorAll('.product-checkbox:checked'))
-      .reduce((sum, checkbox) => sum + (parseFloat(checkbox.dataset.price) || 0), 0);
+    let subtotal = 0;
+    
+    // Get the checked products
+    const checkedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked'));
+    checkedProducts.forEach(checkbox => {
+      const price = parseFloat(checkbox.dataset.price) || 0;
+      const quantity = parseInt(checkbox.dataset.quantity) || 1;
+      subtotal += price * quantity;
+    });
     
     // console.log('Calculated subtotal from checked products:', subtotal);
     

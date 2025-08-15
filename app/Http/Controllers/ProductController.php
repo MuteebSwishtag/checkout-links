@@ -18,7 +18,8 @@ class ProductController extends Controller
 
         $query = Product::with(['variants', 'media'])
             ->where('user_id', $user->id)
-            ->where('status', 'active'); // only active products
+            ->where('status', 'active')
+            ->where('published', 'web'); // Only products published to web, not global or unpublished
 
         // Search in products or their variants
         if ($search) {
