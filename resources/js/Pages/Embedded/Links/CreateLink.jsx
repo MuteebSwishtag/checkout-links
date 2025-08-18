@@ -34,7 +34,7 @@ import PopupMessage from './PopupMessage';
 import '@/Components/style.css';
 export default function CreateLink() {
     const { props } = usePage();
-    const query = props.query || {};
+    const query = props.ziggy.query;
 
     const [linkName, setLinkName] = useState('');
     const [linkId, setLinkId] = useState('');
@@ -457,7 +457,7 @@ export default function CreateLink() {
             title='Create Link'
             backAction={{
                 content: 'Links',
-                onAction: () => router.visit(route('links', query))
+                onAction: () => router.get(route('links', query))
 
             }}
             primaryAction={{
