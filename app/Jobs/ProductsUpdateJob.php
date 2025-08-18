@@ -107,6 +107,11 @@ class ProductsUpdateJob implements ShouldQueue
             Log::error("Failed to delete product media for product ID: {$product->id}");
             return;
         }
+
+        if (is_null($payload->published_at) || $payload->status === "draft") {
+            LinkProductVarient::where('product_id', $product->id)->delete();
+        }
+        
         // Log before re-storing
         Log::info("Product Update Job started for shop: " . json_encode($payload, JSON_PRETTY_PRINT));
         // Process and store updated product data
