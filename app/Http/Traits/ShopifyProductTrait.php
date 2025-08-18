@@ -1,12 +1,10 @@
 <?php
 
 namespace App\Http\Traits;
-use Log;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use App\Repositories\Product\ProductRepositoryInterface;
-
-
+use Illuminate\Support\Facades\Log;
 
 trait ShopifyProductTrait
 {
@@ -17,21 +15,24 @@ trait ShopifyProductTrait
     }
     public function getProductsFromShopify(User $user)
     {
+        Log::info('Fetching products from Shopify for user ID: ' . $user->id);
         try {
             $productCount = $this->getProductsCountFromShopify($user);
+            Log::info('Total Products Count: ' . $productCount);
             $cursor = 'null';
             $loop = ceil($productCount / 250);
             $hasErrors = false;
             for ($i = 1; $i <= $loop; $i++) {
                 [$products, $nextCursor] = $this->shopifyGraphqlProductQuery($user, $cursor);
+                Log::info("Fetched Products: " . json_encode($products, JSON_PRETTY_PRINT));
                 if ($products && $nextCursor) {
                     $cursor = '"' . $nextCursor . '"';
                     foreach ($products as $product) {
+                        Log::info(json_encode($product, JSON_PRETTY_PRINT));
                         $product = $this->transformShopifyProductData($product);
                         if (!$this->storeData($this->arrayToObject($product), $user)) {
                             $hasErrors = true;
                         }
-
                     }
                 }
             }
@@ -64,33 +65,31 @@ trait ShopifyProductTrait
     {
         $query = <<<QUERY
             query {
-                products(first: 250, after: $cursor) {
+                products(first: 250, after: $cursor,query: "published_status:published") {
                     edges {
                         node {
                             id
                             title
-                            handle
-                            descriptionHtml
-                            tags
                             vendor
-                            productType
                             status
+                            publishedAt
                             variants(first: 250) {
                                 edges {
                                     node {
                                         id
                                         inventoryItem{
                                             id
+                                            tracked
                                         }
                                         title
-                                        sku
                                         price
                                         inventoryQuantity
                                         compareAtPrice
+                                        inventoryPolicy
                                     }
                                 }
                             }
-                            media(first: 250) {
+                            media(first: 1) {
                                 edges {
                                     node {
                                         ... on MediaImage {
@@ -110,21 +109,24 @@ trait ShopifyProductTrait
                     }
                 }
             }
-        QUERY;
+QUERY;
         $result = $this->arrayToObject($user->api()->graph($query));
         if ($result->errors) {
             return [null, null];
         } else {
             $products = $result->body->data->products->edges;
+            Log::info("Fetched Products: " . json_encode($products, JSON_PRETTY_PRINT));
             $cursor = $result->body->data->products->pageInfo->endCursor;
             return [$products, $cursor];
         }
     }
     public function storeData($product, User $user)
     {
+        Log::info(json_encode($product, JSON_PRETTY_PRINT));
         DB::beginTransaction();
         try {
             $formatedData = $this->formateProductdata($product, $user);
+            Log::info("Formatted Product Data: " . json_encode($formatedData, JSON_PRETTY_PRINT));
             $this->product->updateOrCreate($formatedData);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -141,11 +143,8 @@ trait ShopifyProductTrait
             'user_id' => $user->id,
             'shopify_product_id' => $product->id,
             'title' => $product->title,
-            "handle" => $product->handle,
-            'body_html' => $product->body_html,
-            'tags' => $product->tags,
+            'published' => isset($product->published_at) && $product->published_at !== null ? 'web' : 'not_published',
             'vendor' => $product->vendor,
-            'product_type' => $product->product_type,
             'status' => $product->status,
             'variants' => $this->formateProductvarientData($product->variants),
             'media' => $this->formateProductMedia($product->media)
@@ -157,12 +156,14 @@ trait ShopifyProductTrait
         $productVarients = [];
         foreach ($variants as $varient) {
             $productVarients[] = [
-                "shopify_product_Varient_id" => $varient->id,
+                'product_id' => $varient->product_id ?? null, // optional, set if available
+                'shopify_product_varient_id' => $varient->id,
                 'shopify_inventory_item_id' => $varient->inventory_item_id,
                 'title' => $varient->title,
-                'sku' => $varient->sku,
                 'price' => $varient->price,
                 'inventory_quantity' => $varient->inventory_quantity,
+                'inventory_policy' => $varient->inventory_policy ?? 'deny',
+                'inventory_tracked' => $varient->inventory_tracked ?? true,
                 'compare_at_price' => $varient->compare_at_price
             ];
         }
@@ -171,11 +172,12 @@ trait ShopifyProductTrait
     public function formateProductMedia($media)
     {
         $productMedia = [];
+        Log::info(json_encode($media, JSON_PRETTY_PRINT));
         foreach ($media as $image) {
             $productMedia[] = [
+                'product_id' => $image->product_id ?? null, // optional, set if available
                 'shopify_product_media_id' => $image->id,
-                'position' => $image->position ?? null,
-                'src' => $image->preview_image->src
+                'src' => $image->preview_image->src ?? null,
             ];
         }
         return $productMedia;
@@ -185,6 +187,8 @@ trait ShopifyProductTrait
         DB::beginTransaction();
         try {
             $product = $this->product->getByShopifyId($productId);
+            // $product->variants()->delete();
+            // $product->media()->delete();
             $this->product->delete($product->id);
         } catch (\Exception $e) {
             DB::rollBack();
@@ -209,6 +213,8 @@ trait ShopifyProductTrait
                     'title' => $variant->title ?? null,
                     'inventory_item_id' => $this->extractId($variant->inventoryItem->id ?? null),
                     'inventory_quantity' => $variant->inventoryQuantity ?? 0,
+                    'inventory_policy' => $variant->inventoryPolicy ?? 'deny',
+                    'inventory_tracked' => $variant->inventoryItem->tracked ?? true,
                 ];
             }
         }
@@ -219,7 +225,7 @@ trait ShopifyProductTrait
                 if ($media) {
                     $productMedia[] = [
                         'id' => $this->extractId($media->id),
-                        'position' => $index + 1,
+                        // 'position' => $index + 1,
                         'preview_image' => [
                             'src' => $media->image->url ?? null,
                         ],
@@ -228,14 +234,15 @@ trait ShopifyProductTrait
             }
         }
         $product = [
-            'body_html' => $node->descriptionHtml,
-            'handle' => $node->handle,
+            // 'body_html' => $node->descriptionHtml,
+            // 'handle' => $node->handle,
             'id' => $this->extractId($node->id),
-            'product_type' => $node->productType,
+            // 'product_type' => $node->productType,
             'title' => $node->title,
             'vendor' => $node->vendor,
+            'published' => isset($node->publishedAt) && $node->publishedAt !== null ? 'web' : 'not_published',
             'status' => strtolower($node->status),
-            'tags' => $this->arrayToString($node->tags),
+            // 'tags' => $this->arrayToString($node->tags),
             'variants' => $productVariants,
             'media' => $productMedia,
         ];
@@ -260,5 +267,32 @@ trait ShopifyProductTrait
     {
         $arr = explode('/', $id);
         return end($arr);
+    }
+
+    public function fetchInventoryItemFromShopify($inventoryItemId, User $user)
+    {
+        $query = <<<GQL
+        query {
+            inventoryItem(id: "gid://shopify/InventoryItem/{$inventoryItemId}") {
+                id
+                tracked
+                sku
+                inventoryLevel(locationId: "gid://shopify/Location/#{$user->location_id}") {
+                    available
+                    incoming
+                    locationId
+                }
+            }
+        }
+        GQL;
+
+        // Use the user's API to make the GraphQL request
+        $result = $this->arrayToObject($user->api()->graph($query));
+
+        if (!isset($result->errors)) {
+            return $result->body->data->inventoryItem ?? null;
+        }
+
+        return null;
     }
 }

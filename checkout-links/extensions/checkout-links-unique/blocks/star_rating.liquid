@@ -1,0 +1,481 @@
+{{ 'bootstrap.css' | asset_url | stylesheet_tag }}
+<script src="{{ 'script.js' | asset_url }}" defer></script>
+<script src="{{ 'discount-persister.js' | asset_url }}" defer></script>
+<script>
+  // Initialize checkout config object for data from backend
+  window.checkoutConfig = {
+    link_id: "{{ block.settings.link_id }}",
+    backendUrl: "{{ shop.url }}",
+    products: [],
+    discount: {
+      code: "{{ block.settings.discount_code }}",
+      value: {{ block.settings.discount_value }},
+      freeShipping: {{ block.settings.free_shipping | json }},
+      orderDiscount: true
+    },
+    popupMessage: {
+      is_active: true,
+      heading_text: "{{ block.settings.heading_text }}",
+      message_text: "{{ block.settings.message_text }}",
+      countdown_active: {{ block.settings.countdown_active | json }},
+      timer_text: "{{ block.settings.timer_seconds | divided_by: 60 | round }} minute",
+      copy_text: "{{ block.settings.copy_text }}",
+      allow_deselect: {{ block.settings.allow_deselect | json }},
+      show_price: {{ block.settings.show_price | json }},
+      show_order_total: {{ block.settings.show_order_total | json }},
+      checkout_button_text: "{{ block.settings.checkout_button_text }}",
+      close_button_text: "{{ block.settings.close_button_text }}",
+      close_button_link: "{{ block.settings.close_button_link }}"
+    }
+  };
+</script>
+<style>
+  body {
+    background: #f7f7f7;
+    font-family: 'Open Sans', Arial, sans-serif;
+    min-height: 100vh;
+    margin: 0;
+  }
+  #orderSummaryModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1050;
+    display: none; /* Initially hidden */
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.5);
+    visibility: hidden; /* Initially hidden */
+  }
+  #orderSummaryModal.show {
+    display: flex !important;
+    visibility: visible;
+  }
+  .modal-dialog {
+  max-width: 22vw; /* 80% of the viewport width */
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Modal close button */
+.close-button {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  color: #888;
+  z-index: 10;
+  transition: color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: #f0f0f0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.close-button:hover {
+  color: #333;
+  background-color: #e0e0e0;
+}
+
+.close-button::before,
+.close-button::after {
+  content: '';
+  position: absolute;
+  width: 14px;
+  height: 2px;
+  background-color: currentColor;
+  border-radius: 1px;
+}
+
+.close-button::before {
+  transform: rotate(45deg);
+}
+
+.close-button::after {
+  transform: rotate(-45deg);
+}
+
+/* Modal content positioning */
+.modal-content {
+  position: relative;
+  padding-top: 10px;
+}
+
+/* Make sure the modal body has proper spacing from the close button */
+.modal-body {
+  padding-top: 15px;
+}
+
+  .modal-content {
+    border-radius: 8px !important;
+    padding: 0;
+    background: #f9f9f9;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+    border: none;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  .order-title {
+    font-size: 2.2rem;
+    font-weight: 600;
+    text-align: center;
+    margin: 15px 0 8px 0;
+    color: #333;
+  }
+  .order-desc {
+    font-size: 1.6rem;
+    color: #666;
+    text-align: center;
+    margin-bottom: 15px;
+    line-height: 1.4;
+    padding: 0 15px;
+  }
+  .order-items {
+    margin-bottom: 15px;
+    max-height: 176px;
+    overflow-y: auto;
+    padding: 0 10px;
+  }
+  .order-items.scrollable {
+    border: 5px solid #eee;
+    border-radius: 11px;
+    padding: 6px;
+  }
+  .order-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid #eee;
+  }
+  .item-img-wrap {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    margin-right: 10px;
+    flex-shrink: 0;
+  }
+  .item-img-wrap img {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    object-fit: cover;
+    border: 1px solid #eee;
+    background: #fafafa;
+  }
+  .item-qty {
+    position: absolute;
+    top: -10px;
+    right: -9px;
+    background: #484848;
+    color: #fff;
+    font-size: 0.93rem;
+    font-weight: 700;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.07);
+    z-index: 2;
+  }
+  .item-details {
+    flex: 1;
+    font-size: 1.5rem;
+    color: #222;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .item-check {
+    width: 30px;
+    text-align: right;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  /* Custom Checkbox */
+  .checkbox-label {
+    cursor: pointer;
+    display: inline-block;
+    position: relative;
+    width: 18px;
+    height: 18px;
+  }
+  .checkbox-label input[type="checkbox"] {
+    opacity: 0;
+    width: 18px;
+    height: 18px;
+    position: absolute;
+    left: 0;
+    top: 0;
+    margin: 0;
+    cursor: pointer;
+    z-index: 2;
+  }
+  .custom-checkbox {
+    width: 16px;
+    height: 16px;
+    border-radius: 2px;
+    border: 1px solid #000;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s;
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+  .checkbox-label input[type="checkbox"]:checked + .custom-checkbox {
+    background: #000;
+  }
+  .custom-checkbox svg {
+    display: none;
+    width: 12px;
+    height: 12px;
+  }
+  .checkbox-label input[type="checkbox"]:checked + .custom-checkbox svg {
+    display: block;
+  }
+  .checkbox-label input[type="checkbox"]:focus + .custom-checkbox {
+    outline: 1px solid #222;
+    outline-offset: 1px;
+  }
+  .order-total-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 15px 0;
+    padding: 10px 15px;
+    background: #fff;
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+  }
+  .total-label {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #222;
+  }
+  .total-amount {
+    text-align: right;
+    display: flex;
+    align-items: center;
+  }
+  .total-currency {
+    font-size: 1.3rem;
+    color: #666;
+    font-weight: 600;
+    margin-right: 5px;
+  }
+  .total-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #222;
+  }
+  .confirm-btn {
+    width: 100%;
+    background: #000;
+    color: #fff;
+    font-size: 1.7rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 4px;
+    padding: 10px 0;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .confirm-btn:active {
+    background: #333;
+  }
+  .no-thanks {
+    display: block;
+    text-align: center;
+    color: #1a73e8;
+    font-size: 1.3rem;
+    margin: 10px 0;
+    text-decoration: none;
+    transition: color 0.13s;
+    cursor: pointer;
+  }
+  .no-thanks:hover {
+    color: #1857b0;
+    text-decoration: underline;
+  }
+  /* Countdown timer styles */
+  .countdown-timer {
+    text-align: center;
+    margin-bottom: 15px;
+    padding: 8px 15px;
+    background-color: #f1f1f1;
+    font-size: 1.4rem;
+  }
+  .countdown-label {
+    font-size: 1.5rem;
+    color: #666;
+    margin-bottom: 2px;
+  }
+  .countdown-time {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #d9534f;
+  }
+  /* Scrollbar styles */
+  .order-items::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .order-items::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+  .order-items::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+  }
+  .order-items::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+
+  /* Discount row styles */
+  .discount-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .discount-label {
+    font-size: 1.3rem;
+    font-weight: 400;
+    color: #555;
+  }
+  .discount-amount {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #28a745;
+  }
+  /* Product title and price */
+  .product-title {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 160px;
+  }
+  .product-price {
+    font-size: 1.5rem;
+    color: #666;
+  }
+  .discount-notice {
+    background-color: #f8f9fa;
+    border: 1px solid #e2e2e2;
+    border-radius: 4px;
+    padding: 10px;
+    margin: 10px 0;
+    font-size: 14px;
+    text-align: center;
+  }
+  .discount-code {
+    font-weight: bold;
+    color: #28a745;
+  }
+  .checkout-link-product-indicator {
+    background: #f0f9ff;
+    border: 1px solid #bde3ff;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 11px;
+    margin-top: 4px;
+    display: inline-block;
+  }
+  @media (max-width: 360px) {
+    .modal-dialog {
+      max-width: 98vw !important;
+    }
+    .modal-content {
+      padding: 13px 2vw 15px 2vw;
+    }
+  }
+</style>
+
+
+<div class="modal fade" id="orderSummaryModal" tabindex="-1" aria-modal="true" role="dialog" style="display: none; visibility: hidden;" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <!-- Modal content will be dynamically populated by JavaScript -->
+    </div>
+  </div>
+</div>
+
+<script>
+  // Ensure modal is ready and properly configured when the page loads
+  document.addEventListener('DOMContentLoaded', function() {
+    const modalElement = document.getElementById('orderSummaryModal');
+    if (modalElement) {
+      // Reset modal to initial state to avoid any CSS issues
+      modalElement.style.display = 'none';
+      modalElement.style.visibility = 'hidden';
+      
+      // Add helper functions to the window object
+      window.checkModalVisibility = function() {
+        const modal = document.getElementById('orderSummaryModal');
+        console.log("Modal visibility check:", {
+          element: modal,
+          display: modal?.style.display,
+          visibility: modal?.style.visibility,
+          classList: modal?.classList.contains('show'),
+          computed: modal ? window.getComputedStyle(modal) : null
+        });
+      };
+      
+      window.showModalManually = function() {
+        const modal = document.getElementById('orderSummaryModal');
+        if (modal) {
+          modal.style.display = 'flex';
+          modal.style.visibility = 'visible';
+          modal.classList.add('show');
+          document.body.classList.add('modal-open');
+          console.log("Modal shown manually");
+          return true;
+        }
+        return false;
+      };
+    }
+  });
+</script>
+
+{% schema %}
+{
+  "name": "Checkout Links Extensions",
+  "target": "body",
+  "settings": [
+    { "type": "text", "id": "link_id", "label": "Link ID" },
+    { "type": "text", "id": "heading_text", "label": "Heading Text", "default": "Order summary" },
+    { "type": "text", "id": "message_text", "label": "Message Text" },
+    { "type": "checkbox", "id": "show_price", "label": "Show Product Prices", "default": true },
+    { "type": "checkbox", "id": "show_order_total", "label": "Show Order Total", "default": true },
+    { "type": "checkbox", "id": "clear_cart", "label": "Always Clear Cart Before Adding Products", "default": false, "info": "If enabled, the cart will be emptied before adding link products" },
+    { "type": "text", "id": "currency_code", "label": "Currency Code", "default": "AUD" },
+    { "type": "text", "id": "checkout_button_text", "label": "Checkout Button Text", "default": "Confirm" },
+    { "type": "text", "id": "close_button_text", "label": "Close Button Text", "default": "No thanks" },
+    { "type": "url", "id": "close_button_link", "label": "Close Button Link" },
+    { "type": "checkbox", "id": "countdown_active", "label": "Enable Countdown Timer", "default": false },
+    { "type": "text", "id": "copy_text", "label": "Countdown Copy Text", "default": "This offer will expire in" },
+    { "type": "number", "id": "timer_seconds", "label": "Timer Duration (seconds)", "default": 60 },
+    { "type": "checkbox", "id": "allow_deselect", "label": "Allow Product Deselection", "default": true },
+    { "type": "text", "id": "discount_code", "label": "Discount Code" },
+    { "type": "number", "id": "discount_value", "label": "Discount Value (%)", "default": 0 },
+    { "type": "checkbox", "id": "free_shipping", "label": "Free Shipping", "default": false }
+  ]
+}
+{% endschema %}

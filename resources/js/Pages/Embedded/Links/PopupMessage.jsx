@@ -1,9 +1,10 @@
 import Toggle from '@/Components/Toggle'
-import { Box, Card, InlineStack, Text, TextField, BlockStack } from '@shopify/polaris'
+import { Box, Card, InlineStack, Text, TextField, BlockStack, Banner } from '@shopify/polaris'
 import React from 'react'
 
 export default function PopupMessage({ 
     popupMessageData,
+    errors = {},
     onActiveToggle,
     onHeadingTextChange,
     onMessageTextChange,
@@ -26,7 +27,10 @@ export default function PopupMessage({
 
     return (
         <div>
-
+            {/* Display any general popup message errors */}
+            {errors && errors.general && (
+                <Banner status="critical">{errors.general}</Banner>
+            )}
            
             <Box  paddingBlockEnd='300'>
                     <InlineStack align="space-between" blockAlign="start">
@@ -68,6 +72,7 @@ export default function PopupMessage({
                                     value={popupMessageData.headingText}
                                     onChange={onHeadingTextChange}
                                     autoComplete="off"
+                                    error={errors && errors.headingText}
                                 />
                             </Box>
                         </Box>
@@ -83,6 +88,7 @@ export default function PopupMessage({
                                     onChange={onMessageTextChange}
                                     multiline={4}
                                     autoComplete="off"
+                                    error={errors && errors.messageText}
                                 />
                             </Box>
                         </Box>
@@ -119,6 +125,7 @@ export default function PopupMessage({
                                             value={popupMessageData.timerText}
                                             onChange={onTimerTextChange}
                                             autoComplete="off"
+                                            error={errors && errors.timerText}
                                         />
                                     </Box>
 
@@ -132,6 +139,7 @@ export default function PopupMessage({
                                                 value={popupMessageData.copyText}
                                                 onChange={onCopyTextChange}
                                                 autoComplete="off"
+                                                error={errors && errors.copyText}
                                             />
                                         </Box>
                                     </Box>
@@ -212,6 +220,7 @@ export default function PopupMessage({
                                         value={popupMessageData.checkoutButtonText}
                                         onChange={onCheckoutButtonTextChange}
                                         autoComplete="off"
+                                        error={errors && errors.checkoutButtonText}
                                     />
                                 </Box>
                             </Box>
@@ -226,6 +235,7 @@ export default function PopupMessage({
                                         value={popupMessageData.closeButtonText}
                                         onChange={onCloseButtonTextChange}
                                         autoComplete="off"
+                                        error={errors && errors.closeButtonText}
                                     />
                                 </Box>
                             </Box>
@@ -240,6 +250,8 @@ export default function PopupMessage({
                                         value={popupMessageData.closeButtonLink}
                                         onChange={onCloseButtonLinkChange}
                                         autoComplete="off"
+                                        error={errors && errors.closeButtonLink}
+                                        prefix="https://"
                                     />
                                 </Box>
                             </Box>

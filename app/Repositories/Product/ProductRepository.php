@@ -1,6 +1,7 @@
 <?php
 namespace App\Repositories\Product;
 
+use App\Models\LinkProductVarient;
 use App\Models\Products\Product;
 use App\Http\Traits\ResponseTrait;
 use Illuminate\Support\Facades\Log;
@@ -48,10 +49,10 @@ class ProductRepository implements ProductRepositoryInterface
         $product = $this->model->updateOrCreate($data);
 
         foreach ($varients as $varient) {
+            // Log::info('Product Varient Data: ' . json_encode($varient, JSON_PRETTY_PRINT));
             $varient['product_id'] = $product->id;
             $this->productVarient->updateOrCreate($varient);
         }
-
         foreach ($medias as $media) {
             $media['product_id'] = $product->id;
             $this->productMedia->updateOrCreate($media);
@@ -65,6 +66,7 @@ class ProductRepository implements ProductRepositoryInterface
         $variants = $this->productVarient->getByProductId($product->id);
         $medias = $this->productMedia->getByProductId($product->id);
         foreach ($variants as $variant) {
+            $linkedProductVariant = LinkProductVarient::where('variant_id', $variant->shopify_product_varient_id)->delete();
             $this->productVarient->delete($variant->id);
         }
         foreach ($medias as $media) {

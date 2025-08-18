@@ -68,6 +68,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Increase memory limit for handling large data processing
+        ini_set('memory_limit', '512M');
+
+        // Increase execution time for processing large datasets
+        ini_set('max_execution_time', 300);
+
+        // Force HTTPS
         \URL::forceScheme('https');
         Vite::prefetch(concurrency: 3);
     }

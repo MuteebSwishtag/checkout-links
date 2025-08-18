@@ -32,6 +32,19 @@ class ProductVarientRepository implements ProductVarientRepositoryInterface
     }
     public function updateOrCreate(array $data)
     {
+        // Handle any negative inventory quantities gracefully
+        if (isset($data['inventory_quantity']) && $data['inventory_quantity'] < 0) {
+            // Log the negative inventory instead of failing
+            \Log::info('Handling negative inventory for product variant', [
+                'variant_id' => $data['shopify_product_varient_id'] ?? 'unknown',
+                'inventory_quantity' => $data['inventory_quantity']
+            ]);
+
+            // Database now supports negative values after our migration
+            // But if you have issues, you can uncomment this line:
+            // $data['inventory_quantity'] = 0;
+        }
+
         $productVarient = $this->model->updateOrCreate($data);
         return $productVarient;
     }

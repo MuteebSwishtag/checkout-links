@@ -40,12 +40,13 @@ class HandleInertiaRequests extends Middleware
     {
         return array_merge(parent::share($request), [
             'auth' => [
-                'user' => Auth::user(),
+                'user' => $request->user(),
             ],
             'ziggy' => function () use ($request) {
+                // $request->query()
                 return array_merge((new Ziggy)->toArray(), [
                     'location' => $request->url(),
-                    'query' => $request->query(),
+                    'query' => collect($request->query())->except(['hmac', 'session', 'timestamp'])->all(),
                 ]);
             },
         ]);
