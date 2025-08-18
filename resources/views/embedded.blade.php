@@ -17,9 +17,10 @@
 <ui-nav-menu>
     <a href="/" rel="home">Dashboard</a>
     <a href="/links">Links</a>
-    <!-- <a href="/">How its Works</a>
-    <a href="/">FAQs</a> -->
-    
+    <a href="/how-it-works">How its Works</a>
+    <a href="/settings">Settings</a>
+      <!-- <a href="/">FAQs</a> -->
+
 </ui-nav-menu>
 
 <script>
