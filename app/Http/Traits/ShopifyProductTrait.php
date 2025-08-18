@@ -72,6 +72,7 @@ trait ShopifyProductTrait
                             title
                             vendor
                             status
+                            publishedAt
                             variants(first: 250) {
                                 edges {
                                     node {
@@ -142,7 +143,7 @@ QUERY;
             'user_id' => $user->id,
             'shopify_product_id' => $product->id,
             'title' => $product->title,
-            'published' => $product->published_scope ?? 'web',
+            'published' => isset($product->published_at) && $product->published_at !== null ? 'web' : 'not_published',
             'vendor' => $product->vendor,
             'status' => $product->status,
             'variants' => $this->formateProductvarientData($product->variants),
@@ -239,7 +240,7 @@ QUERY;
             // 'product_type' => $node->productType,
             'title' => $node->title,
             'vendor' => $node->vendor,
-            'published' => 'web',
+            'published' => isset($node->publishedAt) && $node->publishedAt !== null ? 'web' : 'not_published',
             'status' => strtolower($node->status),
             // 'tags' => $this->arrayToString($node->tags),
             'variants' => $productVariants,

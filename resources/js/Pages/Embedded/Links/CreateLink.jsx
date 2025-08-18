@@ -90,6 +90,7 @@ export default function CreateLink() {
     useEffect(() => {
         if (link) {
             // console.log("Link data:", link);
+            console.log("11111111");
             // Editing existing link - use stored values
             setLinkName(link.link_name || '');
             setLinkId(link.link_url || '');
@@ -102,7 +103,7 @@ export default function CreateLink() {
             });
 
             if (link.popup_message) {
-                console.log("Popup message data:", link.popup_message);
+                // console.log("Popup message data:", link.popup_message);
                 setPopupMessageData({
                     isActive: !!link.popup_message.is_active,
                     headingText: link.popup_message.heading_text || 'Order summary',
@@ -131,7 +132,7 @@ export default function CreateLink() {
                     const product = v.variant?.product || {};
                     const media = product.media?.[0]?.src || product.image || '';
                     const itemId = `${v.product_id}_${v.variant_id}`;
-                    const shopifyVariantId = v.shopify_variant_id || v.variant?.shopify_product_varient_id || null;
+                    const shopifyVariantId = v.variant?.shopify_product_varient_id || null;
 
                     return {
                         id: itemId,
@@ -142,57 +143,31 @@ export default function CreateLink() {
                         variant: v.variant?.title || '',
                         price: v.price || (v.variant?.price || ''),
                         image: media,
-                        quantity: v.quantity || 1, // Use variant quantity if available
-                        fromDatabase: true // Mark this as coming directly from the database
+                        quantity: 1
                     };
                 });
 
                 setSelectedProductItems(selected);
                 setSelectedProducts(selected.length);
 
-                // Save quantities from the database to localStorage for future use
-                try {
-                    if (link.id) {
-                        const linkStorageKey = `link_${link.id}_quantities`;
-                        const quantityMap = {};
-
-                        selected.forEach(item => {
-                            if (item.quantity && item.quantity > 1) {
-                                quantityMap[item.id] = item.quantity;
-                                console.log(`Storing DB quantity for ${item.id}: ${item.quantity}`);
-                            }
-                        });
-
-                        if (Object.keys(quantityMap).length > 0) {
-                            localStorage.setItem(linkStorageKey, JSON.stringify(quantityMap));
-                            console.log(`Saved DB quantities to link-specific storage: ${linkStorageKey}`);
-                        }
-                    }
-                } catch (e) {
-                    console.error('Failed to save DB quantities to localStorage:', e);
-                }
-
                 // When editing a link, store the original variant data for later matching with productData
                 if (Array.isArray(link.linked_variants)) {
-                    // Create a map of selected variant IDs from the link data
-                    const variantIdsToSelect = link.linked_variants.map(v => {
-                        // Create the same ID format we use in the UI
-                        return v.variant_id ? `${v.product_id}_${v.variant_id}` : `${v.product_id}`;
+                    // Extract the variant IDs that should be selected
+                    const variantIdsToSelect = [];
+                    link.linked_variants.forEach(v => {
+                        if (v.variant_id) {
+                            variantIdsToSelect.push(`${v.product_id}_${v.variant_id}`);
+                        } else {
+                            variantIdsToSelect.push(`${v.product_id}`);
+                        }
                     });
-
                     console.log("Setting variant IDs from link data:", variantIdsToSelect);
                     setSelectedVariantIds(variantIdsToSelect);
-
-                    // Also create a checked state for popupProductChecked
-                    const checkedState = {};
-                    variantIdsToSelect.forEach(id => {
-                        checkedState[id] = true;
-                    });
-                    setPopupProductChecked(checkedState);
                 }
-            } else {
-                fetchUniqueId();
             }
+        } else {
+            // Creating new link - generate unique ID
+            fetchUniqueId();
         }
     }, [link]);
 
@@ -491,6 +466,7 @@ export default function CreateLink() {
 
     // -- Fetch on mount and when search/page changes (with AbortController)
     useEffect(() => {
+        console.log("Fetching products...22222222");
         const controller = new AbortController();
         const searchTerm = isProductModalOpen ? debouncedProductSearchValue : debouncedMainProductSearch;
 
@@ -610,6 +586,7 @@ export default function CreateLink() {
 
     // Update products from link data when product data is first loaded
     useEffect(() => {
+        console.log("Checking for link variant matching...3333333");
         if (productData.length > 0 && link && Array.isArray(link.linked_variants) && link.linked_variants.length > 0) {
             console.log("Product data loaded, checking for link variant matching:", productData.length, "products");
 
@@ -699,6 +676,7 @@ export default function CreateLink() {
 
     // Add a special useEffect to preserve quantities when productData changes
     useEffect(() => {
+        console.log("ProductData changed - checking if quantities need preservation44444444");
         // Don't run this on initial load
         if (selectedProductItems.length === 0 || !productData.length) return;
 
@@ -740,6 +718,7 @@ export default function CreateLink() {
 
     // Load quantities from localStorage at component mount
     useEffect(() => {
+        console.log("Loading quantities from localStorage on mount...55555555");
         try {
             // Load from multiple storage mechanisms
 
@@ -1220,6 +1199,7 @@ export default function CreateLink() {
 
     // Update selectedProductItems when selectedVariantIds changes
     useEffect(() => {
+        console.log("Checking for updates to selectedProductItems...666666");
         if (productData.length > 0) {
             console.log("Triggering updateSelectedProductItems due to change in selectedVariantIds or productData");
 
@@ -1268,6 +1248,7 @@ export default function CreateLink() {
 
     // Load saved quantities from localStorage when selectedProductItems changes
     useEffect(() => {
+        console.log("Loading quantities from localStorage...7777777");
         try {
             // First try to load link-specific quantities if editing a link
             if (link && link.id) {
@@ -1318,6 +1299,7 @@ export default function CreateLink() {
 
     // Update tempSelectedProductItems when selectedVariantIds changes
     useEffect(() => {
+        console.log("Checking for updates to tempSelectedProductItems...8888888");
         if (productData.length > 0 && selectedVariantIds.length > 0) {
             console.log("Updating tempSelectedProductItems from selectedVariantIds:", selectedVariantIds);
 
@@ -1493,6 +1475,7 @@ export default function CreateLink() {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
     useEffect(() => {
+        console.log("Setting up timer interval...9999999");
         let interval = null;
         if (isTimerActive && timerSeconds > 0) {
             interval = setInterval(() => {
