@@ -91,7 +91,8 @@ export default function Dashboard() {
             buttonVariant: 'primary',
             buttonText: 'Install app',
             isDisabled: false,
-            minHeight: '280px'
+            minHeight: '280px',
+            link: 'https://apps.shopify.com/bundilo?st_source=autocomplete&surface_detail=autocomplete_apps'
         },
         {
             name: 'Progressify',
@@ -104,7 +105,8 @@ export default function Dashboard() {
             buttonVariant: 'primary',
             buttonText: 'Install app',
             isDisabled: false,
-            minHeight: '280px'
+            minHeight: '280px',
+            link: 'https://apps.shopify.com/progressify?st_source=autocomplete&surface_detail=autocomplete_apps'
         }
     ];
 
@@ -469,6 +471,8 @@ export default function Dashboard() {
                                                                 variant={app.buttonVariant}
                                                                 fullWidth
                                                                 disabled={app.isDisabled}
+                                                                url={app.link}
+                                                                target='_blank'
                                                             >
                                                                 {app.buttonText}
                                                             </Button>

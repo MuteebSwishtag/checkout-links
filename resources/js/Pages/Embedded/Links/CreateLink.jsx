@@ -36,6 +36,7 @@ import {
     DragDropIcon,
     CartIcon,
     LinkIcon,
+    ImageIcon,
 } from '@shopify/polaris-icons';
 import { router, usePage } from '@inertiajs/react';
 import { TitleBar, useAppBridge } from '@shopify/app-bridge-react';
@@ -69,6 +70,7 @@ export default function CreateLink() {
     const [variantsModal, setVariantsModal] = useState(false);
     const [variantQuantity, setVariantQuantity] = useState(1);
     const [currentEditingVariant, setCurrentEditingVariant] = useState(null);
+    const [localLink, setLocalLink] = useState(link || null);
     // Function to fetch a unique ID from the backend
     const fetchUniqueId = async () => {
         try {
@@ -88,47 +90,47 @@ export default function CreateLink() {
     };
 
     useEffect(() => {
-        if (link) {
+        if (localLink) {
             // console.log("Link data:", link);
-            console.log("11111111");
             // Editing existing link - use stored values
-            setLinkName(link.link_name || '');
-            setLinkId(link.link_url || '');
+            console.log("Editing existing link:", localLink);
+            setLinkName(localLink.link_name || '');
+            setLinkId(localLink.link_url || '');
             setDiscountData({
-                freeShipping: !!link.free_shipping,
-                orderDiscount: !!link.order_discount,
-                discountValue: link.discount_value || '',
-                discountCode: !!link.discount_code,
-                discountCodeValue: link.discount_code_value || ''
+                freeShipping: !!localLink.free_shipping,
+                orderDiscount: !!localLink.order_discount,
+                discountValue: localLink.discount_value || '',
+                discountCode: !!localLink.discount_code,
+                discountCodeValue: localLink.discount_code_value || ''
             });
 
-            if (link.popup_message) {
-                // console.log("Popup message data:", link.popup_message);
+            if (localLink.popup_message) {
+            // console.log("Popup message data:", localLink.popup_message);
                 setPopupMessageData({
-                    isActive: !!link.popup_message.is_active,
-                    headingText: link.popup_message.heading_text || 'Order summary',
-                    messageText: link.popup_message.message_text || 'I hope you enjoy your discount!',
-                    countdownActive: !!link.popup_message.countdown_active,
-                    timerText: link.popup_message.timer_text || '1 minute',
-                    copyText: link.popup_message.copy_text || 'This offer will expire in',
-                    allowDeselect: !!link.popup_message.allow_deselect,
-                    showPrice: !!link.popup_message.show_price,
-                    showOrderTotal: !!link.popup_message.show_order_total,
-                    checkoutButtonText: link.popup_message.checkout_button_text || 'Confirm',
-                    closeButtonText: link.popup_message.close_button_text || 'No thanks',
-                    closeButtonLink: link.popup_message.close_button_link || '#'
+                    isActive: !!localLink.popup_message.is_active,
+                    headingText: localLink.popup_message.heading_text || 'Order summary',
+                    messageText: localLink.popup_message.message_text || 'I hope you enjoy your discount!',
+                    countdownActive: !!localLink.popup_message.countdown_active,
+                    timerText: localLink.popup_message.timer_text || '1 minute',
+                    copyText: localLink.popup_message.copy_text || 'This offer will expire in',
+                    allowDeselect: !!localLink.popup_message.allow_deselect,
+                    showPrice: !!localLink.popup_message.show_price,
+                    showOrderTotal: !!localLink.popup_message.show_order_total,
+                    checkoutButtonText: localLink.popup_message.checkout_button_text || 'Confirm',
+                    closeButtonText: localLink.popup_message.close_button_text || 'No thanks',
+                    closeButtonLink: localLink.popup_message.close_button_link || '#'
                 });
 
                 // Start timer if popup is active with countdown
-                if (link.popup_message.is_active && link.popup_message.countdown_active && link.popup_message.timer_text) {
-                    const timeInSeconds = parseTimeToSeconds(link.popup_message.timer_text);
+                if (localLink.popup_message.is_active && localLink.popup_message.countdown_active && localLink.popup_message.timer_text) {
+                    const timeInSeconds = parseTimeToSeconds(localLink.popup_message.timer_text);
                     setTimerSeconds(timeInSeconds);
                     setIsTimerActive(true);
                 }
             }
 
-            if (Array.isArray(link.linked_variants)) {
-                const selected = link.linked_variants.map(v => {
+            if (Array.isArray(localLink.linked_variants)) {
+                const selected = localLink.linked_variants.map(v => {
                     const product = v.variant?.product || {};
                     const media = product.media?.[0]?.src || product.image || '';
                     const itemId = `${v.product_id}_${v.variant_id}`;
@@ -143,18 +145,23 @@ export default function CreateLink() {
                         variant: v.variant?.title || '',
                         price: v.price || (v.variant?.price || ''),
                         image: media,
-                        quantity: 1
+                        quantity: v.quantity || 1  // Use the quantity from the linked_variant
                     };
                 });
 
                 setSelectedProductItems(selected);
                 setSelectedProducts(selected.length);
 
+                // Store quantities in GLOBAL_QUANTITIES for reference
+                selected.forEach(item => {
+                    GLOBAL_QUANTITIES[item.id] = item.quantity;
+                });
+
                 // When editing a link, store the original variant data for later matching with productData
-                if (Array.isArray(link.linked_variants)) {
+                if (Array.isArray(localLink.linked_variants)) {
                     // Extract the variant IDs that should be selected
                     const variantIdsToSelect = [];
-                    link.linked_variants.forEach(v => {
+                    localLink.linked_variants.forEach(v => {
                         if (v.variant_id) {
                             variantIdsToSelect.push(`${v.product_id}_${v.variant_id}`);
                         } else {
@@ -278,68 +285,15 @@ export default function CreateLink() {
 
     // Collect all relevant data from the page
     const collectAllPageData = () => {
-        // Try to get quantities from all available sources
-        let storedQuantities = {};
-        let linkQuantities = {};
-
-        try {
-            // 1. General storage
-            storedQuantities = JSON.parse(localStorage.getItem('variantQuantities') || '{}');
-
-            // 2. Link-specific storage (if in edit mode)
-            if (link && link.id) {
-                const linkStorageKey = `link_${link.id}_quantities`;
-                linkQuantities = JSON.parse(localStorage.getItem(linkStorageKey) || '{}');
-            }
-
-            // 3. Global quantities (already loaded in memory)
-            console.log('Using quantities from multiple sources when saving:', {
-                fromState: selectedProductItems.map(i => ({ id: i.id, qty: i.quantity })),
-                fromStorage: storedQuantities,
-                fromLinkStorage: linkQuantities,
-                fromGlobal: GLOBAL_QUANTITIES
-            });
-        } catch (e) {
-            console.error('Failed to load quantities from localStorage:', e);
-        }
-
         // Map selected product items to include shopify variant IDs clearly and ensure quantities
         const mappedSelectedProductItems = selectedProductItems.map(item => {
-            // Check all possible sources for quantity in order of precedence
-            let quantity = 1;
-
-            // 1. From current state (highest precedence)
-            if (item.quantity && parseInt(item.quantity) > 1) {
-                quantity = parseInt(item.quantity);
-                console.log(`Using state quantity for ${item.id}: ${quantity}`);
-            }
-            // 2. From _persistedQuantity property
-            else if (item._persistedQuantity && parseInt(item._persistedQuantity) > 1) {
-                quantity = parseInt(item._persistedQuantity);
-                console.log(`Using persisted quantity for ${item.id}: ${quantity}`);
-            }
-            // 3. From link-specific storage
-            else if (linkQuantities[item.id] && parseInt(linkQuantities[item.id]) > 1) {
-                quantity = parseInt(linkQuantities[item.id]);
-                console.log(`Using link storage quantity for ${item.id}: ${quantity}`);
-            }
-            // 4. From general storage
-            else if (storedQuantities[item.id] && parseInt(storedQuantities[item.id]) > 1) {
-                quantity = parseInt(storedQuantities[item.id]);
-                console.log(`Using general storage quantity for ${item.id}: ${quantity}`);
-            }
-            // 5. From global tracker
-            else if (GLOBAL_QUANTITIES[item.id] && parseInt(GLOBAL_QUANTITIES[item.id]) > 1) {
-                quantity = parseInt(GLOBAL_QUANTITIES[item.id]);
-                console.log(`Using global tracker quantity for ${item.id}: ${quantity}`);
-            }
-
-            console.log(`Final quantity for ${item.id} when saving: ${quantity}`);
+            // Use quantity directly from the selectedProductItems state
+            const quantity = parseInt(item.quantity) || 1;
 
             return {
                 ...item,
-                shopify_variant_id: item.shopifyVariantId || item.variantId || null, // Ensure we use the correct Shopify variant ID with fallback
-                quantity: quantity // Ensure quantity is always present
+                shopify_variant_id: item.shopifyVariantId || item.variantId || null,
+                quantity: quantity
             };
         });
 
@@ -351,15 +305,13 @@ export default function CreateLink() {
 
         // Extract the actual Shopify variant IDs from the selected products
         const actualVariantIds = selectedProductItems.map(item => item.shopifyVariantId || item.variantId || null);
-        console.log("Sending Shopify variant IDs:", actualVariantIds);
 
         // Make sure close button link has the proper prefix for the backend
-        // The UI already has https:// prefix in the TextField
         const formattedPopupMessageData = {
             ...popupMessageData,
             closeButtonLink: popupMessageData.closeButtonLink.includes('://')
                 ? popupMessageData.closeButtonLink
-                : `https://${popupMessageData.closeButtonLink}`
+                : `${popupMessageData.closeButtonLink}`
         };
 
         return {
@@ -369,7 +321,6 @@ export default function CreateLink() {
             selectedProductItems: mappedSelectedProductItems,
             discountData,
             popupMessageData: formattedPopupMessageData,
-            // Send the actual Shopify variant IDs instead of the UI IDs
             selectedVariantIds: actualVariantIds,
         };
     };
@@ -379,8 +330,8 @@ export default function CreateLink() {
         toast.dismiss();
 
         // Define the URL based on whether we are editing an existing link or creating a new one
-        const isEdit = link && link.id;
-        const url = isEdit ? route('links.update', { ...query, id: link.id }) : route('products.save', query);
+        const isEdit = link && localLink.id;
+        const url = isEdit ? route('links.update', { ...query, id: localLink.id }) : route('products.save', query);
         const method = isEdit ? 'PUT' : 'POST';
 
         // Define the allData variable by calling collectAllPageData
@@ -398,7 +349,7 @@ export default function CreateLink() {
             const data = await response.json();
             if (!response.ok || !data.success) {
                 console.error('Error saving link:', data);
-                toast.error('Failed to save the link. Please try again.');
+                toast.error('Failed to save the localLink. Please try again.');
 
                 if (data.errors && typeof data.errors === 'object' && Object.keys(data.errors).length > 0) {
                     const backendErrors = data.errors;
@@ -476,15 +427,14 @@ export default function CreateLink() {
 
                 // After products are fetched, if we're editing a link and initialLinkDataLoaded is false,
                 // check if we need to sync the selected variant IDs from the link data
-                if (link && Array.isArray(link.linked_variants) && link.linked_variants.length > 0 && !initialLinkDataLoaded) {
+                if (link && Array.isArray(localLink.linked_variants) && localLink.linked_variants.length > 0 && !initialLinkDataLoaded) {
                     console.log("Products fetched, checking if we need to sync selected variant IDs");
-
                     // We'll set a flag to indicate this was triggered from here
                     const fromFetch = true;
 
                     // Re-apply the selectedVariantIds from the link data
                     const variantIdsToSelect = [];
-                    link.linked_variants.forEach(v => {
+                    localLink.linked_variants.forEach(v => {
                         const id = v.variant_id ? `${v.product_id}_${v.variant_id}` : `${v.product_id}`;
                         variantIdsToSelect.push(id);
                     });
@@ -587,7 +537,7 @@ export default function CreateLink() {
     // Update products from link data when product data is first loaded
     useEffect(() => {
         console.log("Checking for link variant matching...3333333");
-        if (productData.length > 0 && link && Array.isArray(link.linked_variants) && link.linked_variants.length > 0) {
+        if (productData.length > 0 && link && Array.isArray(localLink.linked_variants) && localLink.linked_variants.length > 0) {
             console.log("Product data loaded, checking for link variant matching:", productData.length, "products");
 
             if (!initialLinkDataLoaded) {
@@ -597,7 +547,7 @@ export default function CreateLink() {
                 const updatedIds = [];
                 const mappedVariants = {};  // Keep track of which variants map to which IDs
 
-                link.linked_variants.forEach(linkVariant => {
+                localLink.linked_variants.forEach(linkVariant => {
                     // Try to find matching product
                     const productId = `${linkVariant.product_id}`;
                     const matchingProduct = productData.find(p => p.id === productId);
@@ -727,8 +677,8 @@ export default function CreateLink() {
 
             // 2. Link-specific storage (if in edit mode)
             let linkQuantities = {};
-            if (link && link.id) {
-                const linkStorageKey = `link_${link.id}_quantities`;
+            if (link && localLink.id) {
+                const linkStorageKey = `link_${localLink.id}_quantities`;
                 linkQuantities = JSON.parse(localStorage.getItem(linkStorageKey) || '{}');
             }
 
@@ -928,55 +878,24 @@ export default function CreateLink() {
     };
 
     // Save the updated quantity for the current variant
+    // Save the updated quantity for the current variant
     const handleSaveVariantQuantity = () => {
         if (!currentEditingVariant) return;
 
         const quantityValue = parseInt(variantQuantity) || 1;
         console.log(`Saving quantity ${quantityValue} for variant ${currentEditingVariant.id}`);
 
-        // Store in our global tracker
-        GLOBAL_QUANTITIES[currentEditingVariant.id] = quantityValue;
-
-        // Store as a "persisted" property directly on the object
-        currentEditingVariant._persistedQuantity = quantityValue;
-
         // Update the selected product items with the new quantity
         setSelectedProductItems(prevItems => {
-            const updatedItems = prevItems.map(item => {
+            return prevItems.map(item => {
                 if (item.id === currentEditingVariant.id) {
-                    console.log(`Updating quantity for ${item.id} from ${item.quantity} to ${quantityValue}`);
-
-                    // Add the persisted quantity property to the item
-                    const updatedItem = {
+                    return {
                         ...item,
-                        quantity: quantityValue,
-                        _persistedQuantity: quantityValue
+                        quantity: quantityValue
                     };
-
-                    // Force update the DOM by directly manipulating it (as a last resort)
-                    setTimeout(() => {
-                        try {
-                            const quantityElement = document.getElementById(`quantity-${item.id}`);
-                            if (quantityElement) {
-                                quantityElement.innerHTML = `Quantity: ${quantityValue}`;
-                                console.log(`Direct DOM update for quantity element of ${item.id}`);
-                            }
-                        } catch (e) {
-                            console.error('Failed to update DOM directly:', e);
-                        }
-                    }, 100);
-
-                    return updatedItem;
                 }
                 return item;
             });
-
-            // Log the updated items for debugging
-            updatedItems.forEach(item => {
-                console.log(`Item ${item.id} has quantity: ${item.quantity}`);
-            });
-
-            return updatedItems;
         });
 
         // Also update the quantity in tempSelectedProductItems if modal is open
@@ -986,40 +905,58 @@ export default function CreateLink() {
                     ...prev,
                     [currentEditingVariant.id]: {
                         ...(prev[currentEditingVariant.id] || {}),
-                        quantity: quantityValue,
-                        _persistedQuantity: quantityValue
+                        quantity: quantityValue
                     }
                 };
-                console.log(`Updated temp selections: ${JSON.stringify(updated[currentEditingVariant.id])}`);
                 return updated;
             });
         }
 
-        // Store the quantity in localStorage as a fallback mechanism
-        try {
-            // Store in multiple places for redundancy
+        // Store in GLOBAL_QUANTITIES for reference only
+        GLOBAL_QUANTITIES[currentEditingVariant.id] = quantityValue;
 
-            // 1. General storage
-            const quantityStorage = JSON.parse(localStorage.getItem('variantQuantities') || '{}');
-            quantityStorage[currentEditingVariant.id] = quantityValue;
-            localStorage.setItem('variantQuantities', JSON.stringify(quantityStorage));
-
-            // 2. Link-specific storage
-            if (link && link.id) {
-                const linkStorageKey = `link_${link.id}_quantities`;
-                const linkQuantities = JSON.parse(localStorage.getItem(linkStorageKey) || '{}');
-                linkQuantities[currentEditingVariant.id] = quantityValue;
-                localStorage.setItem(linkStorageKey, JSON.stringify(linkQuantities));
-            }
-
-            // 3. Global backup
-            localStorage.setItem('global_quantities', JSON.stringify(GLOBAL_QUANTITIES));
-
-            console.log(`Saved quantity ${quantityValue} for ${currentEditingVariant.id} to all storage mechanisms`);
-        } catch (e) {
-            console.error('Failed to save to localStorage:', e);
-        } setVariantsModal(false);
+        setVariantsModal(false);
     };
+    const handleCancelVariantQuantity = () => {
+        if (!currentEditingVariant) return;
+
+        const resetValue = 1;
+
+        // Reset in selectedProductItems
+        setSelectedProductItems(prevItems => {
+            return prevItems.map(item => {
+                if (item.id === currentEditingVariant.id) {
+                    return {
+                        ...item,
+                        quantity: resetValue
+                    };
+                }
+                return item;
+            });
+        });
+
+        // Reset in tempSelectedProductItems if modal is open
+        if (Object.keys(tempSelectedProductItems).length > 0) {
+            setTempSelectedProductItems(prev => {
+                const updated = {
+                    ...prev,
+                    [currentEditingVariant.id]: {
+                        ...(prev[currentEditingVariant.id] || {}),
+                        quantity: resetValue
+                    }
+                };
+                return updated;
+            });
+        }
+
+        // Reset global reference too
+        GLOBAL_QUANTITIES[currentEditingVariant.id] = resetValue;
+
+        // Close modal & reset input
+        setVariantQuantity("1");
+        setVariantsModal(false);
+    };
+
 
     // Handle product or variant checkbox change
     const handleProductOrVariantCheck = (id, checked, isProduct, product) => {
@@ -1251,12 +1188,12 @@ export default function CreateLink() {
         console.log("Loading quantities from localStorage...7777777");
         try {
             // First try to load link-specific quantities if editing a link
-            if (link && link.id) {
-                const linkStorageKey = `link_${link.id}_quantities`;
+            if (link && localLink.id) {
+                const linkStorageKey = `link_${localLink.id}_quantities`;
                 const linkQuantities = JSON.parse(localStorage.getItem(linkStorageKey) || '{}');
 
                 if (Object.keys(linkQuantities).length > 0) {
-                    console.log(`Found link-specific quantities for link ${link.id}`);
+                    console.log(`Found link-specific quantities for link ${localLink.id}`);
                     setSelectedProductItems(prevItems => {
                         return prevItems.map(item => {
                             // If we have a stored quantity for this item, use it
@@ -1565,7 +1502,7 @@ export default function CreateLink() {
                 }
             } catch (fallbackError) {
                 // console.error('Clipboard copy failed completely', fallbackError);
-                toast.error('Failed to copy link. Please try again or copy manually.', {
+                toast.error('Failed to copy localLink. Please try again or copy manually.', {
                     duration: 3000
                 });
             }
@@ -1797,7 +1734,15 @@ export default function CreateLink() {
                                                                                     !product.variants.every(v => v.isSelected)}
                                                                                 onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
                                                                             />
-                                                                            <Thumbnail source={product.image} alt={product.title} size="small" />
+                                                                            {product.image ? (
+                                                                                <Thumbnail
+                                                                                    source={product.image}
+                                                                                    alt={product.title}
+                                                                                    size="small"
+                                                                                />
+                                                                            ) : (
+                                                                                <Thumbnail source={ImageIcon} size="small" alt={product.title} />
+                                                                            )}
                                                                             <div style={{ flex: 1 }}>
                                                                                 <Text fontWeight="medium">{product.title}</Text>
                                                                                 <Text variant="bodySm" color="subdued">
@@ -1888,11 +1833,15 @@ export default function CreateLink() {
                                                                                             <div {...provided.dragHandleProps} style={{ color: '#6d7175', display: 'flex', alignItems: 'center' }}>
                                                                                                 <Icon source={DragHandleIcon} tone='base' />
                                                                                             </div>
-                                                                                            <Thumbnail
-                                                                                                source={product.image}
-                                                                                                alt={product.title}
-                                                                                                size="small"
-                                                                                            />
+                                                                                            {product.image ? (
+                                                                                                <Thumbnail
+                                                                                                    source={product.image}
+                                                                                                    alt={product.title}
+                                                                                                    size="small"
+                                                                                                />
+                                                                                            ) : (
+                                                                                                <Thumbnail source={ImageIcon} size="small" alt={product.title} />
+                                                                                            )}
                                                                                             <Box maxWidth="180px">
                                                                                                 <div style={{ display: 'inline-block', width: '100%' }} title={product.title + (product.variant ? ` (${product.variant})` : '')}>
                                                                                                     <Text fontWeight="medium" truncate as="span">
@@ -1902,22 +1851,7 @@ export default function CreateLink() {
                                                                                                 </div>
                                                                                                 <Text variant="bodySm" tone="subdued" style={{ display: 'block', marginTop: '4px' }}>
                                                                                                     <span id={`quantity-${product.id}`} style={{ display: 'inline-block', minHeight: '18px', fontWeight: 'bold' }}>
-                                                                                                        Quantity: {(() => {
-                                                                                                            // Get quantity from all possible sources
-                                                                                                            const fromState = parseInt(product.quantity) || 0;
-                                                                                                            const fromPersisted = parseInt(product._persistedQuantity) || 0;
-                                                                                                            const fromGlobal = GLOBAL_QUANTITIES[product.id] || 0;
-
-                                                                                                            // Use the highest value available
-                                                                                                            const finalQuantity = Math.max(fromState, fromPersisted, fromGlobal, 1);
-
-                                                                                                            // Update global tracker if needed
-                                                                                                            if (finalQuantity > 1 && GLOBAL_QUANTITIES[product.id] !== finalQuantity) {
-                                                                                                                GLOBAL_QUANTITIES[product.id] = finalQuantity;
-                                                                                                            }
-
-                                                                                                            return finalQuantity;
-                                                                                                        })()}
+                                                                                                        Quantity: {product.quantity || 1}
                                                                                                     </span>
                                                                                                 </Text>
                                                                                                 {/* Use a hidden component to persist quantity */}
@@ -2175,11 +2109,15 @@ export default function CreateLink() {
                                                                                         minWidth="40px"
                                                                                         minHeight="40px"
                                                                                     >
-                                                                                        <Thumbnail
-                                                                                            source={product.image || ""}
-                                                                                            alt={product.title}
-                                                                                            size="small"
-                                                                                        />
+                                                                                        {product.image ? (
+                                                                                            <Thumbnail
+                                                                                                source={product.image}
+                                                                                                alt={product.title}
+                                                                                                size="small"
+                                                                                            />
+                                                                                        ) : (
+                                                                                            <Thumbnail source={ImageIcon} size="small" alt={product.title} />
+                                                                                        )}
                                                                                     </Box>
                                                                                     <div
                                                                                         style={{
@@ -2417,11 +2355,15 @@ export default function CreateLink() {
                                                                                         minWidth="40px"
                                                                                         minHeight="40px"
                                                                                     >
-                                                                                        <Thumbnail
-                                                                                            source={product.image || ""}
-                                                                                            alt={product.title}
-                                                                                            size="small"
-                                                                                        />
+                                                                                        {product.image ? (
+                                                                                            <Thumbnail
+                                                                                                source={product.image}
+                                                                                                alt={product.title}
+                                                                                                size="small"
+                                                                                            />
+                                                                                        ) : (
+                                                                                            <Thumbnail source={ImageIcon} size="small" alt={product.title} />
+                                                                                        )}
                                                                                     </Box>
                                                                                     <div
                                                                                         style={{
@@ -2575,7 +2517,7 @@ export default function CreateLink() {
   secondaryActions={[
     {
       content: 'Cancel',
-      onAction: () => setVariantsModal(false),
+          onAction: handleCancelVariantQuantity
     },
   ]}
 >
@@ -2583,11 +2525,15 @@ export default function CreateLink() {
                     <BlockStack gap="400">
                         {currentEditingVariant && (
                             <InlineStack gap="400" align="center">
-                                <Thumbnail
-                                    source={currentEditingVariant.image || ""}
-                                    alt={currentEditingVariant.title}
-                                    size="small"
-                                />
+                                {/* {image ? (
+                                    <Thumbnail
+                                        source={image}
+                                        alt={title}
+                                        size="small"
+                                    />
+                                ) : (
+                                    <Thumbnail source={ImageIcon} size="small" alt={title} />
+                                )} */}
                                 <Text fontWeight="medium">{currentEditingVariant.title} {currentEditingVariant.variant ? `(${currentEditingVariant.variant})` : ''}</Text>
                             </InlineStack>
                         )}
@@ -2704,7 +2650,15 @@ export default function CreateLink() {
                                                 !product.variants.every(v => v.isSelected)}
                                             onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
                                         />
-                                        <Thumbnail source={product.image} alt={product.title} size="small" />
+                                        {product.image ? (
+                                            <Thumbnail
+                                                source={product.image}
+                                                alt={product.title}
+                                                size="small"
+                                            />
+                                        ) : (
+                                            <Thumbnail source={ImageIcon} size="small" alt={product.title} />
+                                        )}
                                         <div style={{ flex: 1 }}>
                                             <Text fontWeight="medium">{product.title}</Text>
                                             <Text variant="bodySm" color="subdued">

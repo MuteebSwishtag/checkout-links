@@ -354,12 +354,11 @@ const LinksIndex = () => {
                     >
                         {rowMarkup}
                     </IndexTable>
-
-                    {currentPage < totalPages && (
-                    <Box
-                        paddingBlockStart="200"
-                        style={{
-                            display: 'flex',
+                    {(currentPage > 1 || currentPage < totalPages) && (
+                        <Box
+                            paddingBlockStart="200"
+                            style={{
+                                display: 'flex',
                             justifyContent: 'center',
                             alignItems: 'center',
                             paddingTop: '8px',
