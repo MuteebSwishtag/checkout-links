@@ -113,9 +113,10 @@ document.addEventListener('DOMContentLoaded', function() {
   // Get URL parameters
   function getParamsFromUrl() {
     const urlParams = new URLSearchParams(window.location.search);
+    console.log('URL parameters:', Object.fromEntries(urlParams.entries()));
     let linkId = urlParams.get('link_id');
     let backendUrl = urlParams.get('backend_url');
-    let discountCode = urlParams.get('discount_code');
+    let discountCode = urlParams.get('discount_code'); 
     // console.log('Link ID from URL:', linkId);
     // console.log('Backend URL from URL:', backendUrl);
     // console.log('Discount code from URL:', discountCode);
@@ -542,7 +543,7 @@ document.addEventListener('DOMContentLoaded', function() {
             <p style="margin-bottom: 15px; font-size: 16px;">No products linked with this link.</p>
             <p style="font-size: 14px; color: #666;">This link may be invalid or all products have been removed.</p>
           </div>
-          <a href="${window.checkoutConfig.popupMessage?.close_button_link || '#'}" class="no-thanks" style="display: inline-block; margin-top: 15px;">${window.checkoutConfig.popupMessage?.close_button_text || 'No thanks'}</a>
+          <a href="#" class="no-thanks">${window.checkoutConfig.popupMessage?.close_button_text || 'No thanks'}</a>
         </div>
       `;
       
@@ -638,11 +639,78 @@ document.addEventListener('DOMContentLoaded', function() {
     `;
     
     // Locate the close button and ensure it opens in a new window
-    const noThanksBtn = document.querySelector('.no-thanks');
-    if (noThanksBtn) {
-        noThanksBtn.setAttribute('target', '_blank');
+  function checkLinkExists(url, callback) {
+  // Create request object
+  const request = new XMLHttpRequest();
+  
+  // Use asynchronous request (true as third parameter)
+  request.open('HEAD', url, true);
+  
+  // Set timeout to avoid long waits
+  request.timeout = 5000;
+  
+  // Handle response
+  request.onreadystatechange = function() {
+    if (request.readyState === 4) {
+      // Check if URL exists based on status code
+      if (request.status === 200) {
+        callback(true); // URL exists
+      } else {
+        callback(false); // URL doesn't exist or other error
+      }
     }
+  };
+  
+  // Handle timeout
+  request.ontimeout = function() {
+    callback(false);
+  };
+  
+  // Handle network errors
+  request.onerror = function() {
+    callback(false);
+  };
+  
+  // Send the request
+  try {
+    request.send();
+  } catch (error) {
+    callback(false);
+  }
+}
+
+// You can implement this with the "No thanks" button in your existing code:
+const noThanksBtn = document.querySelector('.no-thanks');
+if (noThanksBtn) {
+  noThanksBtn.addEventListener('click', function(e) {
+    e.preventDefault();
     
+    const targetUrl = this.getAttribute('href');
+    
+    // Only check external links
+    if (targetUrl && !targetUrl.startsWith('#') && !targetUrl.startsWith('javascript:')) {
+      // Show loading state
+      this.textContent = 'Checking link...';
+      this.style.opacity = '0.7';
+      
+      checkLinkExists(targetUrl, (exists) => {
+        if (exists) {
+          // Link exists, proceed with navigation
+          window.open(targetUrl, '_blank');
+          closeModal();
+        } else {
+          // Link doesn't exist, show error message
+          alert('The link you are trying to access is not available.');
+          this.textContent = window.checkoutConfig.popupMessage?.close_button_text || 'No thanks';
+          this.style.opacity = '1';
+        }
+      });
+    } else {
+      // For internal links or # links, just close the modal
+      closeModal();
+    }
+  });
+}
     attachEventListeners();
   }
 

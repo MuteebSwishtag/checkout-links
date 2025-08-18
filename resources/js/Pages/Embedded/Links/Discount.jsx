@@ -24,10 +24,12 @@ export default function Discount({
   // Toggle handlers that call parent functions with mutual exclusivity
   const handleFreeShippingToggle = () => {
     if (!discountData.freeShipping) {
-      // Turn on free shipping and turn off others
+      // Turn on free shipping, turn off others and reset their values
       onFreeShippingChange(true);
       onOrderDiscountChange(false);
       onDiscountCodeChange(false);
+      onDiscountValueChange('');        // reset discount value
+      onDiscountCodeValueChange('');    // reset discount code
     } else {
       // Turn off free shipping
       onFreeShippingChange(false);
@@ -36,25 +38,29 @@ export default function Discount({
 
   const handleOrderDiscountToggle = () => {
     if (!discountData.orderDiscount) {
-      // Turn on order discount and turn off others
+      // Turn on order discount, turn off others and reset their values
       onOrderDiscountChange(true);
       onFreeShippingChange(false);
       onDiscountCodeChange(false);
+      onDiscountCodeValueChange('');    // reset discount code
     } else {
       // Turn off order discount
       onOrderDiscountChange(false);
+      onDiscountValueChange('');
     }
   };
 
   const handleDiscountCodeToggle = () => {
     if (!discountData.discountCode) {
-      // Turn on discount code and turn off others
+      // Turn on discount code, turn off others and reset their values
       onDiscountCodeChange(true);
       onFreeShippingChange(false);
       onOrderDiscountChange(false);
+      onDiscountValueChange('');        // reset discount value
     } else {
       // Turn off discount code
       onDiscountCodeChange(false);
+      onDiscountCodeValueChange('');
     }
   };
 
