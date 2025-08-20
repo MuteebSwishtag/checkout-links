@@ -65,6 +65,7 @@ class ProductsUpdateJob implements ShouldQueue
         Log::info("Product Update Job started for shop: " . json_encode($payload, JSON_PRETTY_PRINT));
 
         // Extract product ID from webhook payload
+
         $productId = $payload->id ?? null;
         if (!$productId) {
             Log::error("Product ID not found in payload: " . json_encode($payload, JSON_PRETTY_PRINT));
@@ -111,15 +112,78 @@ class ProductsUpdateJob implements ShouldQueue
         if (is_null($payload->published_at) || $payload->status === "draft") {
             LinkProductVarient::where('product_id', $product->id)->delete();
         }
-        
         // Log before re-storing
-        Log::info("Product Update Job started for shop: " . json_encode($payload, JSON_PRETTY_PRINT));
+        Log::info("Product Update Job started for shop:" . json_encode($payload, JSON_PRETTY_PRINT));
         // Process and store updated product data
-        $this->getProductRepository(app(ProductRepositoryInterface::class));
-        if ($this->storeData($payload, $user)) {
-            $this->logInfo("Product Update Job Successful.");
-        } else {
-            $this->logInfo("Product Update Job Failed.");
+        // $this->getProductRepository(app(ProductRepositoryInterface::class));
+
+        // if ($this->storeData($payload, $user)) {
+        //     $this->logInfo("Product Update Job Successful.");
+        // } else {
+        //     $this->logInfo("Product Update Job Failed.");
+        // }
+        $getInventoryTracked =
+            $product = Product::updateOrCreate(
+                ['shopify_product_id' => $payload->id],
+                [
+                    'title' => $payload->title,
+                    'vendor' => $payload->vendor,
+                    'product_type' => $payload->product_type,
+                    'tags' => $payload->tags,
+                    'published' => isset($payload->published_at) && $payload->published_at !== null ? 'web' : 'not_published',
+                    'status' => $payload->status,
+                ]
+            );
+
+        foreach ($payload->variants as $variant) {
+            // gql for  inventory tracked
+            $getInventoryItemId = $variant->inventory_item_id;
+            $this->fetchInventoryItemFromShopify($getInventoryItemId, $user);
+            $inventoryItem = $this->fetchInventoryItemFromShopify($getInventoryItemId, $user);
+            ProductVarient::updateOrCreate(
+                ['shopify_product_varient_id' => $variant->id],
+                [
+                    'product_id' => $product->id,
+                    'shopify_product_varient_id' => $variant->id,
+                    'shopify_inventory_item_id' => $variant->inventory_item_id,
+                    'title' => $variant->title,
+                    'price' => $variant->price,
+                    'inventory_quantity' => $variant->inventory_quantity,
+                    'inventory_policy' => $variant->inventory_policy,
+                    'inventory_tracked' => $inventoryItem->tracked ?? false,
+                    'compare_at_price' => $variant->compare_at_price,
+                ]
+            );
         }
+
+        // Save first image from media array
+        if (!empty($payload->media) && is_array($payload->media)) {
+            $firstMedia = $payload->media[0];
+            ProductMedia::updateOrCreate(
+                ['shopify_product_media_id' => $firstMedia->id, 'product_id' => $product->id,],
+                [
+                    'src' => $firstMedia->preview_image->src ?? null,
+                ]
+            );
+        }
+    }
+    public function fetchInventoryItemFromShopify($inventoryItemId, User $user)
+    {
+        $query = <<<GQL
+        query {
+            inventoryItem(id: "gid://shopify/InventoryItem/{$inventoryItemId}") {
+                id
+                tracked
+                sku
+            }
+        }
+        GQL;
+        // Use the user's API to make the GraphQL request
+        $result = $this->arrayToObject($user->api()->graph($query));
+        Log::info("Fetched inventory item: " . json_encode($result, JSON_PRETTY_PRINT));
+        if (!isset($result->errors)) {
+            return $result->body->data->inventoryItem ?? null;
+        }
+        return null;
     }
 }
