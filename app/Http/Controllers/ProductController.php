@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Products\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rules\Unique;
 
 class ProductController extends Controller
 {
@@ -19,7 +20,8 @@ class ProductController extends Controller
         $query = Product::with(['variants', 'media'])
             ->where('user_id', $user->id)
             ->where('status', 'active')
-            ->where('published', 'web'); // Only products published to web, not global or unpublished
+            ->where('published', 'web')
+            ->orderBy('title', 'asc'); // Alphabetical order
 
         // Search in products or their variants
         if ($search) {
@@ -41,10 +43,7 @@ class ProductController extends Controller
                 $tracked = (bool) ($variant->inventory_tracked ?? true);
 
                 if (
-                    // If inventory is NOT tracked → always include
                     !$tracked ||
-
-                        // If inventory is tracked → include based on policy & quantity
                     ($tracked && (
                         $policy === 'continue' ||
                         ($policy === 'deny' && $quantity > 0)
@@ -54,10 +53,8 @@ class ProductController extends Controller
                 }
             }
 
-            // Replace variants with filtered list
             $product->setRelation('variants', collect($filteredVariants)->values());
 
-            // Keep product only if it has at least one variant left
             return count($filteredVariants) > 0;
         });
 

@@ -46,6 +46,7 @@ import Discount from './Discount';
 import PopupMessage from './PopupMessage';
 import '@/Components/style.css';
 import '../../../../css/links.css';
+import truncate from 'lodash/truncate';
 
 // Global quantity tracker as a last resort fallback
 const GLOBAL_QUANTITIES = {};
@@ -89,6 +90,7 @@ export default function CreateLink() {
         }
     };
 
+
     useEffect(() => {
         if (localLink) {
             // console.log("Link data:", link);
@@ -105,7 +107,7 @@ export default function CreateLink() {
             });
 
             if (localLink.popup_message) {
-            // console.log("Popup message data:", localLink.popup_message);
+                // console.log("Popup message data:", localLink.popup_message);
                 setPopupMessageData({
                     isActive: !!localLink.popup_message.is_active,
                     headingText: localLink.popup_message.heading_text || 'Order summary',
@@ -145,7 +147,8 @@ export default function CreateLink() {
                         variant: v.variant?.title || '',
                         price: v.price || (v.variant?.price || ''),
                         image: media,
-                        quantity: v.quantity || 1  // Use the quantity from the linked_variant
+                        quantity: v.quantity || 1,  // Use the quantity from the linked_variant
+                        available: v.variant?.inventory_quantity || 0,
                     };
                 });
 
@@ -176,7 +179,18 @@ export default function CreateLink() {
             // Creating new link - generate unique ID
             fetchUniqueId();
         }
-    }, [link]);
+    }, [localLink]);
+
+    function getLinkedVariantQuantity(id) {
+        if (!localLink || !Array.isArray(localLink.linked_variants)) return undefined;
+        const found = localLink.linked_variants.find(v => {
+            if (v.variant_id) {
+                return `${v.product_id}_${v.variant_id}` === id;
+            }
+            return `${v.product_id}` === id;
+        });
+        return found ? parseInt(found.quantity) || 1 : undefined;
+    }
 
     // -- UI State
     const [linkName, setLinkName] = useState('');
@@ -282,14 +296,12 @@ export default function CreateLink() {
     // -- Product selection handlers
     // Hierarchical selection state: store selected variant ids
     const [selectedVariantIds, setSelectedVariantIds] = useState([]);
-
     // Collect all relevant data from the page
     const collectAllPageData = () => {
         // Map selected product items to include shopify variant IDs clearly and ensure quantities
         const mappedSelectedProductItems = selectedProductItems.map(item => {
             // Use quantity directly from the selectedProductItems state
             const quantity = parseInt(item.quantity) || 1;
-
             return {
                 ...item,
                 shopify_variant_id: item.shopifyVariantId || item.variantId || null,
@@ -330,7 +342,7 @@ export default function CreateLink() {
         toast.dismiss();
 
         // Define the URL based on whether we are editing an existing link or creating a new one
-        const isEdit = link && localLink.id;
+        const isEdit = localLink && localLink.id;
         const url = isEdit ? route('links.update', { ...query, id: localLink.id }) : route('products.save', query);
         const method = isEdit ? 'PUT' : 'POST';
 
@@ -401,7 +413,7 @@ export default function CreateLink() {
             console.error('Unexpected error:', error);
             toast.error('An unexpected error occurred. Please try again.');
         }
-    }, [selectedProductItems, linkName, linkId, selectedProducts, discountData, popupMessageData, selectedVariantIds, link, query]);
+    }, [selectedProductItems, linkName, linkId, selectedProducts, discountData, popupMessageData, selectedVariantIds, localLink, query]);
 
     // -- Debounced page change handlers
     const handleNext = useCallback(() => {
@@ -425,33 +437,34 @@ export default function CreateLink() {
             try {
                 await fetchProducts(currentPage, searchTerm, controller);
 
-                // After products are fetched, if we're editing a link and initialLinkDataLoaded is false,
-                // check if we need to sync the selected variant IDs from the link data
-                if (link && Array.isArray(localLink.linked_variants) && localLink.linked_variants.length > 0 && !initialLinkDataLoaded) {
-                    console.log("Products fetched, checking if we need to sync selected variant IDs");
-                    // We'll set a flag to indicate this was triggered from here
-                    const fromFetch = true;
+                // Only sync selected variant IDs ONCE after products are fetched
+                if (
+                    localLink &&
+                    Array.isArray(localLink.linked_variants) &&
+                    localLink.linked_variants.length > 0 &&
+                    !initialLinkDataLoaded
+                ) {
+                    console.log("Products fetched, syncing selected variant IDs from link data");
 
-                    // Re-apply the selectedVariantIds from the link data
-                    const variantIdsToSelect = [];
-                    localLink.linked_variants.forEach(v => {
-                        const id = v.variant_id ? `${v.product_id}_${v.variant_id}` : `${v.product_id}`;
-                        variantIdsToSelect.push(id);
-                    });
+                    const variantIdsToSelect = localLink.linked_variants.map(v =>
+                        v.variant_id ? `${v.product_id}_${v.variant_id}` : `${v.product_id}`
+                    );
 
                     if (variantIdsToSelect.length > 0) {
-                        console.log("Re-applying selected variant IDs after product fetch:", variantIdsToSelect);
-
-                        // First update the checked state
-                        const checkedState = {};
-                        variantIdsToSelect.forEach(id => {
-                            checkedState[id] = true;
+                        // Only update if not already set
+                        setPopupProductChecked(prev => {
+                            const checkedState = { ...prev };
+                            variantIdsToSelect.forEach(id => {
+                                checkedState[id] = true;
+                            });
+                            return checkedState;
                         });
-                        setPopupProductChecked(checkedState);
 
-                        // Then update the selected variant IDs
                         setSelectedVariantIds(variantIdsToSelect);
                     }
+
+                    // Mark as loaded so this block doesn't run again
+                    setInitialLinkDataLoaded(true);
                 }
             } catch (error) {
                 if (error.name !== 'AbortError') {
@@ -463,7 +476,15 @@ export default function CreateLink() {
         loadProducts();
 
         return () => controller.abort();
-    }, [fetchProducts, currentPage, debouncedMainProductSearch, debouncedProductSearchValue, isProductModalOpen, link, initialLinkDataLoaded]);
+    }, [
+        fetchProducts,
+        currentPage,
+        debouncedMainProductSearch,
+        debouncedProductSearchValue,
+        isProductModalOpen,
+        localLink,
+        initialLinkDataLoaded
+    ]);
 
     // -- Handlers for search bars
     const handleMainProductSearchChange = (value) => {
@@ -481,16 +502,11 @@ export default function CreateLink() {
             return [];
         }
 
-        console.log("Building productData from products");
-
         return products.map(product => {
-            // Determine the appropriate image source
             const productImage = product.image ||
                 (product.media && product.media[0]?.src) ||
-                (product.productMedias && product.productMedias[0]?.src) || 
-                'https://via.placeholder.com/50';
+                (product.productMedias && product.productMedias[0]?.src) || '';
 
-            // Calculate available inventory
             const productAvailable = product.available !== undefined
                 ? product.available
                 : Array.isArray(product.product_varients)
@@ -502,24 +518,29 @@ export default function CreateLink() {
                 ? product.variants.map(variant => {
                     const compositeId = `${product.id}_${variant.id}`;
                     const isSelected = selectedVariantIds.includes(compositeId);
+                    // FIX: Use quantity from localLink.linked_variants if available
+                    const linkedQuantity = getLinkedVariantQuantity(compositeId);
 
                     return {
                         id: compositeId,
-                    productId: product.id,
-                    title: product.title,
-                    variantTitle: variant.title,
-                    price: variant.price,
-                    available: variant.inventory_quantity || 0,
+                        productId: product.id,
+                        title: product.title,
+                        variantTitle: variant.title,
+                        price: variant.price,
+                        available: variant.inventory_quantity || 0,
                         image: variant.image || productImage,
-                    variantId: variant.shopify_product_varient_id,
+                        variantId: variant.shopify_product_varient_id,
                         shopifyVariantId: variant.shopify_product_varient_id,
-                        isSelected: isSelected, // Add this flag
-                        rawVariant: variant
+                        isSelected: isSelected,
+                        rawVariant: variant,
+                        quantity: linkedQuantity !== undefined ? linkedQuantity : 1 // <-- FIX
                     };
                 })
                 : [];
 
             const isProductSelected = selectedVariantIds.includes(`${product.id}`);
+            // FIX: Use quantity from localLink.linked_variants if available
+            const linkedQuantity = getLinkedVariantQuantity(`${product.id}`);
 
             return {
                 id: `${product.id}`,
@@ -528,16 +549,18 @@ export default function CreateLink() {
                 available: productAvailable,
                 price: product.price,
                 variants: processedVariants,
-                isSelected: isProductSelected, // Add this flag
-                rawProduct: product
+                isSelected: isProductSelected,
+                rawProduct: product,
+                quantity: linkedQuantity !== undefined ? linkedQuantity : 1 // <-- FIX
             };
         });
-    }, [products, selectedVariantIds]);
+    }, [products, selectedVariantIds, localLink]);
+
 
     // Update products from link data when product data is first loaded
     useEffect(() => {
         console.log("Checking for link variant matching...3333333");
-        if (productData.length > 0 && link && Array.isArray(localLink.linked_variants) && localLink.linked_variants.length > 0) {
+        if (productData.length > 0 && localLink && Array.isArray(localLink.linked_variants) && localLink.linked_variants.length > 0) {
             console.log("Product data loaded, checking for link variant matching:", productData.length, "products");
 
             if (!initialLinkDataLoaded) {
@@ -622,7 +645,7 @@ export default function CreateLink() {
                 }
             }
         }
-    }, [productData, link, initialLinkDataLoaded]);
+    }, [productData, localLink, initialLinkDataLoaded]);
 
     // Add a special useEffect to preserve quantities when productData changes
     useEffect(() => {
@@ -677,7 +700,7 @@ export default function CreateLink() {
 
             // 2. Link-specific storage (if in edit mode)
             let linkQuantities = {};
-            if (link && localLink.id) {
+            if (localLink && localLink.id) {
                 const linkStorageKey = `link_${localLink.id}_quantities`;
                 linkQuantities = JSON.parse(localStorage.getItem(linkStorageKey) || '{}');
             }
@@ -719,25 +742,11 @@ export default function CreateLink() {
     const handleDiscountsToggle = useCallback(() => setDiscountsOpen(!discountsOpen), [discountsOpen]);
     const handlePopupMessageToggle = useCallback(() => setPopupMessageOpen(!popupMessageOpen), [popupMessageOpen]);
     const handleProductModalOpen = useCallback(() => {
-        // Create a map of existing selections for tempSelectedProductItems when opening the modal
-        const obj = {};
-        selectedProductItems.forEach(item => {
-            // Make sure we preserve all item data including quantity
-            obj[item.id] = { ...item };
-        });
-        setTempSelectedProductItems(obj);
-
-        // Also update selectedVariantIds to match exactly what's in selectedProductItems
+        // Sync selectedVariantIds with selectedProductItems
         const selectedIds = selectedProductItems.map(item => item.id);
-        console.log("Setting selectedVariantIds when opening modal:", selectedIds);
         setSelectedVariantIds(selectedIds);
 
-        // Initialize popup product checked state to match current selections
-        const checkedState = {};
-        selectedProductItems.forEach(product => {
-            checkedState[product.id] = true;
-        });
-        setPopupProductChecked(checkedState);
+        // ...existing code...
         setIsProductModalOpen(true);
         setProductSearchValue('');
     }, [selectedProductItems]);
@@ -753,89 +762,62 @@ export default function CreateLink() {
         // Get all selected product items from the temporary state
         const selectedArray = Object.values(tempSelectedProductItems);
 
-        console.log("Product modal done with selections:", selectedArray.map(item => ({
-            id: item.id,
-            title: item.title,
-            variant: item.variant,
-            quantity: item.quantity
-        })));
-
-        // Extract the variant IDs first to ensure they're preserved correctly
-        const variantIds = selectedArray.map(product => product.id);
-        console.log("Setting selectedVariantIds from done button:", variantIds);
-
-        // Ensure we don't re-load from link data since we have user selections now
-        setInitialLinkDataLoaded(true);
-
-        // Update the states in a specific order to avoid race conditions
-        setSelectedVariantIds(variantIds);
-
-        // Update selected product count immediately to match the total selections
-        setSelectedProducts(selectedArray.length);
+        // If no products are selected in the modal, keep previous selection
+        if (selectedArray.length === 0) {
+            setIsProductModalOpen(false);
+            setProductSearchValue('');
+            return;
+        }
 
         // Create a map of existing quantities for preservation
         const quantityMap = {};
         selectedProductItems.forEach(item => {
             if (item && item.id) {
                 quantityMap[item.id] = parseInt(item.quantity) || 1;
-                console.log(`Adding to quantity map: ${item.id} = ${quantityMap[item.id]}`);
             }
         });
 
-        // Also check localStorage for any saved quantities
-        try {
-            const storedQuantities = JSON.parse(localStorage.getItem('variantQuantities') || '{}');
-            Object.keys(storedQuantities).forEach(id => {
-                if (!quantityMap[id]) {
-                    quantityMap[id] = parseInt(storedQuantities[id]) || 1;
-                    console.log(`Adding from localStorage to quantity map: ${id} = ${quantityMap[id]}`);
-                }
-            });
-        } catch (e) {
-            console.error('Failed to load quantities from localStorage:', e);
+        // Merge: For each selected item, preserve quantity if it was already selected
+        // Also merge with existing link products (do not remove them)
+        const mergedMap = {};
+        // Add previous selected products first
+        selectedProductItems.forEach(item => {
+            if (item && item.id) {
+                mergedMap[item.id] = {
+                    ...item,
+                    quantity: quantityMap[item.id] || item.quantity || 1
+                };
+            }
+        });
+        // Add/overwrite with modal selections
+        selectedArray.forEach(item => {
+            if (item && item.id) {
+                mergedMap[item.id] = {
+                    ...item,
+                    quantity: quantityMap[item.id] || item.quantity || 1
+                };
+            }
+        });
+        // Convert to array and remove duplicates by ID
+        const allItems = Object.values(mergedMap);
+        const filteredItems = [];
+        const seenIds = new Set();
+        for (const item of allItems) {
+            if (!seenIds.has(item.id)) {
+                filteredItems.push(item);
+                seenIds.add(item.id);
+            }
         }
 
-        // Use the selections from tempSelectedProductItems but preserve existing item data
-        setSelectedProductItems(prevItems => {
-            // Create a map of existing items for quick lookup
-            const existingItemsMap = {};
-            prevItems.forEach(item => {
-                if (item && item.id) {
-                    existingItemsMap[item.id] = item;
-                }
-            });
-
-            // Process the selections from tempSelectedProductItems
-            const newItems = selectedArray.map(item => {
-                if (!item || !item.id) return null;
-
-                // Keep existing item data when available to preserve any custom values
-                const existingItem = existingItemsMap[item.id];
-                if (existingItem) {
-                    return existingItem;
-                }
-
-                // Otherwise use the new item data, but preserve quantity if available
-                const quantity = item.quantity || quantityMap[item.id] || 1;
-                console.log(`Setting quantity for new item ${item.id}: ${quantity}`);
-
-                return {
-                    ...item,
-                    quantity: quantity
-                };
-            }).filter(Boolean); // Remove any null items
-
-            // Log the new items for debugging
-            newItems.forEach(item => {
-                console.log(`Final item ${item.id} has quantity: ${item.quantity}`);
-            });
-
-            return newItems;
-        });
+        // Update states
+        setInitialLinkDataLoaded(true);
+        setSelectedVariantIds(filteredItems.map(product => product.id));
+        setSelectedProducts(filteredItems.length);
+        setSelectedProductItems(filteredItems);
 
         // Update popup product checked state
         const checkedState = {};
-        selectedArray.forEach(product => {
+        filteredItems.forEach(product => {
             if (product && product.id) {
                 checkedState[product.id] = true;
             }
@@ -962,21 +944,21 @@ export default function CreateLink() {
     const handleProductOrVariantCheck = (id, checked, isProduct, product) => {
         setSelectedVariantIds(prev => {
             let newIds;
-        if (isProduct) {
-            // Product-level: select/deselect all its variants (or itself if no variants)
-            const variantIds = getAllVariantIds(product);
-            if (checked) {
-                newIds = Array.from(new Set([...prev, ...variantIds]));
+            if (isProduct) {
+                // Product-level: select/deselect all its variants (or itself if no variants)
+                const variantIds = getAllVariantIds(product);
+                if (checked) {
+                    newIds = Array.from(new Set([...prev, ...variantIds]));
+                } else {
+                    newIds = prev.filter(vid => !variantIds.includes(vid));
+                }
             } else {
-                newIds = prev.filter(vid => !variantIds.includes(vid));
-            }
-        } else {
-            // Variant-level: toggle only this variant
-            if (checked) {
-                newIds = Array.from(new Set([...prev, id]));
-            } else {
-                newIds = prev.filter(vid => vid !== id);
-            }
+                // Variant-level: toggle only this variant
+                if (checked) {
+                    newIds = Array.from(new Set([...prev, id]));
+                } else {
+                    newIds = prev.filter(vid => vid !== id);
+                }
             }
 
             // Also update popup product checked state
@@ -1014,35 +996,16 @@ export default function CreateLink() {
 
         // Flatten all variants and products
         const allVariants = productData.flatMap(product => product.variants.length > 0 ? product.variants.map(v => {
-            const existing = existingItems[v.id];
-            // Check all possible sources for quantity in order of precedence
-            let quantity = 1;
-
-            if (existing && existing.quantity) {
-                quantity = parseInt(existing.quantity) || 1;
-                console.log(`Using existing quantity for ${v.id}: ${quantity}`);
-            } else if (existing && existing._persistedQuantity) {
-                quantity = parseInt(existing._persistedQuantity) || 1;
-                console.log(`Using persisted quantity for ${v.id}: ${quantity}`);
-            } else if (existingQuantityMap[v.id]) {
-                quantity = existingQuantityMap[v.id];
-                console.log(`Using stored quantity for ${v.id}: ${quantity}`);
-            } else if (GLOBAL_QUANTITIES[v.id]) {
-                quantity = GLOBAL_QUANTITIES[v.id];
-                console.log(`Using global quantity for ${v.id}: ${quantity}`);
-            }
-
-            // Always update the global tracker
-            GLOBAL_QUANTITIES[v.id] = quantity;
-
+            // Use quantity from productData (already set from localLink if available)
             return {
                 id: v.id,
                 productId: product.id,
                 title: product.title,
                 variant: v.variantTitle,
                 variantId: v.variantId,
-                shopifyVariantId: v.variantId, // Store the Shopify variant ID
-                quantity: quantity, // Use preserved quantity
+                shopifyVariantId: v.variantId,
+                quantity: v.quantity !== undefined ? v.quantity : 1,
+                available: v.available,
                 price: v.price,
                 image: product.image
             };
@@ -1053,29 +1016,8 @@ export default function CreateLink() {
             variant: null,
             variantId: null,
             shopifyVariantId: null,
-            quantity: (() => {
-                // Check all possible sources for quantity in order of precedence
-                let quantity = 1;
-
-                if (existingItems[product.id] && existingItems[product.id].quantity) {
-                    quantity = parseInt(existingItems[product.id].quantity) || 1;
-                    console.log(`Using existing quantity for ${product.id}: ${quantity}`);
-                } else if (existingItems[product.id] && existingItems[product.id]._persistedQuantity) {
-                    quantity = parseInt(existingItems[product.id]._persistedQuantity) || 1;
-                    console.log(`Using persisted quantity for ${product.id}: ${quantity}`);
-                } else if (existingQuantityMap[product.id]) {
-                    quantity = existingQuantityMap[product.id];
-                    console.log(`Using stored quantity for ${product.id}: ${quantity}`);
-                } else if (GLOBAL_QUANTITIES[product.id]) {
-                    quantity = GLOBAL_QUANTITIES[product.id];
-                    console.log(`Using global quantity for ${product.id}: ${quantity}`);
-                }
-
-                // Always update the global tracker
-                GLOBAL_QUANTITIES[product.id] = quantity;
-
-                return quantity;
-            })(),
+            quantity: product.quantity !== undefined ? product.quantity : 1,
+            available: product.available,
             price: product.price,
             image: product.image
         }]); console.log("Selected UI IDs to update product items:", variantIds);
@@ -1112,7 +1054,7 @@ export default function CreateLink() {
                             quantity: preservedQuantity
                         });
                     } else {
-                    // Use the new item
+                        // Use the new item
                         currentPageItems.push(v);
                     }
                     seen.add(v.id);
@@ -1188,7 +1130,7 @@ export default function CreateLink() {
         console.log("Loading quantities from localStorage...7777777");
         try {
             // First try to load link-specific quantities if editing a link
-            if (link && localLink.id) {
+            if (localLink && localLink.id) {
                 const linkStorageKey = `link_${localLink.id}_quantities`;
                 const linkQuantities = JSON.parse(localStorage.getItem(linkStorageKey) || '{}');
 
@@ -1706,14 +1648,6 @@ export default function CreateLink() {
                                                 {/* Show filtered products under the search field */}
                                                 {mainProductSearch && (
                                                     <>
-                                                        {(() => {
-                                                            const filteredProducts = productData.filter(product => product.title.toLowerCase().includes(mainProductSearch.toLowerCase()));
-                                                            return (
-                                                                <Text variant="bodySm" tone="subdued" style={{ display: 'block', padding: '0 18px 8px' }}>
-                                                                    {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
-                                                                </Text>
-                                                            );
-                                                        })()}
                                                         <div style={{
                                                             maxHeight: '320px',
                                                             overflowY: 'auto',
@@ -1728,58 +1662,83 @@ export default function CreateLink() {
                                                                 .filter(product =>
                                                                     product.title.toLowerCase().includes(mainProductSearch.toLowerCase())
                                                                 )
-                                                                .map(product => (
-                                                                    <div key={product.id} style={{ borderBottom: '1px solid #eee', padding: '12px 0' }}>
-                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                                                            <Checkbox
-                                                                                label=""
-                                                                                checked={product.isSelected}
-                                                                                indeterminate={product.variants.length > 0 &&
-                                                                                    product.variants.some(v => v.isSelected) &&
-                                                                                    !product.variants.every(v => v.isSelected)}
-                                                                                onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
-                                                                            />
-                                                                            {product.image ? (
-                                                                                <Thumbnail
-                                                                                    source={product.image}
-                                                                                    alt={product.title}
-                                                                                    size="small"
+                                                                .map(product => {
+                                                                    // Use same logic as modal for checked/indeterminate
+                                                                    const allVariantIds = product.variants.map(v => v.id);
+                                                                    const selectedIds = selectedProductItems.map(item => item.id);
+
+                                                                    const productChecked = product.variants.length === 0
+                                                                        ? selectedIds.includes(product.id)
+                                                                        : allVariantIds.every(id => selectedIds.includes(id)) && allVariantIds.length > 0;
+
+                                                                    const productIndeterminate = product.variants.length > 0
+                                                                        && allVariantIds.some(id => selectedIds.includes(id))
+                                                                        && !allVariantIds.every(id => selectedIds.includes(id));
+
+                                                                    return (
+                                                                        <div key={product.id} style={{ borderBottom: '1px solid #eee', padding: '12px 0' }}>
+                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                                                <Checkbox
+                                                                                    label=""
+                                                                                    checked={productChecked}
+                                                                                    indeterminate={productIndeterminate}
+                                                                                    onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
                                                                                 />
-                                                                            ) : (
-                                                                                <Thumbnail source={ImageIcon} size="small" alt={product.title} />
-                                                                            )}
-                                                                            <div style={{ flex: 1 }}>
-                                                                                <Text fontWeight="medium">{product.title}</Text>
-                                                                                <Text variant="bodySm" color="subdued">
-                                                                                    Available: {product.available}
-                                                                                </Text>
-                                                                                {product.variants.length === 0 && (
-                                                                                    <Text variant="bodySm" color="subdued">Price: ${product.price}</Text>
+                                                                                {product.image ? (
+                                                                                    <Thumbnail
+                                                                                        source={product.image}
+                                                                                        alt={product.title}
+                                                                                        size="small"
+                                                                                    />
+                                                                                ) : (
+                                                                                    <Thumbnail source={ImageIcon} size="small" alt={product.title} />
                                                                                 )}
+                                                                                <div style={{ flex: 1 }}>
+                                                                                    <Text fontWeight="medium" as="span">
+                                                                                        {truncate(product.title, { length: 20 })}
+                                                                                    </Text>
+                                                                                    {/* <Text variant="bodySm" color="subdued">
+                                                                                        Available: {product.available > 0 ? product.available : 'Unlimited'}
+                                                                                    </Text> */}
+                                                                                    {product.variants.length === 0 && (
+                                                                                        <Text variant="bodySm" color="subdued">Price: ${product.price}</Text>
+                                                                                    )}
+                                                                                </div>
                                                                             </div>
-                                                                        </div>
-                                                                        {product.variants.length > 0 && (
-                                                                            <div style={{ marginLeft: 44, marginTop: 8 }}>
-                                                                                {product.variants.map(variant => (
-                                                                                    <div key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                                                                                        <Checkbox
-                                                                                            label=""
-                                                                                            checked={variant.isSelected}
-                                                                                            onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
-                                                                                        />
-                                                                                        <div style={{ flex: 1 }}>
-                                                                                            <Text fontWeight="medium">{variant.variantTitle}</Text>
-                                                                                            <Text variant="bodySm" color="subdued">
-                                                                                                Available: {variant.available}
-                                                                                            </Text>
-                                                                                            <Text variant="bodySm" color="subdued">Price: ${variant.price}</Text>
+                                                                            {product.variants.length > 0 && (
+                                                                                <div style={{ marginLeft: 44, marginTop: 8 }}>
+                                                                                    {product.variants.map(variant => (
+                                                                                        <div key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                                                                                            <Checkbox
+                                                                                                label=""
+                                                                                                checked={selectedIds.includes(variant.id)}
+                                                                                                onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
+                                                                                            />
+                                                                                            {variant.image ? (
+                                                                                                <Thumbnail
+                                                                                                    source={variant.image}
+                                                                                                    alt={variant.variantTitle}
+                                                                                                    size="small"
+                                                                                                />
+                                                                                            ) : (
+                                                                                                <Thumbnail source={ImageIcon} size="small" alt={variant.variantTitle} />
+                                                                                            )}
+                                                                                            <div style={{ flex: 1 }}>
+                                                                                                <Text fontWeight="medium">{variant.variantTitle}</Text>
+
+                                                                                                <Text variant="bodySm" color="subdued">
+                                                                                                    Available: {variant.available && variant.available > 0 ? variant.available : 'Unlimited'}
+                                                                                                </Text>
+
+                                                                                                <Text variant="bodySm" color="subdued">Price: ${variant.price}</Text>
+                                                                                            </div>
                                                                                         </div>
-                                                                                    </div>
-                                                                                ))}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                ))
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    );
+                                                                })
                                                             }
                                                             {/* Show pagination only if needed - when there's more than one page */}
                                                             {(currentPage > 1 || currentPage < totalPages) && (
@@ -1791,18 +1750,14 @@ export default function CreateLink() {
                                                                         onNext={handleNext}
                                                                         disabled={isLoading}
                                                                     />
-
                                                                 </Box>
                                                             )}
                                                             {productData.filter(product => product.title.toLowerCase().includes(mainProductSearch.toLowerCase())).length === 0 && (
-
                                                                 <EmptyState
                                                                     heading="No products found"
                                                                     image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
                                                                 >
-
                                                                 </EmptyState>
-
                                                             )}
                                                         </div>
                                                     </>
@@ -1862,13 +1817,13 @@ export default function CreateLink() {
                                                                                                 {/* Use a hidden component to persist quantity */}
                                                                                                 <div style={{ display: 'none' }}>
                                                                                                     {product._persistedQuantity = product.quantity || product._persistedQuantity || GLOBAL_QUANTITIES[product.id] || 1}
-                                                                                                    {console.log(`Rendering product ${product.title} with quantity:`, product.quantity || product._persistedQuantity || GLOBAL_QUANTITIES[product.id] || 1)}
+                                                                                                    {/* {console.log(`Rendering product ${product.title} with quantity:`, product.quantity || product._persistedQuantity || GLOBAL_QUANTITIES[product.id] || 1)} */}
                                                                                                 </div>
                                                                                             </Box>
                                                                                         </InlineStack>
                                                                                         <InlineStack gap="200">
                                                                                             <Button variant="plain" onClick={() => handleEditVariant(product)}>
-                                                                                                    Edit 
+                                                                                                Edit
                                                                                             </Button>
                                                                                             <Button variant="plain" onClick={() => handleRemoveProduct(product.id)}>
                                                                                                 <Icon source={XIcon} tone='base' />
@@ -2045,6 +2000,7 @@ export default function CreateLink() {
                                                 value={fullUrl || (linkId ? `${shop}/checkout/${linkId}` : "")}
                                                 autoComplete="off"
                                                 labelHidden
+
                                                 prefix={<Icon source={LinkIcon} tone="critical" />}
                                             />
                                             <Button icon={ClipboardIcon} onClick={handleCopyLink}>
@@ -2511,35 +2467,47 @@ export default function CreateLink() {
             {/* variants modal */}
 
 
-           <Modal
-  open={variantsModal}
-  onClose={() => setVariantsModal(false)}
+            <Modal
+                open={variantsModal}
+                onClose={() => setVariantsModal(false)}
                 title="Edit Variant Quantity"
-  primaryAction={{
-    content: 'Save',
-      onAction: handleSaveVariantQuantity,
-  }}
-  secondaryActions={[
-    {
-      content: 'Cancel',
-          onAction: handleCancelVariantQuantity
-    },
-  ]}
->
+                primaryAction={{
+                    content: 'Save',
+                    onAction: handleSaveVariantQuantity,
+                    disabled: (() => {
+                        const available = currentEditingVariant?.available;
+                        const qty = parseInt(variantQuantity);
+                        if (qty < 1) return true;
+                        if (typeof available === 'number' && available > 0) {
+                            return qty > available;
+                        }
+                        // If available is 0 or negative, allow any positive integer
+                        return false;
+                    })()
+                }}
+                secondaryActions={[
+                    {
+                        content: 'Cancel',
+                        onAction: handleCancelVariantQuantity
+                    },
+                ]}
+            >
                 <Modal.Section>
                     <BlockStack gap="400">
                         {currentEditingVariant && (
-                            <InlineStack gap="400" align="center">
-                                {/* {image ? (
+                            <InlineStack gap="400" align="left">
+                                {currentEditingVariant.image ? (
                                     <Thumbnail
-                                        source={image}
-                                        alt={title}
+                                        source={currentEditingVariant.image}
+                                        alt={currentEditingVariant.title}
                                         size="small"
                                     />
                                 ) : (
-                                    <Thumbnail source={ImageIcon} size="small" alt={title} />
-                                )} */}
-                                <Text fontWeight="medium">{currentEditingVariant.title} {currentEditingVariant.variant ? `(${currentEditingVariant.variant})` : ''}</Text>
+                                    <Thumbnail source={ImageIcon} size="small" alt={currentEditingVariant.title} />
+                                )}
+                                <Text fontWeight="medium">
+                                    {currentEditingVariant.title} {currentEditingVariant.variant ? `(${currentEditingVariant.variant})` : ''}
+                                </Text>
                             </InlineStack>
                         )}
                         <TextField
@@ -2548,27 +2516,44 @@ export default function CreateLink() {
                             min={1}
                             type="number"
                             onChange={(value) => {
-                                const numberValue = parseInt(value) || 1;
+                                let numberValue = parseInt(value) || 1;
+                                const available = currentEditingVariant?.available;
+                                if (typeof available === 'number' && available > 0 && numberValue > available) {
+                                    numberValue = available;
+                                }
+                                if (numberValue < 1) numberValue = 1;
                                 setVariantQuantity(numberValue.toString());
-
-                                // Pre-update the global quantity tracker in real-time
                                 if (currentEditingVariant && currentEditingVariant.id) {
                                     GLOBAL_QUANTITIES[currentEditingVariant.id] = numberValue;
-                                    console.log(`Pre-updated global quantity tracker for ${currentEditingVariant.id} to ${numberValue}`);
                                 }
                             }}
                             autoComplete="off"
-                            helpText="Set the quantity for this product variant"
-                            onBlur={() => {
-                                // Ensure minimum quantity of 1
-                                if (!variantQuantity || parseInt(variantQuantity) < 1) {
-                                    setVariantQuantity("1");
+                            helpText={(() => {
+                                const available = currentEditingVariant?.available;
+                                if (typeof available === 'number' && available > 0) {
+                                    return `Set the quantity for this product variant (max: ${available})`;
                                 }
+                                return `Set the quantity for this product variant (no limit)`;
+                            })()}
+                            onBlur={() => {
+                                let value = parseInt(variantQuantity) || 1;
+                                const available = currentEditingVariant?.available;
+                                if (value < 1) value = 1;
+                                if (typeof available === 'number' && available > 0 && value > available) value = available;
+                                setVariantQuantity(value.toString());
                             }}
+                            error={(() => {
+                                const available = currentEditingVariant?.available;
+                                const qty = parseInt(variantQuantity);
+                                if (typeof available === 'number' && available > 0 && qty > available) {
+                                    return `Cannot exceed available inventory (${available})`;
+                                }
+                                return undefined;
+                            })()}
                         />
                     </BlockStack>
                 </Modal.Section>
-</Modal>
+            </Modal>
 
             {/* --- MODAL WITH SEARCH & PAGINATION --- */}
             <Modal
@@ -2645,73 +2630,113 @@ export default function CreateLink() {
                         </InlineStack>
 
                         <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                            {productData.map(product => (
-                                <div key={product.id} style={{ borderBottom: '1px solid #eee', padding: '12px 0' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                        <Checkbox
-                                            label=""
-                                            checked={product.isSelected}
-                                            indeterminate={product.variants.some(v => v.isSelected) &&
-                                                !product.variants.every(v => v.isSelected)}
-                                            onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
-                                        />
-                                        {product.image ? (
-                                            <Thumbnail
-                                                source={product.image}
-                                                alt={product.title}
-                                                size="small"
-                                            />
-                                        ) : (
-                                            <Thumbnail source={ImageIcon} size="small" alt={product.title} />
-                                        )}
-                                        <div style={{ flex: 1 }}>
-                                            <Text fontWeight="medium">{product.title}</Text>
-                                            <Text variant="bodySm" color="subdued">
-                                                Available: {product.available}
-                                            </Text>
-                                            {product.variants.length === 0 && (
-                                                <Text variant="bodySm" color="subdued">Price: ${product.price}</Text>
-                                            )}
-                                        </div>
-                                    </div>
-                                    {product.variants.length > 0 && (
-                                        <div style={{ marginLeft: 44, marginTop: 8 }}>
-                                            {product.variants.map(variant => (
-                                                <div key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                                                    <Checkbox
-                                                        label=""
-                                                        checked={variant.isSelected}
-                                                        onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
-                                                    />
-                                                    <div style={{ flex: 1 }}>
-                                                        <Text fontWeight="medium">{variant.variantTitle}</Text>
-                                                        <Text variant="bodySm" color="subdued">Price: ${variant.price}</Text>
+                            {productData.filter(product =>
+                                product.title.toLowerCase().includes(mainProductSearch.toLowerCase())
+                            ).length === 0 ? (
+                                <EmptyState
+                                    heading="No products found"
+                                    image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                                >
+                                    <p>Try adjusting your search or filters to find what you’re looking for.</p>
+                                </EmptyState>
+                            ) : (
+                                <>
+                                        {productData.map(product => {
+                                            const allVariantIds = product.variants.map(v => v.id);
+                                            const selectedIds = selectedProductItems.map(item => item.id);
+
+                                            const productChecked = product.variants.length === 0
+                                                ? selectedIds.includes(product.id)
+                                                : allVariantIds.every(id => selectedIds.includes(id)) && allVariantIds.length > 0;
+
+                                            const productIndeterminate = product.variants.length > 0
+                                                && allVariantIds.some(id => selectedIds.includes(id))
+                                                && !allVariantIds.every(id => selectedIds.includes(id));
+
+                                            return (
+                                                <div key={product.id} style={{ borderBottom: '1px solid #eee', padding: '12px 0' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                        <Checkbox
+                                                            label=""
+                                                            checked={productChecked}
+                                                            indeterminate={productIndeterminate}
+                                                            onChange={checked =>
+                                                                handleProductOrVariantCheck(product.id, checked, true, product)
+                                                            }
+                                                        />
+                                                        {product.image ? (
+                                                            <Thumbnail source={product.image} alt={product.title} size="small" />
+                                                        ) : (
+                                                            <Thumbnail source={ImageIcon} size="small" alt={product.title} />
+                                                        )}
+                                                        <div style={{ flex: 1 }}>
+                                                            <Text fontWeight="medium" as="span">
+                                                                {truncate(product.title, { length: 20 })}
+                                                            </Text>
+                                                            <span style={{ marginLeft: 8, color: '#888' }}>
+                                                                {product.variants.length === 0 && ` • $${product.price}`}
+                                                            </span>
+                                                            {/* <span style={{ marginLeft: 8, color: '#888' }}>
+                                                                {`Available: ${product.available}`}
+                                                            </span> */}
+                                                        </div>
                                                     </div>
+
+                                                    {product.variants.length > 0 && (
+                                                        <div style={{ marginLeft: 44, marginTop: 8 }}>
+                                                            {product.variants.map(variant => (
+                                                                <div
+                                                                    key={variant.id}
+                                                                    style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}
+                                                                >
+                                                                    <Checkbox
+                                                                        label=""
+                                                                        checked={selectedIds.includes(variant.id)}
+                                                                        onChange={checked =>
+                                                                            handleProductOrVariantCheck(variant.id, checked, false, product)
+                                                                        }
+                                                                    />
+                                                                    {variant.image ? (
+                                                                        <Thumbnail source={variant.image} alt={variant.variantTitle} size="small" />
+                                                                    ) : (
+                                                                        <Thumbnail source={ImageIcon} size="small" alt={variant.variantTitle} />
+                                                                    )}
+                                                                    <div style={{ flex: 1 }}>
+                                                                        <span><strong>{variant.variantTitle}</strong></span>
+                                                                        <span style={{ marginLeft: 8, color: '#888' }}>• ${variant.price}</span>
+                                                                        <span style={{ marginLeft: 8, color: '#888' }}>
+                                                                            Available: {variant.available && variant.available > 0 ? variant.available : 'Unlimited'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                 </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            ))}
-                        {/* Show pagination only if needed - when there's more than one page */}
-                        {(currentPage > 1 || currentPage < totalPages) && (
-                            <Box
-                                paddingBlockStart="200"
-                                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                            >
-                                <Pagination
-                                    hasPrevious={currentPage > 1 && !isLoading}
-                                    onPrevious={handlePrevious}
-                                    hasNext={currentPage < totalPages && !isLoading}
-                                    onNext={handleNext}
-                                    disabled={isLoading}
-                                />
-                            </Box>
-                        )}
+                                            );
+                                        })}
+
+                                        {(currentPage > 1 || currentPage < totalPages) && (
+                                            <Box
+                                                paddingBlockStart="200"
+                                                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                                            >
+                                                <Pagination
+                                                    hasPrevious={currentPage > 1 && !isLoading}
+                                                    onPrevious={handlePrevious}
+                                                    hasNext={currentPage < totalPages && !isLoading}
+                                                    onNext={handleNext}
+                                                    disabled={isLoading}
+                                                />
+                                            </Box>
+                                        )}
+                                </>
+                            )}
                         </div>
+
                     </BlockStack>
                 </Modal.Section>
             </Modal>
         </Page>
     );
-}  
+}
