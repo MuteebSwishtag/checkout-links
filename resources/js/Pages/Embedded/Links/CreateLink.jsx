@@ -46,6 +46,7 @@ import Discount from './Discount';
 import PopupMessage from './PopupMessage';
 import '@/Components/style.css';
 import '../../../../css/links.css';
+import truncate from 'lodash/truncate';
 
 // Global quantity tracker as a last resort fallback
 const GLOBAL_QUANTITIES = {};
@@ -106,7 +107,7 @@ export default function CreateLink() {
             });
 
             if (localLink.popup_message) {
-            // console.log("Popup message data:", localLink.popup_message);
+                // console.log("Popup message data:", localLink.popup_message);
                 setPopupMessageData({
                     isActive: !!localLink.popup_message.is_active,
                     headingText: localLink.popup_message.heading_text || 'Order summary',
@@ -146,7 +147,8 @@ export default function CreateLink() {
                         variant: v.variant?.title || '',
                         price: v.price || (v.variant?.price || ''),
                         image: media,
-                        quantity: v.quantity || 1  // Use the quantity from the linked_variant
+                        quantity: v.quantity || 1,  // Use the quantity from the linked_variant
+                        available: v.variant?.inventory_quantity || 0,
                     };
                 });
 
@@ -452,9 +454,9 @@ export default function CreateLink() {
                         // Only update if not already set
                         setPopupProductChecked(prev => {
                             const checkedState = { ...prev };
-                        variantIdsToSelect.forEach(id => {
-                            checkedState[id] = true;
-                        });
+                            variantIdsToSelect.forEach(id => {
+                                checkedState[id] = true;
+                            });
                             return checkedState;
                         });
 
@@ -521,13 +523,13 @@ export default function CreateLink() {
 
                     return {
                         id: compositeId,
-                    productId: product.id,
-                    title: product.title,
-                    variantTitle: variant.title,
-                    price: variant.price,
-                    available: variant.inventory_quantity || 0,
+                        productId: product.id,
+                        title: product.title,
+                        variantTitle: variant.title,
+                        price: variant.price,
+                        available: variant.inventory_quantity || 0,
                         image: variant.image || productImage,
-                    variantId: variant.shopify_product_varient_id,
+                        variantId: variant.shopify_product_varient_id,
                         shopifyVariantId: variant.shopify_product_varient_id,
                         isSelected: isSelected,
                         rawVariant: variant,
@@ -760,89 +762,62 @@ export default function CreateLink() {
         // Get all selected product items from the temporary state
         const selectedArray = Object.values(tempSelectedProductItems);
 
-        console.log("Product modal done with selections:", selectedArray.map(item => ({
-            id: item.id,
-            title: item.title,
-            variant: item.variant,
-            quantity: item.quantity
-        })));
-
-        // Extract the variant IDs first to ensure they're preserved correctly
-        const variantIds = selectedArray.map(product => product.id);
-        console.log("Setting selectedVariantIds from done button:", variantIds);
-
-        // Ensure we don't re-load from link data since we have user selections now
-        setInitialLinkDataLoaded(true);
-
-        // Update the states in a specific order to avoid race conditions
-        setSelectedVariantIds(variantIds);
-
-        // Update selected product count immediately to match the total selections
-        setSelectedProducts(selectedArray.length);
+        // If no products are selected in the modal, keep previous selection
+        if (selectedArray.length === 0) {
+            setIsProductModalOpen(false);
+            setProductSearchValue('');
+            return;
+        }
 
         // Create a map of existing quantities for preservation
         const quantityMap = {};
         selectedProductItems.forEach(item => {
             if (item && item.id) {
                 quantityMap[item.id] = parseInt(item.quantity) || 1;
-                console.log(`Adding to quantity map: ${item.id} = ${quantityMap[item.id]}`);
             }
         });
 
-        // Also check localStorage for any saved quantities
-        try {
-            const storedQuantities = JSON.parse(localStorage.getItem('variantQuantities') || '{}');
-            Object.keys(storedQuantities).forEach(id => {
-                if (!quantityMap[id]) {
-                    quantityMap[id] = parseInt(storedQuantities[id]) || 1;
-                    console.log(`Adding from localStorage to quantity map: ${id} = ${quantityMap[id]}`);
-                }
-            });
-        } catch (e) {
-            console.error('Failed to load quantities from localStorage:', e);
+        // Merge: For each selected item, preserve quantity if it was already selected
+        // Also merge with existing link products (do not remove them)
+        const mergedMap = {};
+        // Add previous selected products first
+        selectedProductItems.forEach(item => {
+            if (item && item.id) {
+                mergedMap[item.id] = {
+                    ...item,
+                    quantity: quantityMap[item.id] || item.quantity || 1
+                };
+            }
+        });
+        // Add/overwrite with modal selections
+        selectedArray.forEach(item => {
+            if (item && item.id) {
+                mergedMap[item.id] = {
+                    ...item,
+                    quantity: quantityMap[item.id] || item.quantity || 1
+                };
+            }
+        });
+        // Convert to array and remove duplicates by ID
+        const allItems = Object.values(mergedMap);
+        const filteredItems = [];
+        const seenIds = new Set();
+        for (const item of allItems) {
+            if (!seenIds.has(item.id)) {
+                filteredItems.push(item);
+                seenIds.add(item.id);
+            }
         }
 
-        // Use the selections from tempSelectedProductItems but preserve existing item data
-        setSelectedProductItems(prevItems => {
-            // Create a map of existing items for quick lookup
-            const existingItemsMap = {};
-            prevItems.forEach(item => {
-                if (item && item.id) {
-                    existingItemsMap[item.id] = item;
-                }
-            });
-
-            // Process the selections from tempSelectedProductItems
-            const newItems = selectedArray.map(item => {
-                if (!item || !item.id) return null;
-
-                // Keep existing item data when available to preserve any custom values
-                const existingItem = existingItemsMap[item.id];
-                if (existingItem) {
-                    return existingItem;
-                }
-
-                // Otherwise use the new item data, but preserve quantity if available
-                const quantity = item.quantity || quantityMap[item.id] || 1;
-                console.log(`Setting quantity for new item ${item.id}: ${quantity}`);
-
-                return {
-                    ...item,
-                    quantity: quantity
-                };
-            }).filter(Boolean); // Remove any null items
-
-            // Log the new items for debugging
-            newItems.forEach(item => {
-                console.log(`Final item ${item.id} has quantity: ${item.quantity}`);
-            });
-
-            return newItems;
-        });
+        // Update states
+        setInitialLinkDataLoaded(true);
+        setSelectedVariantIds(filteredItems.map(product => product.id));
+        setSelectedProducts(filteredItems.length);
+        setSelectedProductItems(filteredItems);
 
         // Update popup product checked state
         const checkedState = {};
-        selectedArray.forEach(product => {
+        filteredItems.forEach(product => {
             if (product && product.id) {
                 checkedState[product.id] = true;
             }
@@ -969,21 +944,21 @@ export default function CreateLink() {
     const handleProductOrVariantCheck = (id, checked, isProduct, product) => {
         setSelectedVariantIds(prev => {
             let newIds;
-        if (isProduct) {
-            // Product-level: select/deselect all its variants (or itself if no variants)
-            const variantIds = getAllVariantIds(product);
-            if (checked) {
-                newIds = Array.from(new Set([...prev, ...variantIds]));
+            if (isProduct) {
+                // Product-level: select/deselect all its variants (or itself if no variants)
+                const variantIds = getAllVariantIds(product);
+                if (checked) {
+                    newIds = Array.from(new Set([...prev, ...variantIds]));
+                } else {
+                    newIds = prev.filter(vid => !variantIds.includes(vid));
+                }
             } else {
-                newIds = prev.filter(vid => !variantIds.includes(vid));
-            }
-        } else {
-            // Variant-level: toggle only this variant
-            if (checked) {
-                newIds = Array.from(new Set([...prev, id]));
-            } else {
-                newIds = prev.filter(vid => vid !== id);
-            }
+                // Variant-level: toggle only this variant
+                if (checked) {
+                    newIds = Array.from(new Set([...prev, id]));
+                } else {
+                    newIds = prev.filter(vid => vid !== id);
+                }
             }
 
             // Also update popup product checked state
@@ -1029,7 +1004,8 @@ export default function CreateLink() {
                 variant: v.variantTitle,
                 variantId: v.variantId,
                 shopifyVariantId: v.variantId,
-                quantity: v.quantity, // <-- FIX: use productData quantity
+                quantity: v.quantity !== undefined ? v.quantity : 1,
+                available: v.available,
                 price: v.price,
                 image: product.image
             };
@@ -1040,7 +1016,8 @@ export default function CreateLink() {
             variant: null,
             variantId: null,
             shopifyVariantId: null,
-            quantity: product.quantity, // <-- FIX: use productData quantity
+            quantity: product.quantity !== undefined ? product.quantity : 1,
+            available: product.available,
             price: product.price,
             image: product.image
         }]); console.log("Selected UI IDs to update product items:", variantIds);
@@ -1077,7 +1054,7 @@ export default function CreateLink() {
                             quantity: preservedQuantity
                         });
                     } else {
-                    // Use the new item
+                        // Use the new item
                         currentPageItems.push(v);
                     }
                     seen.add(v.id);
@@ -1666,14 +1643,6 @@ export default function CreateLink() {
                                                 {/* Show filtered products under the search field */}
                                                 {mainProductSearch && (
                                                     <>
-                                                        {(() => {
-                                                            const filteredProducts = productData.filter(product => product.title.toLowerCase().includes(mainProductSearch.toLowerCase()));
-                                                            return (
-                                                                <Text variant="bodySm" tone="subdued" style={{ display: 'block', padding: '0 18px 8px' }}>
-                                                                    {filteredProducts.length} {filteredProducts.length === 1 ? 'product' : 'products'}
-                                                                </Text>
-                                                            );
-                                                        })()}
                                                         <div style={{
                                                             maxHeight: '320px',
                                                             overflowY: 'auto',
@@ -1720,10 +1689,12 @@ export default function CreateLink() {
                                                                                     <Thumbnail source={ImageIcon} size="small" alt={product.title} />
                                                                                 )}
                                                                                 <div style={{ flex: 1 }}>
-                                                                                    <Text fontWeight="medium">{product.title}</Text>
-                                                                                    <Text variant="bodySm" color="subdued">
-                                                                                        Available: {product.available}
+                                                                                    <Text fontWeight="medium" as="span">
+                                                                                        {truncate(product.title, { length: 20 })}
                                                                                     </Text>
+                                                                                    {/* <Text variant="bodySm" color="subdued">
+                                                                                        Available: {product.available > 0 ? product.available : 'Unlimited'}
+                                                                                    </Text> */}
                                                                                     {product.variants.length === 0 && (
                                                                                         <Text variant="bodySm" color="subdued">Price: ${product.price}</Text>
                                                                                     )}
@@ -1735,27 +1706,29 @@ export default function CreateLink() {
                                                                                         <div key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
                                                                                             <Checkbox
                                                                                                 label=""
-                                                checked={selectedIds.includes(variant.id)}
-                                                onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
-                                            />
-                                            {variant.image ? (
-                                                <Thumbnail
-                                                    source={variant.image}
-                                                    alt={variant.variantTitle}
-                                                    size="small"
-                                                />
-                                            ) : (
-                                                <Thumbnail source={ImageIcon} size="small" alt={variant.variantTitle} />
-                                            )}
-                                            <div style={{ flex: 1 }}>
-                                                <Text fontWeight="medium">{variant.variantTitle}</Text>
-                                                <Text variant="bodySm" color="subdued">
-                                                    Available: {variant.available}
-                                                </Text>
-                                                <Text variant="bodySm" color="subdued">Price: ${variant.price}</Text>
-                                            </div>
-                                        </div>
-                                    ))}
+                                                                                                checked={selectedIds.includes(variant.id)}
+                                                                                                onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
+                                                                                            />
+                                                                                            {variant.image ? (
+                                                                                                <Thumbnail
+                                                                                                    source={variant.image}
+                                                                                                    alt={variant.variantTitle}
+                                                                                                    size="small"
+                                                                                                />
+                                                                                            ) : (
+                                                                                                <Thumbnail source={ImageIcon} size="small" alt={variant.variantTitle} />
+                                                                                            )}
+                                                                                            <div style={{ flex: 1 }}>
+                                                                                                <Text fontWeight="medium">{variant.variantTitle}</Text>
+
+                                                                                                <Text variant="bodySm" color="subdued">
+                                                                                                    Available: {variant.available && variant.available > 0 ? variant.available : 'Unlimited'}
+                                                                                                </Text>
+
+                                                                                                <Text variant="bodySm" color="subdued">Price: ${variant.price}</Text>
+                                                                                            </div>
+                                                                                        </div>
+                                                                                    ))}
                                                                                 </div>
                                                                             )}
                                                                         </div>
@@ -1845,7 +1818,7 @@ export default function CreateLink() {
                                                                                         </InlineStack>
                                                                                         <InlineStack gap="200">
                                                                                             <Button variant="plain" onClick={() => handleEditVariant(product)}>
-                                                                                                    Edit 
+                                                                                                Edit
                                                                                             </Button>
                                                                                             <Button variant="plain" onClick={() => handleRemoveProduct(product.id)}>
                                                                                                 <Icon source={XIcon} tone='base' />
@@ -2489,14 +2462,23 @@ export default function CreateLink() {
             {/* variants modal */}
 
 
-           <Modal
+            <Modal
                 open={variantsModal}
                 onClose={() => setVariantsModal(false)}
                 title="Edit Variant Quantity"
                 primaryAction={{
                     content: 'Save',
                     onAction: handleSaveVariantQuantity,
-                    disabled: parseInt(variantQuantity) > (currentEditingVariant?.available ?? 1) || parseInt(variantQuantity) < 1
+                    disabled: (() => {
+                        const available = currentEditingVariant?.available;
+                        const qty = parseInt(variantQuantity);
+                        if (qty < 1) return true;
+                        if (typeof available === 'number' && available > 0) {
+                            return qty > available;
+                        }
+                        // If available is 0 or negative, allow any positive integer
+                        return false;
+                    })()
                 }}
                 secondaryActions={[
                     {
@@ -2504,7 +2486,7 @@ export default function CreateLink() {
                         onAction: handleCancelVariantQuantity
                     },
                 ]}
->
+            >
                 <Modal.Section>
                     <BlockStack gap="400">
                         {currentEditingVariant && (
@@ -2527,32 +2509,46 @@ export default function CreateLink() {
                             label="Quantity"
                             value={variantQuantity}
                             min={1}
-                            max={currentEditingVariant?.available}
                             type="number"
                             onChange={(value) => {
                                 let numberValue = parseInt(value) || 1;
-                                // Allow up to available, even if negative or zero
-                                if (numberValue > (currentEditingVariant?.available ?? 1)) {
-                                    numberValue = currentEditingVariant.available;
+                                const available = currentEditingVariant?.available;
+                                if (typeof available === 'number' && available > 0 && numberValue > available) {
+                                    numberValue = available;
                                 }
+                                if (numberValue < 1) numberValue = 1;
                                 setVariantQuantity(numberValue.toString());
                                 if (currentEditingVariant && currentEditingVariant.id) {
                                     GLOBAL_QUANTITIES[currentEditingVariant.id] = numberValue;
                                 }
                             }}
                             autoComplete="off"
-                            helpText={`Set the quantity for this product variant (max: ${currentEditingVariant?.available})`}
+                            helpText={(() => {
+                                const available = currentEditingVariant?.available;
+                                if (typeof available === 'number' && available > 0) {
+                                    return `Set the quantity for this product variant (max: ${available})`;
+                                }
+                                return `Set the quantity for this product variant (no limit)`;
+                            })()}
                             onBlur={() => {
                                 let value = parseInt(variantQuantity) || 1;
+                                const available = currentEditingVariant?.available;
                                 if (value < 1) value = 1;
-                                if (value > (currentEditingVariant?.available ?? 1)) value = currentEditingVariant.available;
+                                if (typeof available === 'number' && available > 0 && value > available) value = available;
                                 setVariantQuantity(value.toString());
                             }}
-                            error={parseInt(variantQuantity) > (currentEditingVariant?.available ?? 1) ? `Cannot exceed available inventory (${currentEditingVariant.available})` : undefined}
+                            error={(() => {
+                                const available = currentEditingVariant?.available;
+                                const qty = parseInt(variantQuantity);
+                                if (typeof available === 'number' && available > 0 && qty > available) {
+                                    return `Cannot exceed available inventory (${available})`;
+                                }
+                                return undefined;
+                            })()}
                         />
                     </BlockStack>
                 </Modal.Section>
-</Modal>
+            </Modal>
 
             {/* --- MODAL WITH SEARCH & PAGINATION --- */}
             <Modal
@@ -2629,176 +2625,110 @@ export default function CreateLink() {
                         </InlineStack>
 
                         <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
-                            {productData.map(product => {
-                                // Get all variant IDs for this product
-                                const allVariantIds = product.variants.map(v => v.id);
-                                // Get all selected IDs from drag-drop context
-                                const selectedIds = selectedProductItems.map(item => item.id);
+                            {productData.filter(product =>
+                                product.title.toLowerCase().includes(mainProductSearch.toLowerCase())
+                            ).length === 0 ? (
+                                <EmptyState
+                                    heading="No products found"
+                                    image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
+                                >
+                                    <p>Try adjusting your search or filters to find what you’re looking for.</p>
+                                </EmptyState>
+                            ) : (
+                                <>
+                                        {productData.map(product => {
+                                            const allVariantIds = product.variants.map(v => v.id);
+                                            const selectedIds = selectedProductItems.map(item => item.id);
 
-                                // Product is checked if all its variants are checked, or itself for simple products
-                                const productChecked = product.variants.length === 0
-                                    ? selectedIds.includes(product.id)
-                                    : allVariantIds.every(id => selectedIds.includes(id)) && allVariantIds.length > 0;
+                                            const productChecked = product.variants.length === 0
+                                                ? selectedIds.includes(product.id)
+                                                : allVariantIds.every(id => selectedIds.includes(id)) && allVariantIds.length > 0;
 
-                                // Product is indeterminate if some but not all variants are checked
-                                const productIndeterminate = product.variants.length > 0
-                                    && allVariantIds.some(id => selectedIds.includes(id))
-                                    && !allVariantIds.every(id => selectedIds.includes(id));
+                                            const productIndeterminate = product.variants.length > 0
+                                                && allVariantIds.some(id => selectedIds.includes(id))
+                                                && !allVariantIds.every(id => selectedIds.includes(id));
 
-                                return (
-                                    <div key={product.id} style={{ borderBottom: '1px solid #eee', padding: '12px 0' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                            <Checkbox
-                                                label=""
-                                                checked={productChecked}
-                                                indeterminate={productIndeterminate}
-                                                onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
-                                            />
-                                            {product.image ? (
-                                                <Thumbnail
-                                                    source={product.image}
-                                                    alt={product.title}
-                                                    size="small"
-                                                />
-                                            ) : (
-                                                <Thumbnail source={ImageIcon} size="small" alt={product.title} />
-                                            )}
-                                            <div style={{ flex: 1 }}>
-                                                <strong>{product.title}</strong>
-                                                <span style={{ marginLeft: 8, color: '#888' }}>
-                                                    {product.variants.length === 0 && ` • $${product.price}`}
-                                                </span>
-                                                <span style={{ marginLeft: 8, color: '#888' }}>
-                                                    {`Available: ${product.available}`}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        {product.variants.length > 0 && (
-                                            <div style={{ marginLeft: 44, marginTop: 8 }}>
-                                                {product.variants.map(variant => (
-                                                    <div key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                                            return (
+                                                <div key={product.id} style={{ borderBottom: '1px solid #eee', padding: '12px 0' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                                         <Checkbox
                                                             label=""
-                                                            checked={selectedIds.includes(variant.id)}
-                                                            onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
+                                                            checked={productChecked}
+                                                            indeterminate={productIndeterminate}
+                                                            onChange={checked =>
+                                                                handleProductOrVariantCheck(product.id, checked, true, product)
+                                                            }
                                                         />
-                                                        {variant.image ? (
-                                                            <Thumbnail
-                                                                source={variant.image}
-                                                                alt={variant.variantTitle}
-                                                                size="small"
-                                                            />
+                                                        {product.image ? (
+                                                            <Thumbnail source={product.image} alt={product.title} size="small" />
                                                         ) : (
-                                                            <Thumbnail source={ImageIcon} size="small" alt={variant.variantTitle} />
+                                                            <Thumbnail source={ImageIcon} size="small" alt={product.title} />
                                                         )}
                                                         <div style={{ flex: 1 }}>
-                                                            <span><strong>{variant.variantTitle}</strong></span>
+                                                            <Text fontWeight="medium" as="span">
+                                                                {truncate(product.title, { length: 20 })}
+                                                            </Text>
                                                             <span style={{ marginLeft: 8, color: '#888' }}>
-                                                                • ${variant.price}
+                                                                {product.variants.length === 0 && ` • $${product.price}`}
                                                             </span>
-                                                            <span style={{ marginLeft: 8, color: '#888' }}>
-                                                                {`Available: ${variant.available}`}
-                                                            </span>
+                                                            {/* <span style={{ marginLeft: 8, color: '#888' }}>
+                                                                {`Available: ${product.available}`}
+                                                            </span> */}
                                                         </div>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
 
-                            {productData.map(product => {
-                                // Get all variant IDs for this product
-                                const allVariantIds = product.variants.map(v => v.id);
-                                // Count how many variants are selected
-                                const selectedVariantsCount = allVariantIds.filter(id => selectedVariantIds.includes(id)).length;
-                                // Product is checked if all variants are checked or if product itself is checked (for simple products)
-                                const productChecked = product.variants.length === 0
-                                    ? selectedVariantIds.includes(product.id)
-                                    : selectedVariantsCount === allVariantIds.length && allVariantIds.length > 0;
-                                // Product is indeterminate if some but not all variants are checked
-                                const productIndeterminate = product.variants.length > 0
-                                    && selectedVariantsCount > 0
-                                    && selectedVariantsCount < allVariantIds.length;
+                                                    {product.variants.length > 0 && (
+                                                        <div style={{ marginLeft: 44, marginTop: 8 }}>
+                                                            {product.variants.map(variant => (
+                                                                <div
+                                                                    key={variant.id}
+                                                                    style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}
+                                                                >
+                                                                    <Checkbox
+                                                                        label=""
+                                                                        checked={selectedIds.includes(variant.id)}
+                                                                        onChange={checked =>
+                                                                            handleProductOrVariantCheck(variant.id, checked, false, product)
+                                                                        }
+                                                                    />
+                                                                    {variant.image ? (
+                                                                        <Thumbnail source={variant.image} alt={variant.variantTitle} size="small" />
+                                                                    ) : (
+                                                                        <Thumbnail source={ImageIcon} size="small" alt={variant.variantTitle} />
+                                                                    )}
+                                                                    <div style={{ flex: 1 }}>
+                                                                        <span><strong>{variant.variantTitle}</strong></span>
+                                                                        <span style={{ marginLeft: 8, color: '#888' }}>• ${variant.price}</span>
+                                                                        <span style={{ marginLeft: 8, color: '#888' }}>
+                                                                            Available: {variant.available && variant.available > 0 ? variant.available : 'Unlimited'}
+                                                                        </span>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
 
-                                return (
-                                    <div key={product.id} style={{ borderBottom: '1px solid #eee', padding: '12px 0' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                            <Checkbox
-                                                label=""
-                                                checked={productChecked}
-                                                indeterminate={productIndeterminate}
-                                                onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
-                                            />
-                                            {product.image ? (
-                                                <Thumbnail
-                                                    source={product.image}
-                                                    alt={product.title}
-                                                    size="small"
+                                        {(currentPage > 1 || currentPage < totalPages) && (
+                                            <Box
+                                                paddingBlockStart="200"
+                                                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                                            >
+                                                <Pagination
+                                                    hasPrevious={currentPage > 1 && !isLoading}
+                                                    onPrevious={handlePrevious}
+                                                    hasNext={currentPage < totalPages && !isLoading}
+                                                    onNext={handleNext}
+                                                    disabled={isLoading}
                                                 />
-                                            ) : (
-                                                <Thumbnail source={ImageIcon} size="small" alt={product.title} />
-                                            )}
-                                            <div style={{ flex: 1 }}>
-                                                <strong>{product.title}</strong>
-                                                <span style={{ marginLeft: 8, color: '#888' }}>
-                                                    {product.variants.length === 0 && ` • $${product.price}`}
-                                                </span>
-                                                <span style={{ marginLeft: 8, color: '#888' }}>
-                                                    {`Available: ${product.available}`}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        {product.variants.length > 0 && (
-                                            <div style={{ marginLeft: 44, marginTop: 8 }}>
-                                                {product.variants.map(variant => (
-                                                    <div key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                                                        <Checkbox
-                                                            label=""
-                                                            checked={selectedVariantIds.includes(variant.id)}
-                                                            onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
-                                                        />
-                                                        {variant.image ? (
-                                                            <Thumbnail
-                                                                source={variant.image}
-                                                                alt={variant.variantTitle}
-                                                                size="small"
-                                                            />
-                                                        ) : (
-                                                            <Thumbnail source={ImageIcon} size="small" alt={variant.variantTitle} />
-                                                        )}
-                                                        <div style={{ flex: 1 }}>
-                                                            <span><strong>{variant.variantTitle}</strong></span>
-                                                            <span style={{ marginLeft: 8, color: '#888' }}>
-                                                                • ${variant.price}
-                                                            </span>
-                                                            <span style={{ marginLeft: 8, color: '#888' }}>
-                                                                {`Available: ${variant.available}`}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                            </Box>
                                         )}
-                                    </div>
-                                );
-                            })}
-                        {(currentPage > 1 || currentPage < totalPages) && (
-                            <Box
-                                paddingBlockStart="200"
-                                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                            >
-                                <Pagination
-                                    hasPrevious={currentPage > 1 && !isLoading}
-                                    onPrevious={handlePrevious}
-                                    hasNext={currentPage < totalPages && !isLoading}
-                                    onNext={handleNext}
-                                    disabled={isLoading}
-                                />
-                            </Box>
-                        )}
+                                </>
+                            )}
                         </div>
+
                     </BlockStack>
                 </Modal.Section>
             </Modal>
