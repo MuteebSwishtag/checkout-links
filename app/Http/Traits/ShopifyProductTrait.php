@@ -288,7 +288,6 @@ QUERY;
 
         // Use the user's API to make the GraphQL request
         $result = $this->arrayToObject($user->api()->graph($query));
-
         if (!isset($result->errors)) {
             return $result->body->data->inventoryItem ?? null;
         }

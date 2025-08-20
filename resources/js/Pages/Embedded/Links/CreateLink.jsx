@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
     Page,
     Card,
@@ -72,6 +72,7 @@ export default function CreateLink() {
     const [variantQuantity, setVariantQuantity] = useState(1);
     const [currentEditingVariant, setCurrentEditingVariant] = useState(null);
     const [localLink, setLocalLink] = useState(link || null);
+    const originalVariantQuantityRef = useRef(1);
     // Function to fetch a unique ID from the backend
     const fetchUniqueId = async () => {
         try {
@@ -840,6 +841,9 @@ export default function CreateLink() {
     // Handle opening the variants modal with the specific variant
     const handleEditVariant = (product) => {
         setCurrentEditingVariant(product);
+        originalVariantQuantityRef.current = product.quantity || 1;
+        setVariantQuantity(product.quantity || 1);
+        setVariantsModal(true);
 
         // Get the current quantity from the product, or from localStorage as a fallback
         let quantity = parseInt(product.quantity) || 1;
@@ -902,40 +906,36 @@ export default function CreateLink() {
     const handleCancelVariantQuantity = () => {
         if (!currentEditingVariant) return;
 
-        const resetValue = 1;
+        const restoreValue = originalVariantQuantityRef.current || 1;
 
-        // Reset in selectedProductItems
-        setSelectedProductItems(prevItems => {
-            return prevItems.map(item => {
-                if (item.id === currentEditingVariant.id) {
-                    return {
-                        ...item,
-                        quantity: resetValue
-                    };
-                }
-                return item;
-            });
-        });
+        // Restore in selectedProductItems
+        setSelectedProductItems(prevItems =>
+            prevItems.map(item =>
+                item.id === currentEditingVariant.id
+                    ? { ...item, quantity: restoreValue }
+                    : item
+            )
+        );
 
-        // Reset in tempSelectedProductItems if modal is open
+        // Restore in tempSelectedProductItems if modal is open
         if (Object.keys(tempSelectedProductItems).length > 0) {
             setTempSelectedProductItems(prev => {
                 const updated = {
                     ...prev,
                     [currentEditingVariant.id]: {
                         ...(prev[currentEditingVariant.id] || {}),
-                        quantity: resetValue
+                        quantity: restoreValue
                     }
                 };
                 return updated;
             });
         }
 
-        // Reset global reference too
-        GLOBAL_QUANTITIES[currentEditingVariant.id] = resetValue;
+        // Restore global reference too
+        GLOBAL_QUANTITIES[currentEditingVariant.id] = restoreValue;
 
-        // Close modal & reset input
-        setVariantQuantity("1");
+        // Close modal & restore input
+        setVariantQuantity(restoreValue.toString());
         setVariantsModal(false);
     };
 
@@ -2508,24 +2508,20 @@ export default function CreateLink() {
                         <TextField
                             label="Quantity"
                             value={variantQuantity}
-                            min={1}
                             type="number"
+                            min={1}
                             onChange={(value) => {
-                                let numberValue = parseInt(value) || 1;
-                                const available = currentEditingVariant?.available;
-                                if (typeof available === 'number' && available > 0 && numberValue > available) {
-                                    numberValue = available;
-                                }
-                                if (numberValue < 1) numberValue = 1;
-                                setVariantQuantity(numberValue.toString());
+                                // Just update state with raw string so user can type freely
+                                setVariantQuantity(value);
+
                                 if (currentEditingVariant && currentEditingVariant.id) {
-                                    GLOBAL_QUANTITIES[currentEditingVariant.id] = numberValue;
+                                    GLOBAL_QUANTITIES[currentEditingVariant.id] = parseInt(value) || 1;
                                 }
                             }}
                             autoComplete="off"
                             helpText={(() => {
                                 const available = currentEditingVariant?.available;
-                                if (typeof available === 'number' && available > 0) {
+                                if (typeof available === "number" && available > 0) {
                                     return `Set the quantity for this product variant (max: ${available})`;
                                 }
                                 return `Set the quantity for this product variant (no limit)`;
@@ -2534,18 +2530,20 @@ export default function CreateLink() {
                                 let value = parseInt(variantQuantity) || 1;
                                 const available = currentEditingVariant?.available;
                                 if (value < 1) value = 1;
-                                if (typeof available === 'number' && available > 0 && value > available) value = available;
+                                if (typeof available === "number" && available > 0 && value > available)
+                                    value = available;
                                 setVariantQuantity(value.toString());
                             }}
                             error={(() => {
                                 const available = currentEditingVariant?.available;
                                 const qty = parseInt(variantQuantity);
-                                if (typeof available === 'number' && available > 0 && qty > available) {
+                                if (typeof available === "number" && available > 0 && qty > available) {
                                     return `Cannot exceed available inventory (${available})`;
                                 }
                                 return undefined;
                             })()}
                         />
+
                     </BlockStack>
                 </Modal.Section>
             </Modal>

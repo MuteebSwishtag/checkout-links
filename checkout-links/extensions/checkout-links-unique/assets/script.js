@@ -594,12 +594,12 @@ document.addEventListener('DOMContentLoaded', function () {
             <div class="order-item" data-product-id="${product.id}" data-link-variant-id="${product.linkVariantId || ''}">
               <div class="item-img-wrap">
   <img
-    src="${product.image}" 
-    alt="${product.title}" 
-    onerror="this.onerror=null;this.src='data:image/svg+xml;charset=UTF-8,%3Csvg%20width%3D%2260%22%20height%3D%2260%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Crect%20fill%3D%22%23eee%22%20width%3D%2260%22%20height%3D%2260%22%2F%3E%3Ctext%20fill%3D%22%23999%22%20font-family%3D%22Arial%2CSans%22%20font-size%3D%2210%22%20dominant-baseline%3D%22middle%22%20text-anchor%3D%22middle%22%20x%3D%2230%22%20y%3D%2230%22%3ENo%20Image%3C%2Ftext%3E%3C%2Fsvg%3E';"
-    width="60"
-    height="60"
-  >
+  src="${product.image}" 
+  alt="${product.title}" 
+  onerror="this.onerror=null;this.src='data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2260%22 height=%2260%22 viewBox=%220 0 60 60%22%3E%3Crect x=%225%22 y=%225%22 width=%2250%22 height=%2250%22 rx=%2210%22 fill=%22%23f3f3f3%22 stroke=%22%23999%22 stroke-width=%222%22/%3E%3Ccircle cx=%2240%22 cy=%2216%22 r=%222%22 fill=%22%23999%22/%3E%3Cpath d=%22M18 42L28 32C29.5 30.5 32.5 30.5 34 32L39 37C40.5 39 43.5 39 45 37L48 34%22 stroke=%22%23999%22 stroke-width=%221.5%22 fill=%22none%22/%3E%3C/svg%3E';"
+  width="60"
+  height="60"
+/>
   <div class="item-qty">${product.quantity}</div>
 </div>
               <div class="item-details">
@@ -634,8 +634,8 @@ document.addEventListener('DOMContentLoaded', function () {
           </div>
           <div class="discount-info" style="font-size: 12px; color: #5c5c5c; margin-top: 5px;">
             ${window.checkoutConfig.discount.code && window.checkoutConfig.discount.code.startsWith('FREESHIP')
-        ? 'Free Shipping'
-        : `Includes ${window.checkoutConfig.discount.orderDiscount ? window.checkoutConfig.discount.value + '% OFF' : '$' + window.checkoutConfig.discount.value + ' OFF'}`}
+      ? 'Free Shipping'
+      : `Includes ${window.checkoutConfig.discount.orderDiscount ? window.checkoutConfig.discount.value + '% OFF' : '$' + window.checkoutConfig.discount.value + ' OFF'}`}
           </div>
         </div>
         ` : ''}
@@ -643,6 +643,20 @@ document.addEventListener('DOMContentLoaded', function () {
         <a href="${window.checkoutConfig.popupMessage?.close_button_link || '#'}" class="no-thanks">${window.checkoutConfig.popupMessage?.close_button_text || 'No thanks'}</a>
       </div>
     `;
+
+    // Helper to sanitize and validate URLs
+    function sanitizeAndValidateUrl(url) {
+      if (!url) return '';
+      // Remove unwanted backslashes
+      url = url.replace(/\\+/g, '');
+      // Basic validation
+      try {
+        new URL(url);
+        return url;
+      } catch (e) {
+        return '';
+      }
+    }
 
     // Locate the close button and ensure it opens in a new window
     function checkLinkExists(url, callback) {
@@ -655,7 +669,7 @@ document.addEventListener('DOMContentLoaded', function () {
       // Set timeout to avoid long waits
       request.timeout = 5000;
 
-    // Handle response
+      // Handle response
       request.onreadystatechange = function () {
         if (request.readyState === 4) {
           // Check if URL exists based on status code
@@ -687,36 +701,33 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // You can implement this with the "No thanks" button in your existing code:
     const noThanksBtn = document.querySelector('.no-thanks');
+
+    // Async function to check and redirect
+    async function checkAndRedirect(url) {
+      try {
+        // Try to fetch HEAD request (may fail for CORS, but we ignore errors)
+        await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+        // If no error, attempt redirect
+        window.location.href = url;
+      } catch {
+        // If unreachable, just close modal
+        closeModal();
+      }
+    }
+
     if (noThanksBtn) {
       noThanksBtn.addEventListener('click', function (e) {
         e.preventDefault();
-
-        const targetUrl = this.getAttribute('href');
-
-        // Only check external links
-        if (targetUrl && !targetUrl.startsWith('#') && !targetUrl.startsWith('javascript:')) {
-          // Show loading state
-          this.textContent = 'Checking link...';
-          this.style.opacity = '0.7';
-
-          checkLinkExists(targetUrl, (exists) => {
-            if (exists) {
-              // Link exists, proceed with navigation
-              window.open(targetUrl, '_blank');
-              closeModal();
-            } else {
-              // Link doesn't exist, show error message
-              alert('The link you are trying to access is not available.');
-              this.textContent = window.checkoutConfig.popupMessage?.close_button_text || 'No thanks';
-              this.style.opacity = '1';
-            }
-          });
+        let targetUrl = this.getAttribute('href');
+        if (targetUrl && targetUrl.trim() !== '') {
+          checkAndRedirect(targetUrl);
         } else {
-          // For internal links or # links, just close the modal
           closeModal();
         }
       });
     }
+
+    // Call your other listener setup if needed
     attachEventListeners();
   }
 
