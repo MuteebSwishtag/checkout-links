@@ -400,7 +400,7 @@ public function update(Request $request, $id)
             Log::info('Link data loaded for ID: ' . $id, ['link_data' => $link->toArray()]);
 
             // Track the link view (optional)
-            $link->increment('clicks');
+            // $link->increment('clicks');
 
             Log::info('Link data fetched successfully', ['link_data' => $link]);
 

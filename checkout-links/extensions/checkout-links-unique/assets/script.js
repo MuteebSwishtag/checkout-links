@@ -326,7 +326,7 @@ document.addEventListener('DOMContentLoaded', function () {
   function updateCheckoutConfig(linkData) {
     if (!window.checkoutConfig) return;
 
-    // Update products
+    // Get variants
     const variants = linkData.linked_variants || linkData.linkedVariants || [];
     const allVariants = [];
 
@@ -336,6 +336,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const mediaItem = item.variant.product?.media?.[0];
 
+        const tracked = !!item.variant.inventory_tracked;
+        const denyPolicy = item.variant.inventory_policy === "deny";
+        const available = item.variant.inventory_quantity || 0;
+
+        // 🚫 Skip products with 0 available stock if deny + tracked
+        if (tracked && denyPolicy && available <= 0) {
+          return;
+        }
+
+        let qty = item.quantity || 1;
+        if (tracked && denyPolicy && qty > available) {
+          qty = available; // cap to available
+        }
+
         allVariants.push({
           id: item.variant_id,
           linkVariantId: item.id,
@@ -343,11 +357,13 @@ document.addEventListener('DOMContentLoaded', function () {
           title: `${item.variant.product.title} - ${item.variant.title}`,
           price: item.price || item.variant.price || '0.00',
           image: mediaItem?.src || '',
-          quantity: item.quantity || 1 // Use the quantity from linked_variants or default to 1
+          quantity: qty,
+          inventoryQuantity: available,
         });
       });
     }
 
+    // Update products
     window.checkoutConfig.products = allVariants;
 
     // Update discount
@@ -365,6 +381,7 @@ document.addEventListener('DOMContentLoaded', function () {
       window.checkoutConfig.popupMessage = linkData.popup_message;
     }
   }
+
 
   // Initialize UI with fallback data
   function initializeUIWithFallbackData() {
@@ -392,7 +409,6 @@ document.addEventListener('DOMContentLoaded', function () {
           </div>
         `;
         modalContent.prepend(ngrokHelper);
-
         // Add event listener
         setTimeout(() => {
           const openNgrokBtn = document.getElementById('open-ngrok-btn');
@@ -404,19 +420,16 @@ document.addEventListener('DOMContentLoaded', function () {
         }, 100);
       }
     }
-
     // Make sure window.checkoutConfig.products exists but can be empty
     if (!window.checkoutConfig.products) {
       window.checkoutConfig.products = [];
     }
-
     updateModalContent();
   }
 
   // Initialize UI with fetched data
   function initializeUI() {
     updateModalContent();
-
     if (window.checkoutConfig.popupMessage?.countdown_active &&
       window.checkoutConfig.popupMessage.timer_text) {
       initializeCountdown(window.checkoutConfig.popupMessage.timer_text);
@@ -427,10 +440,8 @@ document.addEventListener('DOMContentLoaded', function () {
   function initializeCountdown(timerText) {
     const minutesMatch = timerText.match(/(\d+)\s*minute/i);
     if (!minutesMatch) return;
-
     const minutes = parseInt(minutesMatch[1]) || 1;
     let secondsRemaining = minutes * 60;
-
     let countdownEl = document.querySelector('.countdown-timer');
     if (!countdownEl) {
       countdownEl = document.createElement('div');
@@ -624,6 +635,7 @@ document.addEventListener('DOMContentLoaded', function () {
           <div class="discount-label">Discount ${window.checkoutConfig.discount.code ? `(${window.checkoutConfig.discount.code})` : ''}</div>
           <div class="discount-amount">-$${discountAmount.toFixed(2)}</div>
         </div>
+
         ` : ''}
         ${window.checkoutConfig.popupMessage?.show_order_total ? `
         <div class="order-total-row">
