@@ -175,6 +175,7 @@ const LinksIndex = () => {
     const [swalProps, setSwalProps] = useState({});
 
     const handleDelete = async (linkId) => {
+        toast.dismiss(); // Clear any existing toasts
         // Show confirmation dialog
         setSwalProps({
             show: true,
