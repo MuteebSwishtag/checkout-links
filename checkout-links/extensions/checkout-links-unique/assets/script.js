@@ -632,12 +632,16 @@ document.addEventListener('DOMContentLoaded', function () {
             <span class="total-currency">${currencyCode}</span>
             <span class="total-value">${total.toFixed(2)}</span>
           </div>
-          <div class="discount-info" style="font-size: 12px; color: #5c5c5c; margin-top: 5px;">
-            ${window.checkoutConfig.discount.code && window.checkoutConfig.discount.code.startsWith('FREESHIP')
-        ? 'Free Shipping'
-        : `Includes ${window.checkoutConfig.discount.orderDiscount ? window.checkoutConfig.discount.value + '% OFF' : '$' + window.checkoutConfig.discount.value + ' OFF'}`}
-          </div>
+          
         </div>
+        <div class="discount-info" style="font-size: 12px; color: #000; margin: 16px  0px; display: flex; align-items: center; gap: 5px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="flex-shrink: 0;">
+              <path d="M12.79 21L3 11.21V2H11.21L21 11.79L12.79 21ZM4 3V10.59L12.79 19.38L19.38 12.79L10.59 4H4ZM6.5 8C7.33 8 8 7.33 8 6.5S7.33 5 6.5 5 5 5.67 5 6.5 5.67 8 6.5 8Z" fill="currentColor"/>
+            </svg>
+            ${window.checkoutConfig.discount.code && window.checkoutConfig.discount.code.startsWith('FREESHIP')
+         ? 'Free Shipping'
+         : `Includes ${window.checkoutConfig.discount.orderDiscount ? window.checkoutConfig.discount.value + '% OFF' : '$' + window.checkoutConfig.discount.value + ' OFF'}`}
+          </div>
         ` : ''}
         <button class="confirm-btn">${window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm'}</button>
         <a href="${window.checkoutConfig.popupMessage?.close_button_link || '#'}" class="no-thanks">${window.checkoutConfig.popupMessage?.close_button_text || 'No thanks'}</a>
