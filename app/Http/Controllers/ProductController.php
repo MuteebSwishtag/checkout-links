@@ -36,25 +36,25 @@ class ProductController extends Controller
         // Filter variants and remove products with no variants left
         $filteredProducts = $products->filter(function ($product) {
             $filteredVariants = [];
-
             foreach ($product->variants as $variant) {
                 $policy = strtolower(trim($variant->inventory_policy));
                 $quantity = (int) $variant->inventory_quantity;
                 $tracked = (bool) ($variant->inventory_tracked ?? true);
 
+                // Always include if policy is "continue"
+                if ($policy === 'continue') {
+                    $filteredVariants[] = $variant;
+                    continue;
+                }
+                // Otherwise, only include if tracked is false OR (tracked is true AND policy is "deny" AND quantity > 0)
                 if (
                     !$tracked ||
-                    ($tracked && (
-                        $policy === 'continue' ||
-                        ($policy === 'deny' && $quantity > 0)
-                    ))
+                    ($tracked && $policy === 'deny' && $quantity > 0)
                 ) {
                     $filteredVariants[] = $variant;
                 }
             }
-
             $product->setRelation('variants', collect($filteredVariants)->values());
-
             return count($filteredVariants) > 0;
         });
 
