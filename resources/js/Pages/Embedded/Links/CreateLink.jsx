@@ -1491,12 +1491,7 @@ export default function CreateLink() {
             title='Create Link'
             backAction={{
                 content: 'Links',
-<<<<<<< HEAD
-                onAction: () => router.get(route('links', query))
-
-=======
                 onAction: () => router.visit(route('links', query))
->>>>>>> 298da717bdcee1074ddd949fb82e240379fc263d
             }}
             primaryAction={{
                 content: 'Save',
@@ -2141,7 +2136,7 @@ export default function CreateLink() {
                                                                     />
 
                                                                 </Box>
-                                                                    <Button variant="secondary" disabled={!discountData.orderDiscount}>Apply</Button>
+                                                                    <Button variant="secondary" disabled={!discountData.orderDiscount} >Apply</Button>
                                                                 </InlineStack>
                                                             <InlineStack align="space-between">
                                                                 <Text variant="headingXs" as="p">Subtotal • {selectedProductItems.length} item{selectedProductItems.length !== 1 ? 's' : ''}</Text>
@@ -2201,8 +2196,8 @@ export default function CreateLink() {
 
 
                                                             <InlineStack align="space-between">
-                                                                <Text color="subdued" variant="headingXs" as="p">Shipping</Text>
-                                                                <Text color="subdued" variant="headingXs" as="p">
+                                                                <Text tone="base" variant="headingXs" as="p">Shipping</Text>
+                                                                <Text tone="subdued" variant="bodyLg" as="p">
                                                                     {discountData.freeShipping ? 'Free' : 'Enter shipping address'}
                                                                 </Text>
                                                             </InlineStack>
@@ -2263,8 +2258,8 @@ export default function CreateLink() {
 
                                         {/* Popup Message Preview */}
                                         {popupMessageData.isActive && (
-                                            <Box background='bg-fill-disabled' padding={'400'} borderRadius='200' >
-                                                <Box background='' padding={'400'} borderRadius='200' border="base">
+                                            <Box background='' borderColor='border-disabled' borderWidth='025' padding={'400'} borderRadius='200' >
+                                                <Box background='' borderColor='' padding={'400'} borderRadius='200' border="base">
                                                     <BlockStack gap="400">
                                                         {/* Popup Header */}
                                                         <InlineStack align="center">
@@ -2274,7 +2269,7 @@ export default function CreateLink() {
                                                         {/* Message Text */}
                                                         {popupMessageData.messageText && (
                                                             <div style={{ textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '100%' }}>
-                                                                <Text variant="bodySm" tone="subdued" as="p">
+                                                                <Text variant="bodySm" tone="base" as="p">
                                                                     {popupMessageData.messageText}
                                                                 </Text>
                                                             </div>
@@ -2353,7 +2348,7 @@ export default function CreateLink() {
                                                                                         <InlineStack align='center' blockAlign='center' >
                                                                                             <Box maxWidth='120px'>
                                                                                                 <div title={product.title}>
-                                                                                                    <Text fontWeight="medium" textAlign='center' truncate>{product.title}</Text>
+                                                                                                    <Text fontWeight="medium" textAlign='center' tone='base' truncate>{product.title}</Text>
                                                                                                     {popupMessageData.showPrice && (
                                                                                                         <Text variant="bodyMd" color="subdued" style={{ display: 'flex', marginTop: 1 }}>
                                                                                                             ${product.price || '0.00'}
@@ -2422,14 +2417,14 @@ export default function CreateLink() {
 
                                                                 {/* Display discount information */}
                                                                 {(discountData.orderDiscount || discountData.discountCode) && (
-                                                                    <InlineStack align="end" gap="200">
+                                                                    <InlineStack align="start" gap="200">
                                                                         <Box>
                                                                             <Icon
                                                                                 source={ProductIcon}
-                                                                                tone="subdued"
+                                                                                tone="base"
                                                                             />
                                                                         </Box>
-                                                                        <Text variant="bodySm" tone="subdued">
+                                                                        <Text variant="bodySm" tone="base">
                                                                             ${discountData.discountValue}% OFF ORDER
                                                                         </Text>
                                                                     </InlineStack>
@@ -2443,8 +2438,10 @@ export default function CreateLink() {
                                                                 {popupMessageData.checkoutButtonText}
                                                             </Button>
                                                             <InlineStack align="center">
-                                                                <Button variant="plain">
-                                                                    {popupMessageData.closeButtonText}
+                                                                <Button variant='plain'>
+                                                                    <Text tone='subdued'>
+                                                                        {popupMessageData.closeButtonText}
+                                                                    </Text>
                                                                 </Button>
                                                             </InlineStack>
                                                         </BlockStack>

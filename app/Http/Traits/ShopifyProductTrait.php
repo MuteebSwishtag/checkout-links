@@ -200,6 +200,7 @@ QUERY;
     }
     public function transformShopifyProductData($data): array
     {
+        // dd($data);
         $node = $data->node;
         $productVariants = [];
         if (!empty($node->variants->edges)) {
@@ -240,7 +241,7 @@ QUERY;
             // 'product_type' => $node->productType,
             'title' => $node->title,
             'vendor' => $node->vendor,
-            'published' => isset($node->publishedAt) && $node->publishedAt !== null ? 'web' : 'not_published',
+            'published_at' => $node->publishedAt ?? null,
             'status' => strtolower($node->status),
             // 'tags' => $this->arrayToString($node->tags),
             'variants' => $productVariants,
@@ -288,7 +289,6 @@ QUERY;
 
         // Use the user's API to make the GraphQL request
         $result = $this->arrayToObject($user->api()->graph($query));
-
         if (!isset($result->errors)) {
             return $result->body->data->inventoryItem ?? null;
         }

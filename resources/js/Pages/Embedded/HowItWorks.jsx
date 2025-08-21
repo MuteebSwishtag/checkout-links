@@ -20,19 +20,14 @@ export default function HowItWorks() {
     };
 
     return (
-        <Page>
-            <div style={{
-                maxWidth: '1200px',
-                margin: '0 auto',
-                padding: '2rem',
-                fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-            }}>
-                {/* Header */}
-                <div style={{
+        <Page title="How it works" primaryAction={{ content: 'Create a new link', onAction: handleCreateNewLink }}>
+
+            {/* Header */}
+            {/* <div style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    marginBottom: '3rem'
+                    marginBottom: '0.4rem'
                 }}>
                     <Text variant="heading2xl" as="h1" fontWeight="bold">
                         How it works
@@ -44,16 +39,14 @@ export default function HowItWorks() {
                     >
                         Create a new link
                     </Button>
-                </div>
+                </div> */}
 
-                {/* Video Section */}
+            {/* Video Section */}
+            <BlockStack gap="400">
                 <Card>
-
-
                     <div style={{
                         position: 'relative',
-                        paddingBottom: '56.25%', // 16:9 aspect ratio
-                        height: 0,
+                        paddingBottom: '56.25%',
                         overflow: 'hidden',
                         borderRadius: '12px',
                         backgroundColor: '#f6f6f7'
@@ -73,107 +66,103 @@ export default function HowItWorks() {
                             allowFullScreen
                         />
                     </div>
+                    <Box paddingBlockEnd='300' paddingBlockStart='300'>
+
+                        <Text variant='headingMd' as='h4'>Creating a checkout link</Text>
+                    </Box>
+
 
                 </Card>
 
-                {/* Feature Sections */}
-                <div style={{ marginTop: '3rem' }}>
-                    <BlockStack gap="600">
-                        {/* First Feature */}
-                        <Card padding={'0'}>
 
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: '1fr 1fr',
+                <Card padding={'0'}>
 
-                                alignItems: 'center',
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
 
-                            }}>
-                                <div className='flex justify-center p-12 flex-col '>
-                                    <Text variant="headingXl" as="h3" fontWeight="bold">
-                                        Turn your ads into instant checkout experiences
-                                    </Text>
-                                    <div style={{ marginTop: '1rem' }}>
-                                        <Text variant="bodyLg" color="subdued">
-                                            Cut the distractions. Your ads, emails, social
-                                            posts and other marketing campaigns become.
-                                            instant checkout links.
-                                        </Text>
-                                    </div>
-                                    <div style={{ marginTop: '10px' }}>
-                                        <Button variant="secondary" onClick={handleCreateNewLink}>
-                                            Create a link
-                                        </Button>
-                                    </div>
-                                </div>
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center'
-                                }}>
+                        alignItems: 'center',
 
-                                    {/* Mobile mockup */}
-                                    <img src={Image1} className='object-cover' alt="" />
-
-                                </div>
-                            </div>
-
-                        </Card>
-
-                        {/* Second Feature */}
-                        <Card padding={'0'}>
-
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: '1fr 1fr',
-                                gap: '3rem',
-                                alignItems: 'center'
-                            }}>
-                                <div style={{
-                                    display: 'flex',
-                                    justifyContent: 'center',
-                                    alignItems: 'center'
-                                }}>
-                                    <img src={Image2} alt="" />
-                                </div>
-                                <div className='p-8'>
-                                    <Text variant="headingXl" as="h3" fontWeight="bold">
-                                        The better way to send draft orders
-                                    </Text>
-                                    <div style={{ marginTop: '1rem' }}>
-                                        <Text variant="bodyLg" color="subdued">
-                                            Activate a popup message that allows customer
-                                            to view a summary of their order. Allow them to
-                                            make any edits to the items before proceeding,
-                                        </Text>
-                                    </div>
-                                    <div style={{ marginTop: '10px' }}>
-                                        <Button variant="secondary" onClick={handleCreateNewLink}>
-                                            Create a link
-                                        </Button>
-                                    </div>
-                                </div>
-                            </div>
-
-                        </Card>
-                    </BlockStack>
-                </div>
-
-                {/* Footer Section */}
-                <div style={{ marginTop: '4rem' }}>
-               
-                       
-                            <Text variant="bodyMd" tone="subdued" alignment='center'>
-                                Need any help or best practices? Just{' '}
-                                <Button variant="plain" textDecorationLine="underline">
-                                    reach out
-                                </Button>
-                                {' '}and we're happy to help.
+                    }}>
+                        <div className='flex justify-center p-12 flex-col '>
+                            <Text variant="headingLg" as="h4" fontWeight="bold">
+                                Turn your ads into instant checkout experiences
                             </Text>
-                 
-                
-                </div>
-            </div>
+                            <div style={{ marginTop: '0.6rem' }}>
+                                <Text variant="bodyLg" as='p' tone="base">
+                                    Cut the distractions. Your ads, emails, social
+                                    posts and other marketing campaigns become.
+                                    instant checkout links.
+                                </Text>
+                            </div>
+                            <div style={{ marginTop: '10px' }}>
+                                <Button variant="secondary" onClick={handleCreateNewLink}>
+                                    Create a link
+                                </Button>
+                            </div>
+                        </div>
+                        <div>
+
+
+                            <img src={Image1} className='object-cover' alt="" />
+
+                        </div>
+                    </div>
+
+                </Card>
+
+                {/* Second Feature */}
+                <Card padding={'0'}>
+
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: '1fr 1fr',
+                        gap: '3rem',
+                        alignItems: 'center'
+                    }}>
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'center',
+                            alignItems: 'center'
+                        }}>
+                            <img src={Image2} alt="" />
+                        </div>
+                        <div className='p-8'>
+                            <Text variant="headingLg" as="h4" fontWeight="bold">
+                                The better way to send draft orders
+                            </Text>
+                            <div style={{ marginTop: '0.6rem' }}>
+                                <Text variant="bodyLg" tone="base">
+                                    Activate a popup message that allows customer
+                                    to view a summary of their order. Allow them to
+                                    make any edits to the items before proceeding,
+                                </Text>
+                            </div>
+                            <div style={{ marginTop: '10px' }}>
+                                <Button variant="secondary" onClick={handleCreateNewLink}>
+                                    Create a link
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+                </Card>
+
+                <Box>
+                    <Text variant="bodyMd" tone="subdued" alignment='center'>
+                        Need any help or best practices? Just{' '}
+                        <Button variant="plain" textDecorationLine="underline">
+                            reach out
+                        </Button>
+                        {' '}and we're happy to help.
+                    </Text>
+
+                </Box>
+            </BlockStack>
+
+
+
+
         </Page>
     );
 }

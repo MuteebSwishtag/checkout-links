@@ -10,7 +10,7 @@ import {
 } from '@shopify/polaris';
 import { useCallback, useEffect, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
-import { CartIcon, LogoMetaIcon, SandboxIcon, ChevronRightIcon } from '@shopify/polaris-icons';
+import { CartIcon, LogoMetaIcon, SandboxIcon, ChevronRightIcon, ChartFunnelIcon, EmailIcon, EmailFollowUpIcon, QuestionCircleIcon } from '@shopify/polaris-icons';
 import bundle from '@/Pages/Images/Bundlo.png';
 import progressify from '@/Pages/Images/Progressify.png'
 
@@ -36,7 +36,7 @@ export default function Dashboard() {
             description: 'Create instant sales funnels with no code'
         },
         {
-            icon: SandboxIcon,
+            icon: ChartFunnelIcon,
             title: 'Plug & play funnel links',
             description: 'Use checkout links across quizzes and pages'
         }
@@ -257,7 +257,7 @@ export default function Dashboard() {
                                 Welcome James 👋
                             </Text>
                             <Box paddingBlockStart="200">
-                                <Text variant="bodyMd" tone="subdued">
+                                <Text variant="bodyMd" tone="base">
                                     Create your first checkout link in seconds. Here are 3 ways you can use your link.
                                 </Text>
                             </Box>
@@ -347,8 +347,8 @@ export default function Dashboard() {
                                     <Text variant="headingMd" as="h3">
                                         How it works
                                     </Text>
-                                    <Box paddingBlockStart="300">
-                                        <Text variant="bodyMd" tone="subdued">
+                                    <Box paddingBlockStart="100" maxWidth='100'>
+                                        <Text variant="bodyMd" tone="base">
                                             Get the most out of checkout links by following these simple steps.
                                         </Text>
                                     </Box>
@@ -369,18 +369,18 @@ export default function Dashboard() {
                                     </Text>
                                     <Box paddingBlockStart="300">
                                         <Box paddingBlockEnd="200">
-                                            <Button variant="plain" textAlign="left" fullWidth>
-                                                💬 Start a live chat
+                                            <Button variant="plain" textAlign="left" icon={<Icon source={EmailFollowUpIcon} tone="base" />} fullWidth>
+                                                 Start a live chat
                                             </Button>
                                         </Box>
                                         <Box paddingBlockEnd="200">
-                                            <Button variant="plain" textAlign="left" fullWidth>
-                                                ✉️ Send us an email
+                                            <Button variant="plain" textAlign="left"  icon={<Icon source={ EmailIcon} tone="base" />} fullWidth>
+                                                 Send us an email
                                             </Button>
                                         </Box>
                                         <Box>
-                                            <Button variant="plain" textAlign="left" fullWidth>
-                                                ❓ See our FAQs
+                                            <Button variant="plain" textAlign="left" icon={<Icon source={QuestionCircleIcon} tone="base" />} fullWidth>
+                                                 See our FAQs
                                             </Button>
                                         </Box>
                                     </Box>

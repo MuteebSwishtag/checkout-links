@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Page,
     Card,
@@ -11,16 +11,21 @@ import {
     ColorPicker,
     Popover,
 } from '@shopify/polaris';
+import { useAppBridge } from '@shopify/app-bridge-react';
+import { SaveBar } from '@shopify/app-bridge-react';
 
 export default function Settings() {
+
+    const shopify = useAppBridge();
+
+
     const [appVersion, setAppVersion] = useState('version 1.0');
-    const [brandColor, setBrandColor] = useState({
-        hue: 0,
-        brightness: 1,
-        saturation: 0,
-    });
+    const [brandColor, setBrandColor] = useState({ hue: 120, brightness: 1, saturation: 1 });
+    const [initialBrandColor, setInitialBrandColor] = useState({ hue: 120, brightness: 1, saturation: 1 });
     const [customCSS, setCustomCSS] = useState('');
+    const [initialCustomCSS, setInitialCustomCSS] = useState('');
     const [colorPickerActive, setColorPickerActive] = useState(false);
+    const [isDirty, setIsDirty] = useState(false);
 
     const toggleColorPicker = () => setColorPickerActive(!colorPickerActive);
 
@@ -29,11 +34,11 @@ export default function Settings() {
         const h = hsb.hue;
         const s = hsb.saturation;
         const b = hsb.brightness;
-        
+
         const c = b * s;
         const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
         const m = b - c;
-        
+
         let r, g, blue;
         if (h >= 0 && h < 60) {
             r = c; g = x; blue = 0;
@@ -48,88 +53,107 @@ export default function Settings() {
         } else {
             r = c; g = 0; blue = x;
         }
-        
+
         r = Math.round((r + m) * 255);
         g = Math.round((g + m) * 255);
         blue = Math.round((blue + m) * 255);
-        
+
         return `#${((1 << 24) + (r << 16) + (g << 8) + blue).toString(16).slice(1)}`;
     };
 
     const hexColor = hsbToHex(brandColor);
 
-    return (
-        <Page>
-            <div style={{ 
-                maxWidth: '800px', 
-                margin: '0 auto',
-                padding: '2rem'
-            }}>
-                <Text variant="headingXl" as="h1" fontWeight="bold">
-                    Settings
-                </Text>
-                
-                <div style={{ marginTop: '2rem' }}>
-                    <Card>
-                        <div style={{ padding: '2rem' }}>
-                            <BlockStack gap="600">
-                                {/* App version */}
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: '200px 1fr',
-                                    gap: '2rem',
-                                    alignItems: 'center'
-                                }}>
-                                    <Text variant="bodyLg" as="h3">
-                                        App version
-                                    </Text>
-                                    <TextField
-                                        value={appVersion}
-                                        onChange={setAppVersion}
-                                        autoComplete="off"
-                                        labelHidden
-                                        disabled
-                                        readOnly
-                                    />
-                                </div>
+    // Check if any changes were made and show/hide save bar
+    useEffect(() => {
+        const hasColorChanged = JSON.stringify(brandColor) !== JSON.stringify(initialBrandColor);
+        const hasCssChanged = customCSS !== initialCustomCSS;
+        setIsDirty(hasColorChanged || hasCssChanged);
 
-                                {/* Brand color */}
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: '200px 1fr',
-                                    gap: '2rem',
-                                    alignItems: 'center'
-                                }}>
-                                    <Text variant="bodyLg" as="h3">
-                                        Brand color
-                                    </Text>
+        if (hasColorChanged || hasCssChanged) {
+            shopify.saveBar.show("my-save-bar");
+        } else {
+            shopify.saveBar.hide("my-save-bar");
+        }
+    }, [brandColor, customCSS, initialBrandColor, initialCustomCSS, shopify.saveBar]);
+
+    const handleSave = () => {
+        setInitialBrandColor({ ...brandColor });
+        setInitialCustomCSS(customCSS);
+        // setIsDirty(false);
+        shopify.saveBar.hide("my-save-bar");
+    };
+
+    const handleDiscard = () => {
+      
+        setBrandColor({ ...initialBrandColor });
+        setCustomCSS(initialCustomCSS);
+        // setIsDirty(false);
+        shopify.saveBar.hide("my-save-bar");
+
+    };
+
+
+    return (
+        <Page title="Settings">
+            <div style={{ marginTop: '2rem' }}>
+
+                <div style={{ padding: '2rem' }}>
+                    <BlockStack gap="600">
+
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '200px 1fr',
+                            gap: '2rem',
+                            alignItems: 'center'
+                        }}>
+                            <Text variant="headingMd" as="h4">
+                                App version
+                            </Text>
+
+                            <Card>
+                                <Text variant='headingMd' as='h5'>{appVersion}</Text>
+                            </Card>
+                        </div>
+
+                        {/* Brand color */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '200px 1fr',
+                            gap: '2rem',
+                            alignItems: 'center',
+
+                        }}>
+
+                            <Text variant="headingMd" as="h4">
+                                Brand color
+                            </Text>
+
+
+
+                            <Card>
+                                <InlineStack gap='300'>
                                     <Popover
                                         active={colorPickerActive}
                                         activator={
                                             <Button
                                                 onClick={toggleColorPicker}
-                                                variant="secondary"
-                                                fullWidth
+                                                variant="plain"
+
                                                 textAlign="left"
+
                                             >
                                                 <InlineStack gap="300" align="start" blockAlign="center">
                                                     <div
                                                         style={{
-                                                            width: '20px',
-                                                            height: '20px',
+                                                            width: '30px',
+                                                            height: '30px',
                                                             backgroundColor: hexColor,
+                                                            border: '1px dotted #000000',
                                                             borderRadius: '50%',
-                                                            border: '1px solid #e1e5e9',
+
                                                         }}
                                                     />
-                                                    <BlockStack gap="025">
-                                                        <Text variant="bodyMd" fontWeight="medium">
-                                                            Brand color
-                                                        </Text>
-                                                        <Text variant="bodySm" tone="subdued">
-                                                            Accent color for button backgrounds
-                                                        </Text>
-                                                    </BlockStack>
+
                                                 </InlineStack>
                                             </Button>
                                         }
@@ -143,37 +167,68 @@ export default function Settings() {
                                             />
                                         </Box>
                                     </Popover>
-                                </div>
 
-                                {/* Custom CSS */}
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: '200px 1fr',
-                                    gap: '2rem',
-                                    alignItems: 'start'
-                                }}>
-                                    <div>
-                                        <Text variant="bodyLg" as="h3">
-                                            Custom CSS
-                                        </Text>
-                                        <Text variant="bodyMd" tone="subdued">
-                                            Apply custom styles to further modify
-                                        </Text>
-                                    </div>
-                                    <TextField
-                                        value={customCSS}
-                                        onChange={setCustomCSS}
-                                        multiline={6}
-                                        autoComplete="off"
-                                        placeholder="Custom CSS"
-                                        labelHidden
-                                    />
-                                </div>
-                            </BlockStack>
+
+                                    <Box>
+                                        <BlockStack gap="025">
+                                            <Text variant="bodyMd" fontWeight="medium">
+                                                Brand color
+                                            </Text>
+                                            <Text variant="bodySm" tone="subdued">
+                                                Accent color for button backgrounds
+                                            </Text>
+                                        </BlockStack>
+                                    </Box>
+
+                                </InlineStack>
+                            </Card>
+
                         </div>
-                    </Card>
+
+                        {/* Custom CSS */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '200px 1fr',
+                            gap: '2rem',
+                            alignItems: 'start'
+                        }}>
+                            <div>
+                                <Text variant="headingMd" as="h4">
+                                    Custom CSS
+                                </Text>
+                                <Text variant="bodyMd" tone="subdued">
+                                    Apply custom styles to further modify
+                                </Text>
+                            </div>
+
+                            <Card>
+
+                                <Box paddingBlockEnd='200'>
+                                    <Text>Custom Css</Text>
+                                </Box>
+                                <TextField
+                                    value={customCSS}
+                                    onChange={setCustomCSS}
+                                    multiline={6}
+                                    autoComplete="off"
+
+                                    labelHidden
+                                />
+                            </Card>
+
+                        </div>
+                    </BlockStack>
                 </div>
+
             </div>
+
+
+
+            <SaveBar id="my-save-bar">
+                <button variant="primary" onClick={handleSave}></button>
+                <button onClick={handleDiscard}></button>
+            </SaveBar>
+
         </Page>
     );
 }
