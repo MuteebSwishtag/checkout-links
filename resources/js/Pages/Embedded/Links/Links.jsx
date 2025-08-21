@@ -174,9 +174,10 @@ const LinksIndex = () => {
 
     const [swalProps, setSwalProps] = useState({});
 
+
+    // Clear any existing toasts
     const handleDelete = async (linkId) => {
         toast.dismiss(); // Clear any existing toasts
-        // Show confirmation dialog
         setSwalProps({
             show: true,
             title: 'Are you sure?',
@@ -188,43 +189,32 @@ const LinksIndex = () => {
             reverseButtons: true,
             onConfirm: async () => {
                 try {
-                    await toast.promise(
-                        (async () => {
-                            const response = await fetch(route('links.delete', { ...query, id: linkId }), {
-                                method: 'DELETE',
-                                headers: {
-                                    'X-Requested-With': 'XMLHttpRequest',
-                                    'Accept': 'application/json',
-                                    'Content-Type': 'application/json',
-                                },
-                            });
+                    const response = await fetch(route('links.delete', { ...query, id: linkId }), {
+                        method: 'DELETE',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                        },
+                    });
 
-                            const result = await response.json();
+                    const result = await response.json();
 
-                            if (!response.ok || !result.success) {
-                                throw new Error(result.message || 'Unexpected error.');
-                            }
+                    if (!response.ok || !result.success) {
+                        toast.error(result.message || 'Failed to delete the link. Please try again.');
+                        throw new Error(result.message || 'Unexpected error.');
+                    }
 
-                            await fetchLinks(); // Refresh the list
-                            return result.message || 'Link deleted successfully.';
-                        })(),
-                        {
-                            loading: 'Deleting link...',
-                            success: (msg) => msg,
-                            error: (err) => err.message || 'Failed to delete the link. Please try again.',
-                        }
-                    );
+                    await fetchLinks(); // Refresh the list
+                    toast.success(result.message || 'Link deleted successfully.');
                 } catch (error) {
                     console.error('Error in handleDelete:', error);
                 }
-                // Reset swalProps to hide the dialog after confirmation
                 setSwalProps({});
             },
-            // Add onCancel to reset the dialog when canceled
             onCancel: () => {
                 setSwalProps({});
             },
-            // Add onClose to handle clicking outside or pressing ESC
             onClose: () => {
                 setSwalProps({});
             }
