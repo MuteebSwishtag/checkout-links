@@ -397,7 +397,7 @@ export default function Dashboard() {
                     <Card sectioned>
                         <Box>
                             <InlineStack align="space-between" blockAlign="start">
-                                <Text variant="headingLg" as="h2">
+                                <Text variant="headingMd" as="h4">
                                     Level up your store in 3 simple steps
                                 </Text>
                                 <Button variant="plain" icon="X" accessibilityLabel="Close">

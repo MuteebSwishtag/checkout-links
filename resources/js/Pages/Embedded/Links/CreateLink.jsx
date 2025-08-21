@@ -1576,7 +1576,7 @@ export default function CreateLink() {
                     <div style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem', marginBottom: '20px' }}>
                         <BlockStack gap="300">
                             <Card>
-                                <BlockStack gap="400" padding="400">
+                                <BlockStack gap="300" padding="400">
                                     <Text variant="bodyMd">Link Name</Text>
                                     <TextField
                                         label=""
@@ -1601,29 +1601,31 @@ export default function CreateLink() {
 
 
                             {/* Products Card */}
-                            <Card>
+                            <Card padding={'0'}  >
                                 <BlockStack gap="400">
-                                    <InlineStack align="space-between" padding="400">
-                                        <InlineStack align="center" gap='050'>
-                                            <Box>
-                                                <Icon source={ProductAddIcon} tone="base" />
-                                            </Box>
-                                            <Text variant="bodyMd" fontWeight='bold'> Products</Text>
+                                    <Box background='bg' padding={'300'}>
+                                        <InlineStack align="space-between" padding="400">
+                                            <InlineStack align="center" gap='050'>
+                                                <Box>
+                                                    <Icon source={ProductAddIcon} tone="base" />
+                                                </Box>
+                                                <Text variant="bodyMd" fontWeight='bold'> Products</Text>
+                                            </InlineStack>
+                                            <Button
+                                                onClick={handleProductsToggle}
+                                                ariaExpanded={productsOpen}
+                                                ariaControls="products-content"
+                                                variant='plain'
+                                                tone='base'
+                                                icon={productsOpen ? ChevronUpIcon : ChevronDownIcon}
+                                            />
                                         </InlineStack>
-                                        <Button
-                                            onClick={handleProductsToggle}
-                                            ariaExpanded={productsOpen}
-                                            ariaControls="products-content"
-                                            plain
-                                            icon={productsOpen ? ChevronUpIcon : ChevronDownIcon}
-                                        />
-                                    </InlineStack>
-
+                                    </Box>
                                     {/* Show product selection error if any */}
 
 
                                     <Collapsible open={productsOpen} id="products-content">
-                                        <Box>
+                                        <Box padding={'300'}>
                                             <BlockStack gap="400">
                                                 <InlineStack align="space-between" gap="400" >
                                                     <div style={{ flexGrow: 1 }}>
@@ -1846,10 +1848,11 @@ export default function CreateLink() {
                                         </Box>
                                     )}
                                 </BlockStack>
-                            </Card>
+                                    
                             {/* Discounts Card */}
-                            <Card>
+                                    
                                 <BlockStack gap="400">
+                                         <Box background='bg' padding={'300'}>
                                     <InlineStack align="space-between" padding="400">
                                         <InlineStack align="center" gap='050'>
                                             <Box>
@@ -1861,12 +1864,14 @@ export default function CreateLink() {
                                             onClick={handleDiscountsToggle}
                                             ariaExpanded={discountsOpen}
                                             ariaControls="discounts-content"
-                                            plain
+                                            variant='plain'
+                                            tone='base'
                                             icon={discountsOpen ? ChevronUpIcon : ChevronDownIcon}
                                         />
                                     </InlineStack>
+                               </Box>
                                     <Collapsible open={discountsOpen} id="discounts-content">
-                                        <Box>
+                                        <Box padding={'300'}>
                                             <Discount
                                                 discountData={discountData}
                                                 errors={{
@@ -1882,11 +1887,12 @@ export default function CreateLink() {
                                         </Box>
                                     </Collapsible>
                                 </BlockStack>
-                            </Card>
+                            
                             {/* Popup Message Card */}
                             {/* card  margin  bottom */}
-                            <Card>
+                                                
                                 <BlockStack gap="400">
+                                     <Box background='bg' padding={'300'}>
                                     <InlineStack align="space-between" padding="400">
                                         <InlineStack align="center" gap='050'>
                                             <Box>
@@ -1898,12 +1904,14 @@ export default function CreateLink() {
                                             onClick={handlePopupMessageToggle}
                                             ariaExpanded={popupMessageOpen}
                                             ariaControls="popup-message-content"
-                                            plain
+                                            variant='plain'
+                                            tone='base'
                                             icon={popupMessageOpen ? ChevronUpIcon : ChevronDownIcon}
                                         />
                                     </InlineStack>
+                                    </Box>
                                     <Collapsible open={popupMessageOpen} id="popup-message-content">
-                                        <Box>
+                                        <Box padding={'300'}>
                                             <PopupMessage
                                                 popupMessageData={popupMessageData}
                                                 errors={errors.popupMessage}
@@ -1956,7 +1964,7 @@ export default function CreateLink() {
                                                 <div style={{ marginTop: "2px" }}>
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
-                                                <Text as="span" tone="subdued">Free shipping applied</Text>
+                                                <Text as="span" tone="base">Free shipping applied</Text>
                                             </InlineStack>
                                         }
 
@@ -1965,7 +1973,7 @@ export default function CreateLink() {
                                                 <div style={{ marginTop: "2px" }}>
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
-                                                <Text as="span" tone="subdued" > Order Discount: {discountData.discountValue}% Off</Text>
+                                                <Text as="span" tone="base" > Order Discount: {discountData.discountValue}% Off</Text>
                                             </InlineStack>
                                         }
 
@@ -1974,7 +1982,7 @@ export default function CreateLink() {
                                                 <div style={{ marginTop: "2px" }}>
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
-                                                <Text as="span" tone="subdued">Discount code: {discountData.discountCodeValue}</Text>
+                                                <Text as="span" tone="base">Discount code: {discountData.discountCodeValue}</Text>
                                             </InlineStack>
                                         }
                                         {popupMessageData.isActive &&
@@ -1989,7 +1997,7 @@ export default function CreateLink() {
                                                 </Box>
                                             </InlineStack>
                                         }
-                                        <InlineStack gap="500" justifyContent>
+                                        <InlineStack gap="300" justifyContent>
                                             <TextField
                                                 id="link-url-field"
                                                 value={fullUrl || (linkId ? `${shop}/checkout/${linkId}` : "")}
@@ -2049,9 +2057,9 @@ export default function CreateLink() {
                                                         <BlockStack gap="400">
 
                                                             <div style={{
-                                                                    maxHeight: selectedProductItems.length > 2 ? '160px' : 'auto',
-                                                                    overflowY: selectedProductItems.length > 2 ? 'auto' : 'visible',
-                                                                    paddingRight: selectedProductItems.length > 2 ? '8px' : '0'
+                                                                maxHeight: selectedProductItems.length > 2 ? '160px' : 'auto',
+                                                                overflowY: selectedProductItems.length > 2 ? 'auto' : 'visible',
+                                                                paddingRight: selectedProductItems.length > 2 ? '8px' : '0'
                                                             }}>
                                                                 <BlockStack gap="400">
                                                                     {selectedProductItems.map((product, index) => (
@@ -2128,16 +2136,16 @@ export default function CreateLink() {
                                                                     <TextField
                                                                         placeholder="Gift card"
                                                                         autoComplete="off"
-                                                                            value={discountData.orderDiscount ? discountData.discountValue : ''}
-                                                                            disabled={discountData.orderDiscount == 0}
+                                                                        value={discountData.orderDiscount ? discountData.discountValue : ''}
+                                                                        disabled={discountData.orderDiscount == 0}
                                                                     // connectedRight={
                                                                     //     <Button variant="secondary">Apply</Button>
                                                                     // }
                                                                     />
 
                                                                 </Box>
-                                                                    <Button variant="secondary" disabled={!discountData.orderDiscount} >Apply</Button>
-                                                                </InlineStack>
+                                                                <Button variant="secondary" disabled={!discountData.orderDiscount} >Apply</Button>
+                                                            </InlineStack>
                                                             <InlineStack align="space-between">
                                                                 <Text variant="headingXs" as="p">Subtotal • {selectedProductItems.length} item{selectedProductItems.length !== 1 ? 's' : ''}</Text>
                                                                 <Text fontWeight="medium">
@@ -2180,7 +2188,7 @@ export default function CreateLink() {
                                                                                 const quantity = parseInt(product.quantity || 1);
                                                                                 return total + (price * quantity);
                                                                             }, 0);
-                                                                                const discount = subtotal * (parseFloat(discountData.discountValue || 0) / 100);
+                                                                            const discount = subtotal * (parseFloat(discountData.discountValue || 0) / 100);
                                                                             return `- $${discount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                                                                         })()}
                                                                     </Text>
@@ -2203,9 +2211,9 @@ export default function CreateLink() {
                                                             </InlineStack>
 
 
-                                                                <Box paddingBlock="300">
-                                                                    <div style={{ borderTop: '1px solid var(--p-border-subdued)' }}></div>
-                                                                </Box>
+                                                            <Box paddingBlock="300">
+                                                                <div style={{ borderTop: '1px solid var(--p-border-subdued)' }}></div>
+                                                            </Box>
 
                                                             <InlineStack align="space-between">
                                                                 <Text variant="headingLg" fontWeight="bold">Total</Text>
@@ -2220,10 +2228,10 @@ export default function CreateLink() {
                                                                             }, 0);
                                                                             let discount = 0;
 
-                                                                                discount = subtotal * (parseFloat(discountData.discountValue || 0) / 100);
+                                                                            discount = subtotal * (parseFloat(discountData.discountValue || 0) / 100);
 
                                                                             // Free shipping doesn't affect the product total, only shipping cost
-                                                                                return `${(subtotal - discount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                                                                            return `${(subtotal - discount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
                                                                         })()}
                                                                     </Text>
                                                                 </InlineStack>
@@ -2232,7 +2240,7 @@ export default function CreateLink() {
                                                             {discountData.orderDiscount && discountData.discountValue != '' && (
                                                                 <InlineStack align="start" gap="050" >
                                                                     <Box>
-                                                                            <Icon source={ProductListIcon} tone="base" />
+                                                                        <Icon source={ProductListIcon} tone="base" />
 
                                                                     </Box>
                                                                     <Text fontWeight="bold" tone="050" variant="bodyMd">
@@ -2638,95 +2646,95 @@ export default function CreateLink() {
                                 </EmptyState>
                             ) : (
                                 <>
-                                        {productData.map(product => {
-                                            const allVariantIds = product.variants.map(v => v.id);
-                                            const selectedIds = selectedProductItems.map(item => item.id);
+                                    {productData.map(product => {
+                                        const allVariantIds = product.variants.map(v => v.id);
+                                        const selectedIds = selectedProductItems.map(item => item.id);
 
-                                            const productChecked = product.variants.length === 0
-                                                ? selectedIds.includes(product.id)
-                                                : allVariantIds.every(id => selectedIds.includes(id)) && allVariantIds.length > 0;
+                                        const productChecked = product.variants.length === 0
+                                            ? selectedIds.includes(product.id)
+                                            : allVariantIds.every(id => selectedIds.includes(id)) && allVariantIds.length > 0;
 
-                                            const productIndeterminate = product.variants.length > 0
-                                                && allVariantIds.some(id => selectedIds.includes(id))
-                                                && !allVariantIds.every(id => selectedIds.includes(id));
+                                        const productIndeterminate = product.variants.length > 0
+                                            && allVariantIds.some(id => selectedIds.includes(id))
+                                            && !allVariantIds.every(id => selectedIds.includes(id));
 
-                                            return (
-                                                <div key={product.id} style={{ borderBottom: '1px solid #eee', padding: '12px 0' }}>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                                        <Checkbox
-                                                            label=""
-                                                            checked={productChecked}
-                                                            indeterminate={productIndeterminate}
-                                                            onChange={checked =>
-                                                                handleProductOrVariantCheck(product.id, checked, true, product)
-                                                            }
-                                                        />
-                                                        {product.image ? (
-                                                            <Thumbnail source={product.image} alt={product.title} size="small" />
-                                                        ) : (
-                                                            <Thumbnail source={ImageIcon} size="small" alt={product.title} />
-                                                        )}
-                                                        <div style={{ flex: 1 }}>
-                                                            <Text fontWeight="medium" as="span">
-                                                                {truncate(product.title, { length: 20 })}
-                                                            </Text>
-                                                            <span style={{ marginLeft: 8, color: '#888' }}>
-                                                                {product.variants.length === 0 && ` • $${product.price}`}
-                                                            </span>
-                                                            {/* <span style={{ marginLeft: 8, color: '#888' }}>
+                                        return (
+                                            <div key={product.id} style={{ borderBottom: '1px solid #eee', padding: '12px 0' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                    <Checkbox
+                                                        label=""
+                                                        checked={productChecked}
+                                                        indeterminate={productIndeterminate}
+                                                        onChange={checked =>
+                                                            handleProductOrVariantCheck(product.id, checked, true, product)
+                                                        }
+                                                    />
+                                                    {product.image ? (
+                                                        <Thumbnail source={product.image} alt={product.title} size="small" />
+                                                    ) : (
+                                                        <Thumbnail source={ImageIcon} size="small" alt={product.title} />
+                                                    )}
+                                                    <div style={{ flex: 1 }}>
+                                                        <Text fontWeight="medium" as="span">
+                                                            {truncate(product.title, { length: 20 })}
+                                                        </Text>
+                                                        <span style={{ marginLeft: 8, color: '#888' }}>
+                                                            {product.variants.length === 0 && ` • $${product.price}`}
+                                                        </span>
+                                                        {/* <span style={{ marginLeft: 8, color: '#888' }}>
                                                                 {`Available: ${product.available}`}
                                                             </span> */}
-                                                        </div>
                                                     </div>
-
-                                                    {product.variants.length > 0 && (
-                                                        <div style={{ marginLeft: 44, marginTop: 8 }}>
-                                                            {product.variants.map(variant => (
-                                                                <div
-                                                                    key={variant.id}
-                                                                    style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}
-                                                                >
-                                                                    <Checkbox
-                                                                        label=""
-                                                                        checked={selectedIds.includes(variant.id)}
-                                                                        onChange={checked =>
-                                                                            handleProductOrVariantCheck(variant.id, checked, false, product)
-                                                                        }
-                                                                    />
-                                                                    {variant.image ? (
-                                                                        <Thumbnail source={variant.image} alt={variant.variantTitle} size="small" />
-                                                                    ) : (
-                                                                        <Thumbnail source={ImageIcon} size="small" alt={variant.variantTitle} />
-                                                                    )}
-                                                                    <div style={{ flex: 1 }}>
-                                                                        <span><strong>{variant.variantTitle}</strong></span>
-                                                                        <span style={{ marginLeft: 8, color: '#888' }}>• ${variant.price}</span>
-                                                                        <span style={{ marginLeft: 8, color: '#888' }}>
-                                                                            Available: {variant.available && variant.available > 0 ? variant.available : 'Unlimited'}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
                                                 </div>
-                                            );
-                                        })}
 
-                                        {(currentPage > 1 || currentPage < totalPages) && (
-                                            <Box
-                                                paddingBlockStart="200"
-                                                style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                                            >
-                                                <Pagination
-                                                    hasPrevious={currentPage > 1 && !isLoading}
-                                                    onPrevious={handlePrevious}
-                                                    hasNext={currentPage < totalPages && !isLoading}
-                                                    onNext={handleNext}
-                                                    disabled={isLoading}
-                                                />
-                                            </Box>
-                                        )}
+                                                {product.variants.length > 0 && (
+                                                    <div style={{ marginLeft: 44, marginTop: 8 }}>
+                                                        {product.variants.map(variant => (
+                                                            <div
+                                                                key={variant.id}
+                                                                style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}
+                                                            >
+                                                                <Checkbox
+                                                                    label=""
+                                                                    checked={selectedIds.includes(variant.id)}
+                                                                    onChange={checked =>
+                                                                        handleProductOrVariantCheck(variant.id, checked, false, product)
+                                                                    }
+                                                                />
+                                                                {variant.image ? (
+                                                                    <Thumbnail source={variant.image} alt={variant.variantTitle} size="small" />
+                                                                ) : (
+                                                                    <Thumbnail source={ImageIcon} size="small" alt={variant.variantTitle} />
+                                                                )}
+                                                                <div style={{ flex: 1 }}>
+                                                                    <span><strong>{variant.variantTitle}</strong></span>
+                                                                    <span style={{ marginLeft: 8, color: '#888' }}>• ${variant.price}</span>
+                                                                    <span style={{ marginLeft: 8, color: '#888' }}>
+                                                                        Available: {variant.available && variant.available > 0 ? variant.available : 'Unlimited'}
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+
+                                    {(currentPage > 1 || currentPage < totalPages) && (
+                                        <Box
+                                            paddingBlockStart="200"
+                                            style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
+                                        >
+                                            <Pagination
+                                                hasPrevious={currentPage > 1 && !isLoading}
+                                                onPrevious={handlePrevious}
+                                                hasNext={currentPage < totalPages && !isLoading}
+                                                onNext={handleNext}
+                                                disabled={isLoading}
+                                            />
+                                        </Box>
+                                    )}
                                 </>
                             )}
                         </div>
