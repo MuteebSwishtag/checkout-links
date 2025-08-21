@@ -1609,7 +1609,7 @@ export default function CreateLink() {
                                                 <Box>
                                                     <Icon source={ProductAddIcon} tone="base" />
                                                 </Box>
-                                                <Text variant="bodyMd" fontWeight='bold'> Products</Text>
+                                                <Text variant="bodyLg" fontWeight='bold'> Products</Text>
                                             </InlineStack>
                                             <Button
                                                 onClick={handleProductsToggle}
@@ -1819,9 +1819,9 @@ export default function CreateLink() {
                                                                                             </Box>
                                                                                         </InlineStack>
                                                                                         <InlineStack gap="200">
-                                                                                            <Button variant="plain" onClick={() => handleEditVariant(product)}>
+                                                                                            <Button variant="base" onClick={() => handleEditVariant(product)}>
                                                                                                 Edit
-                                                                                            </Button>
+                                                                                            </Button>     
                                                                                             <Button variant="plain" onClick={() => handleRemoveProduct(product.id)}>
                                                                                                 <Icon source={XIcon} tone='base' />
                                                                                             </Button>
@@ -1858,7 +1858,7 @@ export default function CreateLink() {
                                             <Box>
                                                 <Icon source={SettingsIcon} tone="base" />
                                             </Box>
-                                            <Text variant="bodyMd" fontWeight='bold'> Discounts</Text>
+                                            <Text variant="bodyLg" fontWeight='bold'> Discounts</Text>
                                         </InlineStack>
                                         <Button
                                             onClick={handleDiscountsToggle}
@@ -1898,7 +1898,7 @@ export default function CreateLink() {
                                             <Box>
                                                 <Icon source={StatusActiveIcon} tone="base" />
                                             </Box>
-                                            <Text variant="bodyMd" fontWeight='bold'> Popup Message</Text>
+                                            <Text variant="bodyLg" fontWeight='bold'> Popup Message</Text>
                                         </InlineStack>
                                         <Button
                                             onClick={handlePopupMessageToggle}
