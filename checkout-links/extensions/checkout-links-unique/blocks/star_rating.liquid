@@ -54,7 +54,7 @@
     visibility: visible;
   }
   .modal-dialog {
-  max-width: 22vw; /* 80% of the viewport width */
+  max-width: 350px; /* 80% of the viewport width */
   width: 100%;
   margin: 0 auto;
   display: flex;
@@ -131,12 +131,14 @@
     color: #333;
   }
   .order-desc {
-    font-size: 1.6rem;
-    color: #666;
+    font-size: 1.2rem;
+    color: #000;
     text-align: center;
     margin-bottom: 15px;
     line-height: 1.4;
-    padding: 0 15px;
+    padding:13px;
+    background-color:#e7e7e7 ;
+    border-radius: 8px;
   }
   .order-items {
     margin-bottom: 15px;
@@ -145,7 +147,7 @@
     padding: 0 10px;
   }
   .order-items.scrollable {
-    border: 5px solid #eee;
+    /* border: 5px solid #eee; */
     border-radius: 11px;
     padding: 6px;
   }
@@ -259,12 +261,11 @@
     justify-content: space-between;
     margin: 15px 0;
     padding: 10px 15px;
-    background: #fff;
     border-top: 1px solid #eee;
     border-bottom: 1px solid #eee;
   }
   .total-label {
-    font-size: 1.3rem;
+    font-size: 1.7rem;
     font-weight: 600;
     color: #222;
   }
@@ -274,13 +275,13 @@
     align-items: center;
   }
   .total-currency {
-    font-size: 1.3rem;
+    font-size: 1rem;
     color: #666;
     font-weight: 600;
     margin-right: 5px;
   }
   .total-value {
-    font-size: 1.1rem;
+    font-size: 1.7rem;
     font-weight: 700;
     color: #222;
   }
@@ -303,7 +304,7 @@
   .no-thanks {
     display: block;
     text-align: center;
-    color: #1a73e8;
+    color: #555;
     font-size: 1.3rem;
     margin: 10px 0;
     text-decoration: none;
@@ -311,7 +312,7 @@
     cursor: pointer;
   }
   .no-thanks:hover {
-    color: #1857b0;
+   
     text-decoration: underline;
   }
   /* Countdown timer styles */
@@ -397,7 +398,8 @@
     font-size: 11px;
     margin-top: 4px;
     display: inline-block;
-  }
+  } 
+  
   @media (max-width: 360px) {
     .modal-dialog {
       max-width: 98vw !important;
