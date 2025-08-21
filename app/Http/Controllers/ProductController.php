@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Products\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rules\Unique;
 
 class ProductController extends Controller
@@ -33,33 +34,11 @@ class ProductController extends Controller
 
         $products = $query->get();
 
-        // Filter variants and remove products with no variants left
-        $filteredProducts = $products->filter(function ($product) {
-            $filteredVariants = [];
-            foreach ($product->variants as $variant) {
-                $policy = strtolower(trim($variant->inventory_policy));
-                $quantity = (int) $variant->inventory_quantity;
-                $tracked = (bool) ($variant->inventory_tracked ?? true);
+        // REMOVE THIS BLOCK:
+        // $filteredProducts = $products->filter(function ($product) { ... });
 
-                // Always include if policy is "continue"
-                if ($policy === 'continue') {
-                    $filteredVariants[] = $variant;
-                    continue;
-                }
-                // Otherwise, only include if tracked is false OR (tracked is true AND policy is "deny" AND quantity > 0)
-                if (
-                    !$tracked ||
-                    ($tracked && $policy === 'deny' && $quantity > 0)
-                ) {
-                    $filteredVariants[] = $variant;
-                }
-            }
-            $product->setRelation('variants', collect($filteredVariants)->values());
-            return count($filteredVariants) > 0;
-        });
-
-        // Manual pagination after filtering
-        $paginated = $filteredProducts->forPage(
+        // Manual pagination (no filtering)
+        $paginated = $products->forPage(
             $request->input('page', 1),
             $perPage
         )->values();
@@ -70,9 +49,9 @@ class ProductController extends Controller
             'data' => $paginated,
             'pagination' => [
                 'current_page' => (int) $request->input('page', 1),
-                'last_page' => ceil($filteredProducts->count() / $perPage),
+                'last_page' => ceil($products->count() / $perPage),
                 'per_page' => $perPage,
-                'total' => $filteredProducts->count(),
+                'total' => $products->count(),
                 'shop' => $shop,
             ]
         ]);
