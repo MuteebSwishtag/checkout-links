@@ -1819,8 +1819,8 @@ export default function CreateLink() {
                                                                                             </Box>
                                                                                         </InlineStack>
                                                                                         <InlineStack gap="200">
-                                                                                            <Button variant="base" onClick={() => handleEditVariant(product)}>
-                                                                                                Edit
+                                                                                            <Button variant="base"  onClick={() => handleEditVariant(product)}>
+                                                                                              <Text fontWeight='bold'>Edit</Text>  
                                                                                             </Button>     
                                                                                             <Button variant="plain" onClick={() => handleRemoveProduct(product.id)}>
                                                                                                 <Icon source={XIcon} tone='base' />
