@@ -474,8 +474,13 @@ document.addEventListener('DOMContentLoaded', function () {
     function handleExpiration() {
       // Remove the timer element
       countdownTimeEl.style.display = 'none';
+      const countdownLabel = document.querySelector('.countdown-label');
+        if (countdownLabel) {
+          countdownLabel.style.display = 'none';
+        }
+      
 
-      // Show expiration message
+    // Show expiration message
       expirationMessageEl.style.display = 'block';
       expirationMessageEl.style.color = '#e74c3c';
       expirationMessageEl.style.fontWeight = 'bold';
@@ -580,7 +585,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Build modal HTML
     modalContent.innerHTML = `
       <span class="close-button" onclick="window.forceCloseModal(); return false;"></span>
-      <div class="modal-body p-4">
+      <div class="modal-body">
         <h2 class="order-title">${window.checkoutConfig.popupMessage?.heading_text || 'Order Summary'}</h2>
         <p class="order-desc">${window.checkoutConfig.popupMessage?.message_text || ''}</p>
         ${window.checkoutConfig.popupMessage?.countdown_active ? `
