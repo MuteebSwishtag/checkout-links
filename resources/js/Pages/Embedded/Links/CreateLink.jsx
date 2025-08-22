@@ -71,7 +71,19 @@ export default function CreateLink() {
     const [variantsModal, setVariantsModal] = useState(false);
     const [variantQuantity, setVariantQuantity] = useState(1);
     const [currentEditingVariant, setCurrentEditingVariant] = useState(null);
-    const [localLink, setLocalLink] = useState(link || null);
+    const normalizeLinkedVariants = (link) => {
+        if (!link || !link.linked_variants) return link;
+        return {
+            ...link,
+            linked_variants: link.linked_variants.map(v => ({
+                ...v,
+                id: `${v.product_id}_${v.variant.shopify_product_varient_id}`,
+                variantId: v.variant.shopify_product_varient_id,
+                productId: v.product_id,
+            }))
+        };
+    };
+    const [localLink, setLocalLink] = useState(normalizeLinkedVariants(link) || null);
     const originalVariantQuantityRef = useRef(1);
     // Function to fetch a unique ID from the backend
     const fetchUniqueId = async () => {
@@ -93,10 +105,12 @@ export default function CreateLink() {
 
 
     useEffect(() => {
+        // console.log('Loaded link variants:', localLink?.linked_variants?.variant);
+
         if (localLink) {
             // console.log("Link data:", link);
             // Editing existing link - use stored values
-            console.log("Editing existing link:", localLink);
+            // console.log("Editing existing link:", localLink);
             setLinkName(localLink.link_name || '');
             setLinkId(localLink.link_url || '');
             setDiscountData({
@@ -172,7 +186,7 @@ export default function CreateLink() {
                             variantIdsToSelect.push(`${v.product_id}`);
                         }
                     });
-                    console.log("Setting variant IDs from link data:", variantIdsToSelect);
+                    // console.log("Setting variant IDs from link data:", variantIdsToSelect);
                     setSelectedVariantIds(variantIdsToSelect);
                 }
             }
@@ -443,7 +457,7 @@ export default function CreateLink() {
 
     // -- Fetch on mount and when search/page changes (with AbortController)
     useEffect(() => {
-        console.log("Fetching products...22222222");
+        // console.log("Fetching products...22222222");
         const controller = new AbortController();
         const searchTerm = isProductModalOpen ? debouncedProductSearchValue : debouncedMainProductSearch;
 
@@ -458,7 +472,7 @@ export default function CreateLink() {
                     localLink.linked_variants.length > 0 &&
                     !initialLinkDataLoaded
                 ) {
-                    console.log("Products fetched, syncing selected variant IDs from link data");
+                    // console.log("Products fetched, syncing selected variant IDs from link data");
 
                     const variantIdsToSelect = localLink.linked_variants.map(v =>
                         v.variant_id ? `${v.product_id}_${v.variant_id}` : `${v.product_id}`
@@ -512,73 +526,26 @@ export default function CreateLink() {
 
     // Structure product data for hierarchical rendering (product + variants), memoized to avoid infinite loop
     const productData = React.useMemo(() => {
-        if (!Array.isArray(products) || products.length === 0) {
-            return [];
-        }
-
-        return products.map(product => {
-            const productImage = product.image ||
-                (product.media && product.media[0]?.src) ||
-                (product.productMedias && product.productMedias[0]?.src) || '';
-
-            const productAvailable = product.available !== undefined
-                ? product.available
-                : Array.isArray(product.product_varients)
-                    ? product.product_varients.reduce((sum, v) => sum + (v.inventory_quantity || 0), 0)
-                    : 0;
-
-            // Process variants
-            const processedVariants = Array.isArray(product.variants)
-                ? product.variants.map(variant => {
-                    const compositeId = `${product.id}_${variant.id}`;
-                    const isSelected = selectedVariantIds.includes(compositeId);
-                    // FIX: Use quantity from localLink.linked_variants if available
-                    const linkedQuantity = getLinkedVariantQuantity(compositeId);
-
-                    return {
-                        id: compositeId,
-                        productId: product.id,
-                        title: product.title,
-                        variantTitle: variant.title,
-                        price: variant.price,
-                        available: variant.inventory_quantity || 0,
-                        image: variant.image || productImage,
-                        variantId: variant.shopify_product_varient_id,
-                        shopifyVariantId: variant.shopify_product_varient_id,
-                        isSelected: isSelected,
-                        rawVariant: variant,
-                        quantity: linkedQuantity !== undefined ? linkedQuantity : 1 // <-- FIX
-                    };
-                })
-                : [];
-
-            const isProductSelected = selectedVariantIds.includes(`${product.id}`);
-            // FIX: Use quantity from localLink.linked_variants if available
-            const linkedQuantity = getLinkedVariantQuantity(`${product.id}`);
-
-            return {
-                id: `${product.id}`,
-                title: product.title,
-                image: productImage,
-                available: productAvailable,
-                price: product.price,
-                variants: processedVariants,
-                isSelected: isProductSelected,
-                rawProduct: product,
-                quantity: linkedQuantity !== undefined ? linkedQuantity : 1 // <-- FIX
-            };
-        });
+        return products.map(product => ({
+            ...product,
+            variants: product.variants ? product.variants.map(variant => ({
+                ...variant,
+                id: `${product.id}_${variant.shopify_product_varient_id}`,
+                variantId: variant.shopify_product_varient_id,
+                productId: product.id
+            })) : []
+        }));
     }, [products, selectedVariantIds, localLink]);
 
 
     // Update products from link data when product data is first loaded
     useEffect(() => {
-        console.log("Checking for link variant matching...3333333");
+        // console.log("Checking for link variant matching...3333333");
         if (productData.length > 0 && localLink && Array.isArray(localLink.linked_variants) && localLink.linked_variants.length > 0) {
-            console.log("Product data loaded, checking for link variant matching:", productData.length, "products");
+            // console.log("Product data loaded, checking for link variant matching:", productData.length, "products");
 
             if (!initialLinkDataLoaded) {
-                console.log("Re-syncing selected variant IDs from link data with loaded product data");
+                // console.log("Re-syncing selected variant IDs from link data with loaded product data");
 
                 // We need to match each linked variant to its corresponding product/variant in productData
                 const updatedIds = [];
@@ -608,7 +575,7 @@ export default function CreateLink() {
                             }
 
                             if (matchingVariant) {
-                                console.log(`Found matching variant for ${matchingProduct.title}:`, matchingVariant.id);
+                                // console.log(`Found matching variant for ${matchingProduct.title}:`, matchingVariant.id);
                                 updatedIds.push(matchingVariant.id);
                                 mappedVariants[matchingVariant.id] = {
                                     linkVariant,
@@ -616,7 +583,7 @@ export default function CreateLink() {
                                     productTitle: matchingProduct.title
                                 };
                             } else {
-                                console.log(`No matching variant found for ${matchingProduct.title}, variantId: ${variantId}`);
+                                // console.log(`No matching variant found for ${matchingProduct.title}, variantId: ${variantId}`);
                                 // Add the base product if no variant match
                                 if (!updatedIds.includes(matchingProduct.id)) {
                                     updatedIds.push(matchingProduct.id);
@@ -628,7 +595,7 @@ export default function CreateLink() {
                             }
                         } else {
                             // Simple product without variants
-                            console.log(`Adding simple product ${matchingProduct.title}:`, matchingProduct.id);
+                            // console.log(`Adding simple product ${matchingProduct.title}:`, matchingProduct.id);
                             updatedIds.push(matchingProduct.id);
                             mappedVariants[matchingProduct.id] = {
                                 linkVariant,
@@ -641,8 +608,8 @@ export default function CreateLink() {
                 });
 
                 if (updatedIds.length > 0) {
-                    console.log("Updating selected variant IDs after product data load:", updatedIds);
-                    console.log("Mapped variants:", mappedVariants);
+                    // console.log("Updating selected variant IDs after product data load:", updatedIds);
+                    // console.log("Mapped variants:", mappedVariants);
 
                     // Set popup product checked state
                     const checkedState = {};
@@ -663,18 +630,18 @@ export default function CreateLink() {
 
     // Add a special useEffect to preserve quantities when productData changes
     useEffect(() => {
-        console.log("ProductData changed - checking if quantities need preservation44444444");
+        // console.log("ProductData changed - checking if quantities need preservation44444444");
         // Don't run this on initial load
         if (selectedProductItems.length === 0 || !productData.length) return;
 
-        console.log("ProductData changed - checking if quantities need preservation");
+        // console.log("ProductData changed - checking if quantities need preservation");
 
         // Get current quantities from selectedProductItems
         const currentQuantities = {};
         selectedProductItems.forEach(item => {
             if (item.quantity && parseInt(item.quantity) > 1) {
                 currentQuantities[item.id] = parseInt(item.quantity);
-                console.log(`Stored quantity for preservation: ${item.id} = ${item.quantity}`);
+                // console.log(`Stored quantity for preservation: ${item.id} = ${item.quantity}`);
             }
         });
 
@@ -687,10 +654,10 @@ export default function CreateLink() {
                     );
 
                     if (needsUpdate) {
-                        console.log("Some quantities need restoration after productData change");
+                        // console.log("Some quantities need restoration after productData change");
                         return items.map(item => {
                             if (currentQuantities[item.id]) {
-                                console.log(`Restoring quantity for ${item.id}: ${currentQuantities[item.id]}`);
+                                // console.log(`Restoring quantity for ${item.id}: ${currentQuantities[item.id]}`);
                                 return { ...item, quantity: currentQuantities[item.id] };
                             }
                             return item;
@@ -705,7 +672,7 @@ export default function CreateLink() {
 
     // Load quantities from localStorage at component mount
     useEffect(() => {
-        console.log("Loading quantities from localStorage on mount...55555555");
+        // console.log("Loading quantities from localStorage on mount...55555555");
         try {
             // Load from multiple storage mechanisms
 
@@ -735,7 +702,7 @@ export default function CreateLink() {
                 GLOBAL_QUANTITIES[id] = parseInt(globalQuantities[id]) || 1;
             });
 
-            console.log('Loaded quantities from all storage mechanisms:', GLOBAL_QUANTITIES);
+            // console.log('Loaded quantities from all storage mechanisms:', GLOBAL_QUANTITIES);
         } catch (e) {
             console.error('Failed to load quantities from localStorage:', e);
         }
@@ -767,7 +734,7 @@ export default function CreateLink() {
 
     const handleProductModalClose = useCallback(() => {
         // Just close the modal without changing selections
-        console.log("Closing product modal without changing selections");
+        // console.log("Closing product modal without changing selections");
         setIsProductModalOpen(false);
         setProductSearchValue('');
     }, []);
@@ -845,10 +812,8 @@ export default function CreateLink() {
 
     // Helper: get all variant ids for a product
     const getAllVariantIds = (product) => {
-        // Get all variant IDs for a product (or the product ID itself if no variants)
-        const ids = product.variants.length > 0 ? product.variants.map(v => v.id) : [product.id];
-        console.log(`Getting all variant IDs for product ${product.title}:`, ids);
-        return ids;
+        if (!product || !product.variants) return [];
+        return product.variants.map(variant => `${product.id}_${variant.shopify_product_varient_id}`);
     };
 
     // Handle opening the variants modal with the specific variant
@@ -865,13 +830,13 @@ export default function CreateLink() {
             const storedQuantities = JSON.parse(localStorage.getItem('variantQuantities') || '{}');
             if (storedQuantities[product.id]) {
                 quantity = parseInt(storedQuantities[product.id]) || quantity;
-                console.log(`Loaded quantity from localStorage for ${product.id}: ${quantity}`);
+                // console.log(`Loaded quantity from localStorage for ${product.id}: ${quantity}`);
             }
         } catch (e) {
             console.error('Failed to load quantity from localStorage:', e);
         }
 
-        console.log(`Setting variant quantity for ${product.id} to ${quantity}`);
+        // console.log(`Setting variant quantity for ${product.id} to ${quantity}`);
         setVariantQuantity(quantity);
         setVariantsModal(true);
     };
@@ -882,7 +847,7 @@ export default function CreateLink() {
         if (!currentEditingVariant) return;
 
         const quantityValue = parseInt(variantQuantity) || 1;
-        console.log(`Saving quantity ${quantityValue} for variant ${currentEditingVariant.id}`);
+        // console.log(`Saving quantity ${quantityValue} for variant ${currentEditingVariant.id}`);
 
         // Update the selected product items with the new quantity
         setSelectedProductItems(prevItems => {
@@ -919,41 +884,57 @@ export default function CreateLink() {
     const handleCancelVariantQuantity = () => {
         if (!currentEditingVariant) return;
 
-        const restoreValue = originalVariantQuantityRef.current || 1;
+        // Fallback to 1 if ref is empty
+        const restoreValue = originalVariantQuantityRef.current ?? 1;
 
-        // Restore in selectedProductItems
-        setSelectedProductItems(prevItems =>
-            prevItems.map(item =>
+        // Debug: log currentEditingVariant and restoreValue
+        // console.log('Cancel variant quantity for:', currentEditingVariant.id, 'Restore value:', restoreValue);
+
+        // Restore in committed selections
+        setSelectedProductItems(prevItems => {
+            const updated = prevItems.map(item =>
                 item.id === currentEditingVariant.id
                     ? { ...item, quantity: restoreValue }
                     : item
-            )
         );
+            // console.log('Updated selectedProductItems after cancel:', updated);
+            return updated;
+        });
 
-        // Restore in tempSelectedProductItems if modal is open
-        if (Object.keys(tempSelectedProductItems).length > 0) {
-            setTempSelectedProductItems(prev => {
-                const updated = {
-                    ...prev,
-                    [currentEditingVariant.id]: {
-                        ...(prev[currentEditingVariant.id] || {}),
-                        quantity: restoreValue
-                    }
-                };
+        // Restore in temp (modal) selections
+        setTempSelectedProductItems(prev => {
+            // If array structure
+            if (Array.isArray(prev)) {
+                const updated = prev.map(item =>
+                    item.id === currentEditingVariant.id
+                        ? { ...item, quantity: restoreValue }
+                        : item
+                );
+                // console.log('Updated tempSelectedProductItems (array) after cancel:', updated);
                 return updated;
-            });
-        }
+            }
+            // If object structure
+            if (!prev[currentEditingVariant.id]) return prev; // nothing to restore
+            const updated = {
+                ...prev,
+                [currentEditingVariant.id]: {
+                    ...prev[currentEditingVariant.id],
+                    quantity: restoreValue
+                }
+            };
+            // console.log('Updated tempSelectedProductItems (object) after cancel:', updated);
+            return updated;
+        });
 
-        // Restore global reference too
-        GLOBAL_QUANTITIES[currentEditingVariant.id] = restoreValue;
-
-        // Close modal & restore input
-        setVariantQuantity(restoreValue.toString());
+        // Close the modal and clear editing state
         setVariantsModal(false);
+        setCurrentEditingVariant(null);
+        originalVariantQuantityRef.current = null;
     };
 
+
     const allVariantsUnavailable = (product) => {
-        console.log(`Checking if all variants are unavailable for product ${product}`);
+        // console.log(`Checking if all variants are unavailable for product ${product}`);
         return product.variants.every(v => !isVariantAvailable(v));
     };
 
@@ -961,6 +942,8 @@ export default function CreateLink() {
     // Handle product or variant checkbox change
     const handleProductOrVariantCheck = (id, checked, isProduct, product) => {
         // console.log(`Checkbox changed for ${isProduct ? 'product' : 'variant'}: ${id}, checked: ${checked} ,product: ${JSON.stringify(product)}`);
+        // console.log('Checked variant:', { id, checked, isProduct, product });
+
         setSelectedVariantIds(prev => {
             let newIds;
 
@@ -1002,11 +985,14 @@ export default function CreateLink() {
     // Helper to update selectedProductItems based on selectedVariantIds
     const updateSelectedProductItems = (variantIds, existingItems = {}) => {
         // Try to load global quantities from localStorage if we haven't already
+        // console.log('Updating selected items:', { variantIds, existingItems });
+
+
         if (Object.keys(GLOBAL_QUANTITIES).length === 0) {
             try {
                 const globalQuantities = JSON.parse(localStorage.getItem('global_quantities') || '{}');
                 Object.assign(GLOBAL_QUANTITIES, globalQuantities);
-                console.log('Loaded global quantities from localStorage:', GLOBAL_QUANTITIES);
+                // console.log('Loaded global quantities from localStorage:', GLOBAL_QUANTITIES);
             } catch (e) {
                 console.error('Failed to load global quantities:', e);
             }
@@ -1020,26 +1006,32 @@ export default function CreateLink() {
                 const qty = parseInt(item.quantity) || 1;
                 existingQuantityMap[item.id] = qty;
                 GLOBAL_QUANTITIES[item.id] = qty;
-                console.log(`Storing quantity for ${item.id}: ${qty}`);
+                // console.log(`Storing quantity for ${item.id}: ${qty}`);
             }
         });
 
         // Flatten all variants and products
-        const allVariants = productData.flatMap(product => product.variants.length > 0 ? product.variants.map(v => {
-            // Use quantity from productData (already set from localLink if available)
-            return {
-                id: v.id,
+        const allVariants = productData.flatMap(product => {
+            if (product.variants.length > 0) {
+                return product.variants.map(v => {
+                    const mapped = {
+                        id: v.id, // "590_46471084015864"
                 productId: product.id,
                 title: product.title,
-                variant: v.variantTitle,
+                        variant: v.title, // ✅ correct field from your JSON
                 variantId: v.variantId,
-                shopifyVariantId: v.variantId,
+                        shopifyVariantId: v.shopify_product_varient_id,
                 quantity: v.quantity !== undefined ? v.quantity : 1,
-                available: v.available,
+                        available: v.inventory_quantity, // ✅ stock field
                 price: v.price,
-                image: product.image
+                        image: product.media?.[0]?.src || null
             };
-        }) : [{
+
+                    // console.log("Mapped variant:", mapped);
+                    return mapped;
+                });
+            } else {
+                const mapped = {
             id: product.id,
             productId: product.id,
             title: product.title,
@@ -1049,8 +1041,17 @@ export default function CreateLink() {
             quantity: product.quantity !== undefined ? product.quantity : 1,
             available: product.available,
             price: product.price,
-            image: product.image
-        }]); console.log("Selected UI IDs to update product items:", variantIds);
+                    image: product.media?.[0]?.src || null
+                };
+
+                // console.log("Mapped simple product:", mapped);
+                return [mapped];
+            }
+        });
+
+        // console.log("✅ All variants mapped:", allVariants);
+        // console.log("✅ Selected UI IDs to update product items:", variantIds);
+
 
         // Keep all existing selections that are not on the current page
         // and add new selections from the current page
@@ -1071,14 +1072,14 @@ export default function CreateLink() {
             );            // Add items from the current page that are selected
             allVariants.forEach(v => {
                 if (variantIds.includes(v.id) && !seen.has(v.id)) {
-                    console.log(`Adding variant to selection: ${v.title} ${v.variant || ''} (ID: ${v.id})`);
+                    // console.log(`Adding variant to selection: ${v.title} ${v.variant || ''} (ID: ${v.id})`);
 
                     // Find if this variant already exists in the previous items to preserve quantity
                     const existingItem = prev.find(item => item.id === v.id);
                     if (existingItem) {
                         // Use existing item with its quantity
                         const preservedQuantity = existingItem.quantity || 1;
-                        console.log(`Preserving existing quantity for ${v.id}: ${preservedQuantity}`);
+                        // console.log(`Preserving existing quantity for ${v.id}: ${preservedQuantity}`);
                         currentPageItems.push({
                             ...v,
                             quantity: preservedQuantity
@@ -1108,9 +1109,9 @@ export default function CreateLink() {
 
     // Update selectedProductItems when selectedVariantIds changes
     useEffect(() => {
-        console.log("Checking for updates to selectedProductItems...666666");
+        // console.log("Checking for updates to selectedProductItems...666666");
         if (productData.length > 0) {
-            console.log("Triggering updateSelectedProductItems due to change in selectedVariantIds or productData");
+            // console.log("Triggering updateSelectedProductItems due to change in selectedVariantIds or productData");
 
             // Store current quantities before update to preserve them
             const currentItems = {};
@@ -1123,7 +1124,7 @@ export default function CreateLink() {
                 // Also store quantities separately for debugging and fallback
                 if (item.quantity && item.quantity > 1) {
                     currentQuantities[item.id] = item.quantity;
-                    console.log(`Storing quantity for ${item.id}: ${item.quantity}`);
+                    // console.log(`Storing quantity for ${item.id}: ${item.quantity}`);
                 }
             });
 
@@ -1139,10 +1140,10 @@ export default function CreateLink() {
                         );
 
                         if (needsUpdate) {
-                            console.log("Some quantities were lost, restoring them...");
+                            // console.log("Some quantities were lost, restoring them...");
                             return items.map(item => {
                                 if (currentQuantities[item.id]) {
-                                    console.log(`Restoring quantity for ${item.id}: ${currentQuantities[item.id]}`);
+                                    // console.log(`Restoring quantity for ${item.id}: ${currentQuantities[item.id]}`);
                                     return { ...item, quantity: currentQuantities[item.id] };
                                 }
                                 return item;
@@ -1157,7 +1158,7 @@ export default function CreateLink() {
 
     // Load saved quantities from localStorage when selectedProductItems changes
     useEffect(() => {
-        console.log("Loading quantities from localStorage...7777777");
+        // console.log("Loading quantities from localStorage...7777777");
         try {
             // First try to load link-specific quantities if editing a link
             if (localLink && localLink.id) {
@@ -1165,12 +1166,12 @@ export default function CreateLink() {
                 const linkQuantities = JSON.parse(localStorage.getItem(linkStorageKey) || '{}');
 
                 if (Object.keys(linkQuantities).length > 0) {
-                    console.log(`Found link-specific quantities for link ${localLink.id}`);
+                    // console.log(`Found link-specific quantities for link ${localLink.id}`);
                     setSelectedProductItems(prevItems => {
                         return prevItems.map(item => {
                             // If we have a stored quantity for this item, use it
                             if (linkQuantities[item.id]) {
-                                console.log(`Restoring quantity for ${item.id} from link storage: ${linkQuantities[item.id]}`);
+                                // console.log(`Restoring quantity for ${item.id} from link storage: ${linkQuantities[item.id]}`);
                                 return {
                                     ...item,
                                     quantity: parseInt(linkQuantities[item.id]) || 1
@@ -1191,7 +1192,7 @@ export default function CreateLink() {
                     return prevItems.map(item => {
                         // If we have a stored quantity for this item, use it
                         if (storedQuantities[item.id]) {
-                            console.log(`Restoring quantity for ${item.id} from localStorage: ${storedQuantities[item.id]}`);
+                            // console.log(`Restoring quantity for ${item.id} from localStorage: ${storedQuantities[item.id]}`);
                             return {
                                 ...item,
                                 quantity: parseInt(storedQuantities[item.id]) || 1
@@ -1208,62 +1209,68 @@ export default function CreateLink() {
 
     // Update tempSelectedProductItems when selectedVariantIds changes
     useEffect(() => {
-        console.log("Checking for updates to tempSelectedProductItems...8888888");
-        if (productData.length > 0 && selectedVariantIds.length > 0) {
-            console.log("Updating tempSelectedProductItems from selectedVariantIds:", selectedVariantIds);
+        if (productData.length === 0) return;
 
-            setTempSelectedProductItems(prev => {
-                const allVariants = productData.flatMap(product => product.variants.length > 0 ? product.variants : [{
+        // console.log("🔍 Syncing tempSelectedProductItems with selectedVariantIds:", selectedVariantIds);
+
+        setTempSelectedProductItems(prev => {
+            // Flatten product data into a consistent variant/product list
+            const allVariants = productData.flatMap(product =>
+                product.variants.length > 0
+                    ? product.variants.map(v => ({
+                        id: v.id, // "590_46471084015864"
+                        productId: product.id,
+                        title: product.title,
+                        variant: v.title,
+                        variantId: v.variantId,
+                        shopifyVariantId: v.shopify_product_varient_id,
+                        available: v.inventory_quantity,
+                        price: v.price,
+                        image: product.media?.[0]?.src || null
+                    }))
+                    : [{
                     id: product.id,
                     productId: product.id,
                     title: product.title,
-                    variantTitle: null,
-                    price: product.price,
-                    image: product.image,
+                        variant: null,
+                        variantId: null,
+                        shopifyVariantId: null,
                     available: product.available,
-                    variantId: null,
-                }]);
+                        price: product.price,
+                        image: product.media?.[0]?.src || null
+                    }]
+            );
 
-                // Create a copy of previous selections to retain items from other pages
-                let updated = { ...prev };
-                const currentPageIds = new Set(allVariants.map(v => v.id));
+            // Store current page IDs for easy filtering
+            const currentPageIds = new Set(allVariants.map(v => v.id));
 
-                // Update selections from current page
-                allVariants.forEach(item => {
-                    const isSelected = selectedVariantIds.includes(item.id);
+            // Make a copy of previous state to keep selections from other pages
+            let updated = { ...prev };
 
-                    if (isSelected) {
-                        // This item is selected, add or update it
-                        updated[item.id] = {
-                            id: item.id,
-                            productId: item.productId,
-                            title: item.title,
-                            variant: item.variantTitle,
-                            variantId: item.variantId,
-                            shopifyVariantId: item.variantId, // Store the actual Shopify variant ID
-                            quantity: updated[item.id]?.quantity || 1,
-                            price: item.price,
-                            image: item.image
-                        };
-                    } else if (currentPageIds.has(item.id)) {
-                        // Item is on current page but not selected, remove it
-                        delete updated[item.id];
-                    }
-                });
-
-                // Now handle IDs that are in selectedVariantIds but not on current page
-                // We keep them as they are from previous selections
-
-                // Finally, remove any selections that aren't in selectedVariantIds anymore
-                Object.keys(updated).forEach(id => {
-                    if (!selectedVariantIds.includes(id)) {
-                        delete updated[id];
-                    }
-                });
-
-                return updated;
+            // ✅ Update or remove items for the current page
+            allVariants.forEach(item => {
+                if (selectedVariantIds.includes(item.id)) {
+                    // Add/update if selected
+                    updated[item.id] = {
+                        ...item,
+                        quantity: updated[item.id]?.quantity || 1 // keep user-set quantity if exists
+                    };
+                } else {
+                    // Remove if deselected on current page
+                    delete updated[item.id];
+                }
             });
-        }
+
+            // ✅ Cleanup: remove any selections not in selectedVariantIds anymore
+            Object.keys(updated).forEach(id => {
+                if (!selectedVariantIds.includes(id)) {
+                    delete updated[id];
+                }
+            });
+
+            // console.log("✅ Updated tempSelectedProductItems:", updated);
+            return updated;
+        });
     }, [selectedVariantIds, productData]);
 
     const handleDragEnd = useCallback((result) => {
@@ -1384,7 +1391,7 @@ export default function CreateLink() {
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
     useEffect(() => {
-        console.log("Setting up timer interval...9999999");
+        // console.log("Setting up timer interval...9999999");
         let interval = null;
         if (isTimerActive && timerSeconds > 0) {
             interval = setInterval(() => {
@@ -1511,7 +1518,7 @@ export default function CreateLink() {
     const handleCloseButtonClick = (link) => {
         const normalizedLink = normalizeUrl(link);
         // Use the normalized link for navigation or saving
-        console.log('Navigating to:', normalizedLink);
+        // console.log('Navigating to:', normalizedLink);
         window.location.href = normalizedLink;
     };
 
@@ -1689,13 +1696,15 @@ export default function CreateLink() {
                                                                 const allVariantIds = product.variants.map(v => v.id);
                                                                 const selectedIds = selectedProductItems.map(item => item.id);
 
-                                                                const productChecked = product.variants.length === 0
-                                                                    ? selectedIds.includes(product.id)
-                                                                    : allVariantIds.every(id => selectedIds.includes(id)) && allVariantIds.length > 0;
+                                                                const productChecked =
+                                                                    product.variants.length === 0
+                                                                        ? selectedIds.includes(product.id)
+                                                                        : allVariantIds.every(id => selectedIds.includes(id)) && allVariantIds.length > 0;
 
-                                                                const productIndeterminate = product.variants.length > 0
-                                                                    && allVariantIds.some(id => selectedIds.includes(id))
-                                                                    && !allVariantIds.every(id => selectedIds.includes(id));
+                                                                const productIndeterminate =
+                                                                    product.variants.length > 0 &&
+                                                                    allVariantIds.some(id => selectedIds.includes(id)) &&
+                                                                    !allVariantIds.every(id => selectedIds.includes(id));
 
                                                                 return (
                                                                     <div
@@ -1703,20 +1712,22 @@ export default function CreateLink() {
                                                                         style={{
                                                                             borderBottom: '1px solid #eee',
                                                                             padding: '12px 0',
-                                                                            opacity: allVariantsUnavailable(product) ? 0.5 : 1 // dim product if all variants unavailable
+                                                                            opacity: allVariantsUnavailable(product) ? 0.5 : 1
                                                                         }}
                                                                     >
+                                                                        {/* Product row */}
                                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                                                             <Checkbox
                                                                                 label=""
                                                                                 checked={productChecked}
                                                                                 indeterminate={productIndeterminate}
                                                                                 onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
-                                                                                disabled={allVariantsUnavailable(product)} // disable product checkbox
+                                                                                disabled={allVariantsUnavailable(product)}
                                                                             />
 
-                                                                            {product.image ? (
-                                                                                <Thumbnail source={product.image} alt={product.title} size="small" />
+                                                                            {/* ✅ Product image from media[0].src */}
+                                                                            {product.media?.length > 0 ? (
+                                                                                <Thumbnail source={product.media[0].src} alt={product.title} size="small" />
                                                                             ) : (
                                                                                 <Thumbnail source={ImageIcon} size="small" alt={product.title} />
                                                                             )}
@@ -1725,12 +1736,10 @@ export default function CreateLink() {
                                                                                 <Text fontWeight="medium" as="span">
                                                                                     {truncate(product.title, { length: 20 })}
                                                                                 </Text>
-                                                                                <span style={{ marginLeft: 8, color: '#888' }}>
-                                                                                    {product.variants.length === 0 && `• $${product.price}`}
-                                                                                </span>
                                                                             </div>
                                                                         </div>
 
+                                                                        {/* Variant list */}
                                                                         {product.variants.length > 0 && (
                                                                             <div style={{ marginLeft: 44, marginTop: 8 }}>
                                                                                 {product.variants.map(variant => {
@@ -1744,57 +1753,61 @@ export default function CreateLink() {
                                                                                                 alignItems: 'center',
                                                                                                 gap: 12,
                                                                                                 marginBottom: 8,
-                                                                                                opacity: variantUnavailable ? 0.5 : 1 // dim disabled variant row
+                                                                                                opacity: variantUnavailable ? 0.5 : 1
                                                                                             }}
                                                                                         >
                                                                                             <Checkbox
                                                                                                 label=""
                                                                                                 checked={selectedIds.includes(variant.id)}
-                                                                                                onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
-                                                                                                disabled={variantUnavailable} // disable checkbox if unavailable
+                                                                                                onChange={checked =>
+                                                                                                    handleProductOrVariantCheck(
+                                                                                                        variant.id,
+                                                                                                        checked,
+                                                                                                        false,
+                                                                                                        product,
+                                                                                                        variant
+                                                                                                    )
+                                                                                                }
+                                                                                                disabled={variantUnavailable}
                                                                                             />
 
-                                                                                            {variant.image ? (
-                                                                                                <Thumbnail source={variant.image} alt={variant.variantTitle} size="small" />
+                                                                                            {/* No variant.image in payload → use product image */}
+                                                                                            {product.media?.length > 0 ? (
+                                                                                                <Thumbnail source={product.media[0].src} alt={variant.title} size="small" />
                                                                                             ) : (
-                                                                                                <Thumbnail source={ImageIcon} size="small" alt={variant.variantTitle} />
+                                                                                                    <Thumbnail source={ImageIcon} size="small" alt={variant.title} />
                                                                                             )}
 
                                                                                             <div
                                                                                                 style={{
                                                                                                     flex: 1,
                                                                                                     display: 'grid',
-                                                                                                    gridTemplateColumns: '1fr auto 1fr', // left = flexible, middle = auto, right = flexible
-                                                                                                    alignItems: 'center',
+                                                                                                    gridTemplateColumns: '1fr auto 1fr',
+                                                                                                    alignItems: 'center'
                                                                                                 }}
                                                                                             >
-                                                                                                {/* Title (left, always aligned left) */}
+                                                                                                {/* Variant title */}
                                                                                                 <div style={{ textAlign: 'left' }}>
-                                                                                                    <strong>{truncate(variant.variantTitle, { length: 7 })}</strong>
+                                                                                                    <strong>{truncate(variant.title, { length: 7 })}</strong>
                                                                                                 </div>
 
-                                                                                                {/* Available (center, auto-sized, perfectly centered) */}
-                                                                                                <div style={{ textAlign: 'center', color: '#888' }}>
-                                                                                                    {variantUnavailable
-                                                                                                        ? "Sold Out"
-                                                                                                        : ` ${variant.available && variant.available > 0 ? variant.available : "Unlimited"} available`}
-                                                                                                </div>
+                                                                                                {/* Inventory */}
+                                                                                                <div style={{ textAlign: 'center', color: '#888' }}> {variantUnavailable ? "Sold Out" : `${variant.available && variant.available > 0 ? variant.available : "Unlimited"} available`} </div>
 
-                                                                                                {/* Price (right, always aligned right) */}
+                                                                                                {/* Price */}
                                                                                                 <div style={{ textAlign: 'right' }}>
                                                                                                     ${variant.price}
                                                                                                 </div>
                                                                                             </div>
-
                                                                                         </div>
                                                                                     );
                                                                                 })}
                                                                             </div>
                                                                         )}
                                                                     </div>
-
                                                                 );
                                                             })}
+
                                                             {/* Show pagination only if needed - when there's more than one page */}
                                                             {(currentPage > 1 || currentPage < totalPages) && (
                                                                 <Box paddingBlockStart="200" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', paddingTop: '8px' }}>
@@ -1825,6 +1838,7 @@ export default function CreateLink() {
                                                                     {...provided.droppableProps}
                                                                     ref={provided.innerRef}
                                                                 >
+                                                                    {/* {console.log("Rendering selected products for me:", selectedProductItems)} */}
                                                                     {selectedProductItems.map((product, index) => {
                                                                         if (!product) return null;
                                                                         // Use a unique key by combining id and index
@@ -2702,17 +2716,20 @@ export default function CreateLink() {
                                 </EmptyState>
                             ) : (
                                 <>
+                                        {/* {console.log('Rendering productData:', productData)} */}
                                     {productData.map(product => {
                                         const allVariantIds = product.variants.map(v => v.id);
                                         const selectedIds = selectedProductItems.map(item => item.id);
 
-                                        const productChecked = product.variants.length === 0
-                                            ? selectedIds.includes(product.id)
-                                            : allVariantIds.every(id => selectedIds.includes(id)) && allVariantIds.length > 0;
+                                        const productChecked =
+                                            product.variants.length === 0
+                                                ? selectedIds.includes(product.id)
+                                                : allVariantIds.every(id => selectedIds.includes(id)) && allVariantIds.length > 0;
 
-                                        const productIndeterminate = product.variants.length > 0
-                                            && allVariantIds.some(id => selectedIds.includes(id))
-                                            && !allVariantIds.every(id => selectedIds.includes(id));
+                                        const productIndeterminate =
+                                            product.variants.length > 0 &&
+                                            allVariantIds.some(id => selectedIds.includes(id)) &&
+                                            !allVariantIds.every(id => selectedIds.includes(id));
 
                                         return (
                                             <div
@@ -2720,20 +2737,22 @@ export default function CreateLink() {
                                                 style={{
                                                     borderBottom: '1px solid #eee',
                                                     padding: '12px 0',
-                                                    opacity: allVariantsUnavailable(product) ? 0.5 : 1 // dim product if all variants unavailable
+                                                    opacity: allVariantsUnavailable(product) ? 0.5 : 1
                                                 }}
                                             >
+                                                {/* Product row */}
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                                     <Checkbox
                                                         label=""
                                                         checked={productChecked}
                                                         indeterminate={productIndeterminate}
                                                         onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
-                                                        disabled={allVariantsUnavailable(product)} // disable product checkbox
+                                                        disabled={allVariantsUnavailable(product)}
                                                     />
 
-                                                    {product.image ? (
-                                                        <Thumbnail source={product.image} alt={product.title} size="small" />
+                                                    {/* ✅ Product image from media[0].src */}
+                                                    {product.media?.length > 0 ? (
+                                                        <Thumbnail source={product.media[0].src} alt={product.title} size="small" />
                                                     ) : (
                                                         <Thumbnail source={ImageIcon} size="small" alt={product.title} />
                                                     )}
@@ -2742,12 +2761,10 @@ export default function CreateLink() {
                                                         <Text fontWeight="medium" as="span">
                                                             {truncate(product.title, { length: 20 })}
                                                         </Text>
-                                                        <span style={{ marginLeft: 8, color: '#888' }}>
-                                                            {product.variants.length === 0 && `• $${product.price}`}
-                                                        </span>
                                                     </div>
                                                 </div>
 
+                                                {/* Variant list */}
                                                 {product.variants.length > 0 && (
                                                     <div style={{ marginLeft: 44, marginTop: 8 }}>
                                                         {product.variants.map(variant => {
@@ -2761,57 +2778,64 @@ export default function CreateLink() {
                                                                         alignItems: 'center',
                                                                         gap: 12,
                                                                         marginBottom: 8,
-                                                                        opacity: variantUnavailable ? 0.5 : 1 // dim disabled variant row
+                                                                        opacity: variantUnavailable ? 0.5 : 1
                                                                     }}
                                                                 >
                                                                     <Checkbox
                                                                         label=""
                                                                         checked={selectedIds.includes(variant.id)}
-                                                                        onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
-                                                                        disabled={variantUnavailable} // disable checkbox if unavailable
+                                                                        onChange={checked =>
+                                                                            handleProductOrVariantCheck(
+                                                                                variant.id,
+                                                                                checked,
+                                                                                false,
+                                                                                product,
+                                                                                variant
+                                                                            )
+                                                                        }
+                                                                        disabled={variantUnavailable}
                                                                     />
 
-                                                                    {variant.image ? (
-                                                                        <Thumbnail source={variant.image} alt={variant.variantTitle} size="small" />
+                                                                    {/* No variant.image in payload → use product image */}
+                                                                    {product.media?.length > 0 ? (
+                                                                        <Thumbnail source={product.media[0].src} alt={variant.title} size="small" />
                                                                     ) : (
-                                                                        <Thumbnail source={ImageIcon} size="small" alt={variant.variantTitle} />
+                                                                            <Thumbnail source={ImageIcon} size="small" alt={variant.title} />
                                                                     )}
 
                                                                     <div
                                                                         style={{
                                                                             flex: 1,
                                                                             display: 'grid',
-                                                                            gridTemplateColumns: '1fr auto 1fr', // left = flexible, middle = auto, right = flexible
-                                                                            alignItems: 'center',
+                                                                            gridTemplateColumns: '1fr auto 1fr',
+                                                                            alignItems: 'center'
                                                                         }}
                                                                     >
-                                                                        {/* Title (left, always aligned left) */}
+                                                                        {/* Variant title */}
                                                                         <div style={{ textAlign: 'left' }}>
-                                                                            <strong>{truncate(variant.variantTitle, { length: 7 })}</strong>
+                                                                            <strong>{truncate(variant.title, { length: 7 })}</strong>
                                                                         </div>
 
-                                                                        {/* Available (center, auto-sized, perfectly centered) */}
-                                                                        <div style={{ textAlign: 'center', color: '#888' }}>
-                                                                            {variantUnavailable
-                                                                                ? "Sold Out"
-                                                                                : ` ${variant.available && variant.available > 0 ? variant.available : "Unlimited"} available`}
-                                                                        </div>
+                                                                        {/* Inventory */}
+                                                                        <div style={{ textAlign: 'center', color: '#888' }}> {variantUnavailable ? "Sold Out" : `${variant.inventory_quantity > 0
+                                                                            ? variant.inventory_quantity
+                                                                            : 'Unlimited'} available`} </div>
 
-                                                                        {/* Price (right, always aligned right) */}
+
+                                                                        {/* Price */}
                                                                         <div style={{ textAlign: 'right' }}>
                                                                             ${variant.price}
                                                                         </div>
                                                                     </div>
-
                                                                 </div>
                                                             );
                                                         })}
                                                     </div>
                                                 )}
                                             </div>
-
                                         );
                                     })}
+
 
                                     {(currentPage > 1 || currentPage < totalPages) && (
                                         <Box
