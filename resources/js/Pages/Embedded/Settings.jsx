@@ -13,12 +13,14 @@ import {
 } from '@shopify/polaris';
 import { useAppBridge } from '@shopify/app-bridge-react';
 import { SaveBar } from '@shopify/app-bridge-react';
+import { set } from 'lodash';
+import { router, usePage } from '@inertiajs/react';
+
 
 export default function Settings() {
-
+    const { props } = usePage();
+    const query = props.ziggy.query;
     const shopify = useAppBridge();
-
-
     const [appVersion, setAppVersion] = useState('version 1.0');
     const [brandColor, setBrandColor] = useState({ hue: 120, brightness: 1, saturation: 1 });
     const [initialBrandColor, setInitialBrandColor] = useState({ hue: 120, brightness: 1, saturation: 1 });
@@ -53,16 +55,13 @@ export default function Settings() {
         } else {
             r = c; g = 0; blue = x;
         }
-
         r = Math.round((r + m) * 255);
         g = Math.round((g + m) * 255);
         blue = Math.round((blue + m) * 255);
-
+        console.log(`HSB(${h}, ${s}, ${b}) -> HEX(${r}, ${g}, ${blue})`);
         return `#${((1 << 24) + (r << 16) + (g << 8) + blue).toString(16).slice(1)}`;
     };
-
     const hexColor = hsbToHex(brandColor);
-
     // Check if any changes were made and show/hide save bar
     useEffect(() => {
         const hasColorChanged = JSON.stringify(brandColor) !== JSON.stringify(initialBrandColor);
@@ -75,16 +74,37 @@ export default function Settings() {
             shopify.saveBar.hide("my-save-bar");
         }
     }, [brandColor, customCSS, initialBrandColor, initialCustomCSS, shopify.saveBar]);
+    const handleSave = async () => {
+        try {
+            const payload = {
+                brand_color_hex: hsbToHex(brandColor), // store HEX too
+                custom_css: customCSS,
+            };
 
-    const handleSave = () => {
+            const response = await fetch(route("settings.save", query), {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json", // <-- ADD THIS LINE
+                    "Accept": "application/json"
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                throw new Error("Failed to save settings");
+            }
+            const result = await response.json();
+            console.log("Saved:", result);
+            // Update local "initial" values after success
         setInitialBrandColor({ ...brandColor });
-        setInitialCustomCSS(customCSS);
-        // setIsDirty(false);
+            setInitialCustomCSS(customCSS);
         shopify.saveBar.hide("my-save-bar");
+        } catch (error) {
+            console.error("Error saving settings:", error);
+        }
     };
 
     const handleDiscard = () => {
-      
         setBrandColor({ ...initialBrandColor });
         setCustomCSS(initialCustomCSS);
         // setIsDirty(false);

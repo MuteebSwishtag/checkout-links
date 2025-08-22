@@ -56,4 +56,36 @@ class ProductController extends Controller
             ]
         ]);
     }
+    public function save(Request $request)
+    {
+        $data = $request->validate([
+            // 'brand_color' => 'required|array',
+            // 'brand_color.hue' => 'numeric',
+            // 'brand_color.saturation' => 'numeric',
+            // 'brand_color.brightness' => 'numeric',
+            'brand_color_hex' => 'string',
+            'custom_css' => 'nullable|string',
+        ]);
+
+        Log::info('Settings data received: ', $request->all());
+
+        // Example: Save to DB in a `settings` table per user/shop
+        $user = Auth::user();
+
+        // $user->settings()->updateOrCreate(
+        //     ['key' => 'brand_color'],
+        //     ['value' => json_encode($data['brand_color'])]
+        // );
+
+        $user->settings()->updateOrCreate(
+            ['key' => 'brand_color_hex'],
+            ['value' => $data['brand_color_hex'] ?? null]
+        );
+
+        $user->settings()->updateOrCreate(
+            ['key' => 'custom_css'],
+            ['value' => $data['custom_css'] ?? null]
+        );
+        return response()->json(['status' => 'success']);
+    }
 }

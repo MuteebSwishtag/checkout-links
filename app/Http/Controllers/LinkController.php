@@ -381,6 +381,7 @@ public function update(Request $request, $id)
             // $link = Link::where('user_id', $id)->firstOrFail();
             // Find the link by ID - this is a public endpoint so no auth required
             $link = Link::findOrFail($id);
+            
 
             // Load the link relationships with eager loading to avoid N+1 queries
             $link->load([
@@ -388,7 +389,8 @@ public function update(Request $request, $id)
                 'linkedVariants',
                 'linkedVariants.variant',
                 'linkedVariants.variant.product',
-                'linkedVariants.variant.product.media'
+                'linkedVariants.variant.product.media',
+                'user.settings'
             ]);
 
             // Ensure quantity is properly included in the response
