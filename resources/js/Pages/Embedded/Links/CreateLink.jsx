@@ -1614,7 +1614,7 @@ export default function CreateLink() {
                         <BlockStack gap="300">
                             <Card>
                                 <BlockStack gap="300" padding="400">
-                                    <Text variant="bodyMd">Link Name</Text>
+                                    <Text variant="bodyMd"><p className='text-black font-normal'>Link Name</p></Text>
                                     <TextField
                                         label=""
                                         value={linkName}
@@ -1623,7 +1623,7 @@ export default function CreateLink() {
                                         autoComplete="off"
                                         error={errors.linkName}
                                     />
-                                    <Text variant="bodyMd">Link ID</Text>
+                                    <Text variant="bodyMd"><p className='text-black font-normal'>Link ID</p></Text>
                                     <TextField
                                         label=""
                                         value={linkId}
@@ -1640,13 +1640,13 @@ export default function CreateLink() {
                             {/* Products Card */}
                             <Card padding={'0'}  >
                                 <BlockStack gap="400">
-                                    <Box background='bg' padding={'300'}>
+                                    <Box background='bg' padding={'300'}  borderBlockEndWidth='0165' borderColor='border-brand'>
                                         <InlineStack align="space-between" padding="400">
                                             <InlineStack align="center" gap='050'>
                                                 <Box>
                                                     <Icon source={ProductAddIcon} tone="base" />
                                                 </Box>
-                                                <Text variant="bodyLg" fontWeight='bold'> Products</Text>
+                                                <Text variant="bodyLg" fontWeight='bold'> <p className='text-black font-bold'>Products</p></Text>
                                             </InlineStack>
                                             <Button
                                                 onClick={handleProductsToggle}
@@ -1891,9 +1891,9 @@ export default function CreateLink() {
                                                                                             </Box>
                                                                                         </InlineStack>
                                                                                         <InlineStack gap="200">
-                                                                                            <Button variant="base" onClick={() => handleEditVariant(product)}>
-                                                                                                Edit
-                                                                                            </Button>
+                                                                                            <Button variant="base"  onClick={() => handleEditVariant(product)}>
+                                                                                              <Text fontWeight='bold'>Edit</Text>  
+                                                                                            </Button>     
                                                                                             <Button variant="plain" onClick={() => handleRemoveProduct(product.id)}>
                                                                                                 <Icon source={XIcon} tone='base' />
                                                                                             </Button>
@@ -1924,24 +1924,24 @@ export default function CreateLink() {
                                 {/* Discounts Card */}
 
                                 <BlockStack gap="400">
-                                    <Box background='bg' padding={'300'}>
-                                        <InlineStack align="space-between" padding="400">
-                                            <InlineStack align="center" gap='050'>
-                                                <Box>
-                                                    <Icon source={SettingsIcon} tone="base" />
-                                                </Box>
-                                                <Text variant="bodyLg" fontWeight='bold'> Discounts</Text>
-                                            </InlineStack>
-                                            <Button
-                                                onClick={handleDiscountsToggle}
-                                                ariaExpanded={discountsOpen}
-                                                ariaControls="discounts-content"
-                                                variant='plain'
-                                                tone='base'
-                                                icon={discountsOpen ? ChevronUpIcon : ChevronDownIcon}
-                                            />
+                                         <Box background='bg' padding={'300'} borderBlockEndWidth='0165' borderColor='border-brand'>
+                                    <InlineStack align="space-between" padding="400">
+                                        <InlineStack align="center" gap='050'>
+                                            <Box>
+                                                <Icon source={SettingsIcon} tone="base" />
+                                            </Box>
+                                            <Text variant="bodyLg" fontWeight='bold'> <p className='text-black font-bold'> Discounts</p></Text>
                                         </InlineStack>
-                                    </Box>
+                                        <Button
+                                            onClick={handleDiscountsToggle}
+                                            ariaExpanded={discountsOpen}
+                                            ariaControls="discounts-content"
+                                            variant='plain'
+                                            tone='base'
+                                            icon={discountsOpen ? ChevronUpIcon : ChevronDownIcon}
+                                        />
+                                    </InlineStack>
+                               </Box>
                                     <Collapsible open={discountsOpen} id="discounts-content">
                                         <Box padding={'300'}>
                                             <Discount
@@ -1964,23 +1964,23 @@ export default function CreateLink() {
                                 {/* card  margin  bottom */}
 
                                 <BlockStack gap="400">
-                                    <Box background='bg' padding={'300'}>
-                                        <InlineStack align="space-between" padding="400">
-                                            <InlineStack align="center" gap='050'>
-                                                <Box>
-                                                    <Icon source={StatusActiveIcon} tone="base" />
-                                                </Box>
-                                                <Text variant="bodyLg" fontWeight='bold'> Popup Message</Text>
-                                            </InlineStack>
-                                            <Button
-                                                onClick={handlePopupMessageToggle}
-                                                ariaExpanded={popupMessageOpen}
-                                                ariaControls="popup-message-content"
-                                                variant='plain'
-                                                tone='base'
-                                                icon={popupMessageOpen ? ChevronUpIcon : ChevronDownIcon}
-                                            />
+                                     <Box background='bg' padding={'300'} >
+                                    <InlineStack align="space-between" padding="400">
+                                        <InlineStack align="center" gap='050'>
+                                            <Box>
+                                                <Icon source={StatusActiveIcon} tone="base" />
+                                            </Box>
+                                            <Text variant="bodyLg" fontWeight='bold'> <p className='text-black font-bold'>Popup Message</p></Text>
                                         </InlineStack>
+                                        <Button
+                                            onClick={handlePopupMessageToggle}
+                                            ariaExpanded={popupMessageOpen}
+                                            ariaControls="popup-message-content"
+                                            variant='plain'
+                                            tone='base'
+                                            icon={popupMessageOpen ? ChevronUpIcon : ChevronDownIcon}
+                                        />
+                                    </InlineStack>
                                     </Box>
                                     <Collapsible open={popupMessageOpen} id="popup-message-content">
                                         <Box padding={'300'}>
@@ -2013,7 +2013,7 @@ export default function CreateLink() {
                         <Card>
                             <BlockStack gap="400" padding="400">
                                 <InlineStack align="space-between">
-                                    <Text variant="bodyMd" fontWeight='bold'>Summary</Text>
+                                    <Text variant="bodyMd" fontWeight='bold'> <p className='text-black font-bold'>Summary </p></Text>
                                     <Button variant='plain' onClick={handleTestLink}>Test</Button>
                                 </InlineStack>
 
@@ -2025,7 +2025,7 @@ export default function CreateLink() {
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
                                                 <Text as="span" tone="subdued">
-                                                    Pre-filled cart: {selectedProductItems.length} {selectedProductItems.length === 1 ? 'item' : 'items'} selected
+                                                 <p className='text-black font-normal'>Pre-filled cart: {selectedProductItems.length} {selectedProductItems.length === 1 ? 'item' : 'items'} selected</p>   
                                                 </Text>
                                             </InlineStack>
                                         }
@@ -2036,7 +2036,7 @@ export default function CreateLink() {
                                                 <div style={{ marginTop: "2px" }}>
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
-                                                <Text as="span" tone="base">Free shipping applied</Text>
+                                                <Text as="span" tone="base"><p className='text-black font-normal'>Free shipping applied</p></Text>
                                             </InlineStack>
                                         }
 
@@ -2045,7 +2045,7 @@ export default function CreateLink() {
                                                 <div style={{ marginTop: "2px" }}>
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
-                                                <Text as="span" tone="base" > Order Discount: {discountData.discountValue}% Off</Text>
+                                                <Text as="span" tone="base" ><p className='text-black font-normal'> Order Discount: {discountData.discountValue}% Off</p></Text>
                                             </InlineStack>
                                         }
 
@@ -2054,7 +2054,7 @@ export default function CreateLink() {
                                                 <div style={{ marginTop: "2px" }}>
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
-                                                <Text as="span" tone="base">Discount code: {discountData.discountCodeValue}</Text>
+                                                <Text as="span" tone="base"><p className='text-black font-normal'>Discount code: {discountData.discountCodeValue}</p></Text>
                                             </InlineStack>
                                         }
                                         {popupMessageData.isActive &&
@@ -2064,7 +2064,7 @@ export default function CreateLink() {
                                                     <Icon source={StatusActiveIcon} tone='subdued' />
                                                 </div>
                                                 <Box maxWidth='260px'>
-                                                    <Text as="span" tone="subdued"> User is prompted with popup message before checkout </Text>
+                                                    <Text as="span" tone="subdued"> <p className='text-black font-normal'>User is prompted with popup message before checkout</p></Text>
 
                                                 </Box>
                                             </InlineStack>
@@ -2091,7 +2091,7 @@ export default function CreateLink() {
                         <Card>
                             <BlockStack gap="400" >
                                 <InlineStack align="space-between">
-                                    <Text variant="bodyMd" fontWeight='bold'>Preview </Text>
+                                    <Text variant="bodyMd" fontWeight='bold'> <p className='text-black font-bold'>Preview</p> </Text>
                                     {/* <Button variant='plain'>Test</Button> */}
                                 </InlineStack>
 
@@ -2343,14 +2343,14 @@ export default function CreateLink() {
                                                     <BlockStack gap="400">
                                                         {/* Popup Header */}
                                                         <InlineStack align="center">
-                                                            <Text variant="headingLg" fontWeight="bold">{popupMessageData.headingText}</Text>
+                                                            <Text variant="headingLg" fontWeight="bold"> <p className='text-black font-bold'>{popupMessageData.headingText}</p> </Text>
                                                         </InlineStack>
 
                                                         {/* Message Text */}
                                                         {popupMessageData.messageText && (
                                                             <div style={{ textAlign: 'center', whiteSpace: 'normal', wordBreak: 'break-word', width: '100%' }}>
                                                                 <Text variant="bodySm" tone="base" as="p">
-                                                                    {popupMessageData.messageText}
+                                                                    <p className='text-black font-normal'>{popupMessageData.messageText}</p>
                                                                 </Text>
                                                             </div>
                                                         )}
@@ -2360,7 +2360,7 @@ export default function CreateLink() {
                                                         {popupMessageData.countdownActive && (
                                                             <InlineStack align="center" gap="200">
                                                                 <Text variant="bodyMd" tone="subdued">{popupMessageData.copyText}</Text>
-                                                                <Text variant="bodyMd" fontWeight="bold" tone="critical">
+                                                                <Text variant="bodyMd" fontWeight="bold" tone="base">
                                                                     {formatTime(timerSeconds)}
                                                                 </Text>
                                                                 {timerSeconds === 0 && (
@@ -2428,10 +2428,10 @@ export default function CreateLink() {
                                                                                         <InlineStack align='center' blockAlign='center' >
                                                                                             <Box maxWidth='120px'>
                                                                                                 <div title={product.title}>
-                                                                                                    <Text fontWeight="medium" textAlign='center' tone='base' truncate>{product.title}</Text>
+                                                                                                    <Text fontWeight="medium" textAlign='center' tone='base' truncate> <p className='text-black font-bold'>{product.title}</p></Text>
                                                                                                     {popupMessageData.showPrice && (
                                                                                                         <Text variant="bodyMd" color="subdued" style={{ display: 'flex', marginTop: 1 }}>
-                                                                                                            ${product.price || '0.00'}
+                                                                                                          <p className='text-black font-normal'>${product.price || '0.00'}</p>
                                                                                                         </Text>
                                                                                                     )}
                                                                                                 </div>
@@ -2463,10 +2463,11 @@ export default function CreateLink() {
                                                                     <div style={{ borderTop: '1px solid var(--p-border-subdued)' }}></div>
                                                                 </Box>
                                                                 <InlineStack align="space-between">
-                                                                    <Text variant="headingLg" fontWeight="bold">Total </Text>
+                                                                    <Text variant="headingLg" fontWeight="bold"> <p className='text-black font-bold'>Total</p> </Text>
                                                                     <InlineStack align="end" gap="200" blockAlign='center'>
-                                                                        <Text variant="headingXs" tone="subdued">AUD</Text>
+                                                                        <Text variant="headingXs" tone="subdued"> <p className='text-black font-bold'>AUD</p> </Text>
                                                                         <Text variant="headingLg" fontWeight="bold">
+                                                                            <p className='text-black font-bold'>
                                                                             {(() => {
                                                                                 const subtotal = selectedProductItems
                                                                                     .filter(product => popupProductChecked[product.id] !== false)
@@ -2491,6 +2492,7 @@ export default function CreateLink() {
 
                                                                                 return (subtotal - discount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
                                                                             })()}
+                                                                            </p>
                                                                         </Text>
                                                                     </InlineStack>
                                                                 </InlineStack>
@@ -2505,7 +2507,7 @@ export default function CreateLink() {
                                                                             />
                                                                         </Box>
                                                                         <Text variant="bodySm" tone="base">
-                                                                            ${discountData.discountValue}% OFF ORDER
+                                                                            <p className='text-black font-normal'>${discountData.discountValue}% OFF ORDER</p>
                                                                         </Text>
                                                                     </InlineStack>
                                                                 )}
@@ -2572,7 +2574,7 @@ export default function CreateLink() {
                 <Modal.Section>
                     <BlockStack gap="400">
                         {currentEditingVariant && (
-                            <InlineStack gap="400" align="left">
+                            <InlineStack gap="400" align="left" blockAlign='center'>
                                 {currentEditingVariant.image ? (
                                     <Thumbnail
                                         source={currentEditingVariant.image}
@@ -2582,13 +2584,13 @@ export default function CreateLink() {
                                 ) : (
                                     <Thumbnail source={ImageIcon} size="small" alt={currentEditingVariant.title} />
                                 )}
-                                <Text fontWeight="medium">
+                                <Text fontWeight="medium" alignment='center'>
                                     {currentEditingVariant.title} {currentEditingVariant.variant ? `(${currentEditingVariant.variant})` : ''}
                                 </Text>
                             </InlineStack>
                         )}
                         <TextField
-                            label="Quantity"
+                            label={<p className='text-black font-normal'>Quantity</p>}
                             value={variantQuantity}
                             type="number"
                             min={1}
@@ -2606,7 +2608,7 @@ export default function CreateLink() {
                                 if (typeof available === "number" && available > 0) {
                                     return `Set the quantity for this product variant (max: ${available})`;
                                 }
-                                return `Set the quantity for this product variant (no limit)`;
+                                return `Set the quantity for this product variant  (no limit)`;
                             })()}
                             onBlur={() => {
                                 let value = parseInt(variantQuantity) || 1;

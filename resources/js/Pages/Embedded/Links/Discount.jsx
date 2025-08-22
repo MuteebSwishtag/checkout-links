@@ -96,11 +96,11 @@ export default function Discount({
           <InlineStack align="space-between" blockAlign="start">
             <Box>
               <Text variant="bodyMd" fontWeight="medium">
-                Free shipping
+                <p className='text-black font-bold'>Free shipping</p>
               </Text>
               <Box paddingBlockStart="050">
                 <Text variant="bodyMd" tone="subdued">
-                  Add free shipping for customers
+                  <p className='text-black font-normal'>Add free shipping for customers</p>
                 </Text>
               </Box>
             </Box>
@@ -120,11 +120,11 @@ export default function Discount({
             <InlineStack align="space-between" blockAlign="start">
               <Box>
                 <Text variant="bodyMd" fontWeight="medium">
-                  Order discount
+                  <p className='text-black font-bold'>Order discount</p>
                 </Text>
                 <Box paddingBlockStart="050">
                   <Text variant="bodyMd" tone="subdued">
-                    Automatically apply a discount to order
+                    <p className='text-black font-normal'>Automatically apply a discount to order</p>
                   </Text>
                 </Box>
               </Box>
@@ -162,11 +162,11 @@ export default function Discount({
             <InlineStack align="space-between" blockAlign="start">
               <Box>
                 <Text variant="bodyMd" fontWeight="medium">
-                  Use a discount code
+                  <p className='text-black font-bold'>Use a discount code</p>
                 </Text>
                 <Box paddingBlockStart="050">
                   <Text variant="bodyMd" tone="subdued">
-                    Add any existing discount code to order
+                    <p className='text-black font-normal'>Add any existing discount code to order</p>
                   </Text>
                 </Box>
               </Box>

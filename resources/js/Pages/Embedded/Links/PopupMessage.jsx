@@ -36,11 +36,11 @@ export default function PopupMessage({
                     <InlineStack align="space-between" blockAlign="start">
                         <Box>
                             <Text variant="bodyMd" fontWeight="medium">
-                                Activate popup message
+                                <p className='text-black font-bold'>Activate popup message</p>
                             </Text>
                             <Box paddingBlockStart="100">
                                 <Text variant="bodySm" tone="subdued">
-                                    Summarise your pre-filled cart before users reach checkout
+                                    <p className='text-black font-normal'>Summarise your pre-filled cart before users reach checkout</p>
                                 </Text>
                             </Box>
                         </Box>
@@ -58,14 +58,14 @@ export default function PopupMessage({
                     <BlockStack gap="400">
                         <Box>
                             <Text variant="headingMd" as="h3" fontWeight="medium">
-                                Content
+                              <p className='text-black font-bold'>Content</p>
                             </Text>
                         </Box>
 
                        
                         <Box>
                             <Text variant="bodyMd" fontWeight="medium">
-                                Heading text
+                               <p className='text-black font-normal'>Heading text</p>
                             </Text>
                             <Box paddingBlockStart="200">
                                 <TextField
@@ -80,7 +80,7 @@ export default function PopupMessage({
                        
                         <Box>
                             <Text variant="bodyMd" fontWeight="medium">
-                                Message (optional)
+                               <p className='text-black font-normal'>Message (optional)</p>
                             </Text>
                             <Box paddingBlockStart="200">
                                 <TextField
@@ -103,11 +103,11 @@ export default function PopupMessage({
                             <InlineStack align="space-between" blockAlign="start">
                                 <Box>
                                     <Text variant="bodyMd" fontWeight="medium">
-                                        Countdown timer
+                                    <p className='text-black font-bold'>Countdown timer</p>
                                     </Text>
                                     <Box paddingBlockStart="100">
                                         <Text variant="bodySm" tone="subdued">
-                                            Automatically apply a discount to order
+                                            <p className='text-black font-normal'>Automatically apply a discount to order</p>
                                         </Text>
                                     </Box>
                                 </Box>
@@ -132,7 +132,7 @@ export default function PopupMessage({
 
                                     <Box>
                                         <Text variant="bodyMd" fontWeight="medium">
-                                            Copy before the timer
+                                          <p className='text-black font-normal'>Copy before the timer</p>
                                         </Text>
                                         <Box paddingBlockStart="200">
                                             <TextField
@@ -155,14 +155,14 @@ export default function PopupMessage({
                         <BlockStack gap="400">
                             <Box>
                                 <Text variant="headingMd" as="h3" fontWeight="medium">
-                                    Product settings
+                                    <p className='text-black font-bold'>Product settings</p>
                                 </Text>
                             </Box>
 
                             <InlineStack align="space-between" blockAlign="start">
                                 <Box>
                                     <Text variant="bodyMd" fontWeight="medium">
-                                        Allow users to deselect products
+                                        <p className='text-black font-normal'>Allow users to deselect products</p>
                                     </Text>
                                 </Box>
                                 <Toggle
@@ -174,7 +174,7 @@ export default function PopupMessage({
                             <InlineStack align="space-between" blockAlign="start">
                                 <Box>
                                     <Text variant="bodyMd" fontWeight="medium">
-                                        Show product price
+                                        <p className='text-black font-normal'>Show product price</p>
                                     </Text>
                                 </Box>
                                 <Toggle
@@ -186,7 +186,7 @@ export default function PopupMessage({
                             <InlineStack align="space-between" blockAlign="start">
                                 <Box>
                                     <Text variant="bodyMd" fontWeight="medium">
-                                        Show order total
+                                        <p className='text-black font-normal'>Show order total</p>
                                     </Text>
                                 </Box>
                                 <Toggle
@@ -206,14 +206,14 @@ export default function PopupMessage({
                         <BlockStack gap="400">
                             <Box>
                                 <Text variant="headingMd" as="h3" fontWeight="medium">
-                                    Buttons
+                                    <p className='text-black font-bold'>Buttons</p>
                                 </Text>
                             </Box>
 
                             
                             <Box>
                                 <Text variant="bodyMd" fontWeight="medium">
-                                    Checkout button text
+                                    <p className='text-black font-normal'>Checkout button text</p>
                                 </Text>
                                 <Box paddingBlockStart="200">
                                     <TextField
@@ -228,7 +228,7 @@ export default function PopupMessage({
                           
                             <Box>
                                 <Text variant="bodyMd" fontWeight="medium">
-                                    Close button text
+                                    <p className='text-black font-normal'>Close button text</p>
                                 </Text>
                                 <Box paddingBlockStart="200">
                                     <TextField
@@ -243,7 +243,7 @@ export default function PopupMessage({
                           
                             <Box>
                                 <Text variant="bodyMd" fontWeight="medium">
-                                    Close button link
+                                   <p className='text-black font-normal'>Close button link</p>
                                 </Text>
                                 <Box paddingBlockStart="200">
                                     <TextField
