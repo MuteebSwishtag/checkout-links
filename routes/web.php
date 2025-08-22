@@ -33,6 +33,9 @@ Route::group(['middleware' => ['verify.embedded', 'verify.shopify']], function (
     Route::delete('/links/{id}/delete', [LinkController::class, 'destroy'])->name('links.delete');
     Route::post('/settings/save', [ProductController::class, 'save'])
         ->name('settings.save');
+
+    // Route to fetch settings for the current user
+    Route::get('/settings/get', [ProductController::class, 'settingsGet'])->name('settings.get');
 });
 
 // Public debug routes for testing - no authentication required

@@ -10,6 +10,16 @@ use Illuminate\Validation\Rules\Unique;
 
 class ProductController extends Controller
 {
+    // Fetch settings for the current user
+    public function settingsGet(Request $request)
+    {
+        $user = Auth::user();
+        $settings = $user->settings()->whereIn('key', ['brand_color_hex', 'custom_css'])->pluck('value', 'key');
+        return response()->json([
+            'brand_color_hex' => $settings['brand_color_hex'] ?? null,
+            'custom_css' => $settings['custom_css'] ?? '',
+        ]);
+    }
     public function getProducts(Request $request)
     {
         $user = Auth::user();

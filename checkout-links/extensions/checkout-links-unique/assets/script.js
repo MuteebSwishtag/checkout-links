@@ -109,6 +109,33 @@ document.addEventListener('DOMContentLoaded', function () {
     initialModalElement.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('modal-open');
   }
+  // Function to apply custom CSS and brand color
+  function applyBrandStylesAndCustomCSS(linkData) {
+    // Apply custom CSS if available
+    if (linkData.user?.settings) {
+      const customCss = (Array.isArray(linkData.user.settings)
+        ? linkData.user.settings.find(s => s.key === 'custom_css')?.value
+        : linkData.user.settings.custom_css);
+      if (customCss) {
+        const style = document.createElement('style');
+        style.type = 'text/css';
+        style.appendChild(document.createTextNode(customCss));
+        document.head.appendChild(style);
+      }
+    }
+
+    // Set confirm button background color
+    const brandColor = (Array.isArray(linkData.user?.settings)
+      ? linkData.user.settings.find(s => s.key === 'brand_color_hex')?.value
+      : linkData.user?.settings?.brand_color_hex);
+    if (brandColor) {
+      setTimeout(() => {
+        document.querySelectorAll('.confirm-btn').forEach(btn => {
+          btn.style.background = brandColor;
+        });
+      }, 200); // Wait for modal to render
+    }
+  }
 
   // Get URL parameters
   function getParamsFromUrl() {
@@ -238,6 +265,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (data?.success && data?.link) {
           updateCheckoutConfig(data.link);
+          applyBrandStylesAndCustomCSS(data.link);
           initializeUI();
           return;
         } else {
@@ -1400,6 +1428,7 @@ document.addEventListener('DOMContentLoaded', function () {
     document.body.style.overflow = '';
     document.body.style.paddingRight = '';
   }
+
 
   // Function to check for stored discount and apply it
   function checkAndApplyStoredDiscount() {

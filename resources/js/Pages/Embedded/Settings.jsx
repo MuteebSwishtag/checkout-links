@@ -15,6 +15,7 @@ import { useAppBridge } from '@shopify/app-bridge-react';
 import { SaveBar } from '@shopify/app-bridge-react';
 import { set } from 'lodash';
 import { router, usePage } from '@inertiajs/react';
+import { Toast } from '@shopify/app-bridge/actions';
 
 
 export default function Settings() {
@@ -28,6 +29,67 @@ export default function Settings() {
     const [initialCustomCSS, setInitialCustomCSS] = useState('');
     const [colorPickerActive, setColorPickerActive] = useState(false);
     const [isDirty, setIsDirty] = useState(false);
+    const toast = Toast.create(shopify, { message: '', duration: 3000 });
+
+    // Fetch user settings on mount
+    useEffect(() => {
+        async function fetchSettings() {
+            try {
+                const response = await fetch(route("settings.get", query), {
+                    method: "GET",
+                    headers: {
+                        "Accept": "application/json"
+                    }
+                });
+                if (!response.ok) throw new Error("Failed to fetch settings");
+                const data = await response.json();
+                // Expecting: { brand_color_hex: '#...', custom_css: '...' }
+                if (data.brand_color_hex) {
+                    // Convert HEX to HSB
+                    function hexToHsb(hex) {
+                        hex = hex.replace('#', '');
+                        let r = 0, g = 0, b = 0;
+                        if (hex.length === 3) {
+                            r = parseInt(hex[0] + hex[0], 16);
+                            g = parseInt(hex[1] + hex[1], 16);
+                            b = parseInt(hex[2] + hex[2], 16);
+                        } else if (hex.length === 6) {
+                            r = parseInt(hex.substring(0, 2), 16);
+                            g = parseInt(hex.substring(2, 4), 16);
+                            b = parseInt(hex.substring(4, 6), 16);
+                        }
+                        r /= 255; g /= 255; b /= 255;
+                        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+                        let h, s, v = max;
+                        const d = max - min;
+                        s = max === 0 ? 0 : d / max;
+                        if (max === min) {
+                            h = 0;
+                        } else {
+                            switch (max) {
+                                case r: h = (g - b) / d + (g < b ? 6 : 0); break;
+                                case g: h = (b - r) / d + 2; break;
+                                case b: h = (r - g) / d + 4; break;
+                                default: h = 0;
+                            }
+                            h *= 60;
+                        }
+                        return { hue: h, saturation: s, brightness: v };
+                    }
+                    const hsb = hexToHsb(data.brand_color_hex);
+                    setBrandColor(hsb);
+                    setInitialBrandColor(hsb);
+                }
+                if (data.custom_css !== undefined) {
+                    setCustomCSS(data.custom_css);
+                    setInitialCustomCSS(data.custom_css);
+                }
+            } catch (error) {
+                console.error("Error fetching settings:", error);
+            }
+        }
+        fetchSettings();
+    }, []);
 
     const toggleColorPicker = () => setColorPickerActive(!colorPickerActive);
 
@@ -77,14 +139,14 @@ export default function Settings() {
     const handleSave = async () => {
         try {
             const payload = {
-                brand_color_hex: hsbToHex(brandColor), // store HEX too
+                brand_color_hex: hsbToHex(brandColor),
                 custom_css: customCSS,
             };
 
             const response = await fetch(route("settings.save", query), {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/json", // <-- ADD THIS LINE
+                    "Content-Type": "application/json",
                     "Accept": "application/json"
                 },
                 body: JSON.stringify(payload),
@@ -93,24 +155,44 @@ export default function Settings() {
             if (!response.ok) {
                 throw new Error("Failed to save settings");
             }
+
             const result = await response.json();
             console.log("Saved:", result);
-            // Update local "initial" values after success
-        setInitialBrandColor({ ...brandColor });
+
+            // Update local initial values
+            setInitialBrandColor({ ...brandColor });
             setInitialCustomCSS(customCSS);
-        shopify.saveBar.hide("my-save-bar");
+            shopify.saveBar.hide("my-save-bar");
+
+            // Show toast using shopify.toast.show
+            if (shopify.toast && typeof shopify.toast.show === 'function') {
+                shopify.toast.show('Settings saved', { duration: 5000 });
+            } else {
+                toast.set({ message: 'Settings saved', isError: false });
+                toast.dispatch(Toast.Action.SHOW);
+            }
+
         } catch (error) {
             console.error("Error saving settings:", error);
+            toast.set({ message: 'Failed to save settings ❌', isError: true });
+            toast.dispatch(Toast.Action.SHOW);
         }
     };
 
     const handleDiscard = () => {
         setBrandColor({ ...initialBrandColor });
         setCustomCSS(initialCustomCSS);
-        // setIsDirty(false);
         shopify.saveBar.hide("my-save-bar");
 
+        // Show toast using shopify.toast.show
+        if (shopify.toast && typeof shopify.toast.show === 'function') {
+            shopify.toast.show('Changes discarded', { duration: 5000 });
+        } else {
+            toast.set({ message: 'Changes discarded', isError: false });
+            toast.dispatch(Toast.Action.SHOW);
+        }
     };
+
 
 
     return (
@@ -239,11 +321,7 @@ export default function Settings() {
                         </div>
                     </BlockStack>
                 </div>
-
             </div>
-
-
-
             <SaveBar id="my-save-bar">
                 <button variant="primary" onClick={handleSave}></button>
                 <button onClick={handleDiscard}></button>
