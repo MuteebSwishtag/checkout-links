@@ -1603,7 +1603,7 @@ export default function CreateLink() {
                             {/* Products Card */}
                             <Card padding={'0'}  >
                                 <BlockStack gap="400">
-                                    <Box background='bg' padding={'300'}>
+                                    <Box background='bg' padding={'300'}  borderBlockEndWidth='0165' borderColor='border-brand'>
                                         <InlineStack align="space-between" padding="400">
                                             <InlineStack align="center" gap='050'>
                                                 <Box>
@@ -1852,7 +1852,7 @@ export default function CreateLink() {
                             {/* Discounts Card */}
                                     
                                 <BlockStack gap="400">
-                                         <Box background='bg' padding={'300'}>
+                                         <Box background='bg' padding={'300'} borderBlockEndWidth='0165' borderColor='border-brand'>
                                     <InlineStack align="space-between" padding="400">
                                         <InlineStack align="center" gap='050'>
                                             <Box>
@@ -1892,7 +1892,7 @@ export default function CreateLink() {
                             {/* card  margin  bottom */}
                                                 
                                 <BlockStack gap="400">
-                                     <Box background='bg' padding={'300'}>
+                                     <Box background='bg' padding={'300'} >
                                     <InlineStack align="space-between" padding="400">
                                         <InlineStack align="center" gap='050'>
                                             <Box>
