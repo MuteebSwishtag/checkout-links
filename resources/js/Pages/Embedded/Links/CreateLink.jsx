@@ -1685,90 +1685,116 @@ export default function CreateLink() {
                                                             boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
                                                             padding: '8px 0',
                                                         }}>
-                                                            {productData
-                                                                .filter(product =>
-                                                                    product.title.toLowerCase().includes(mainProductSearch.toLowerCase())
-                                                                )
-                                                                .map(product => {
-                                                                    // Use same logic as modal for checked/indeterminate
-                                                                    const allVariantIds = product.variants.map(v => v.id);
-                                                                    const selectedIds = selectedProductItems.map(item => item.id);
+                                                            {productData.map(product => {
+                                                                const allVariantIds = product.variants.map(v => v.id);
+                                                                const selectedIds = selectedProductItems.map(item => item.id);
 
-                                                                    const productChecked = product.variants.length === 0
-                                                                        ? selectedIds.includes(product.id)
-                                                                        : allVariantIds.every(id => selectedIds.includes(id)) && allVariantIds.length > 0;
+                                                                const productChecked = product.variants.length === 0
+                                                                    ? selectedIds.includes(product.id)
+                                                                    : allVariantIds.every(id => selectedIds.includes(id)) && allVariantIds.length > 0;
 
-                                                                    const productIndeterminate = product.variants.length > 0
-                                                                        && allVariantIds.some(id => selectedIds.includes(id))
-                                                                        && !allVariantIds.every(id => selectedIds.includes(id));
+                                                                const productIndeterminate = product.variants.length > 0
+                                                                    && allVariantIds.some(id => selectedIds.includes(id))
+                                                                    && !allVariantIds.every(id => selectedIds.includes(id));
 
-                                                                    return (
-                                                                        <div
-                                                                            key={product.id}
-                                                                            style={{
-                                                                                borderBottom: '1px solid #eee',
-                                                                                padding: '12px 0',
-                                                                                opacity: allVariantsUnavailable(product) ? 0.5 : 1, // dim product if all disabled
-                                                                                pointerEvents: allVariantsUnavailable(product) ? 'none' : 'auto'
-                                                                            }}
-                                                                        >
-                                                                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                                                                <Checkbox
-                                                                                    label=""
-                                                                                    checked={productChecked}
-                                                                                    indeterminate={productIndeterminate}
-                                                                                    onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
-                                                                                    disabled={allVariantsUnavailable(product)} // disable product checkbox if all variants unavailable
-                                                                                />
+                                                                return (
+                                                                    <div
+                                                                        key={product.id}
+                                                                        style={{
+                                                                            borderBottom: '1px solid #eee',
+                                                                            padding: '12px 0',
+                                                                            opacity: allVariantsUnavailable(product) ? 0.5 : 1 // dim product if all variants unavailable
+                                                                        }}
+                                                                    >
+                                                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                                            <Checkbox
+                                                                                label=""
+                                                                                checked={productChecked}
+                                                                                indeterminate={productIndeterminate}
+                                                                                onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
+                                                                                disabled={allVariantsUnavailable(product)} // disable product checkbox
+                                                                            />
 
-                                                                                {product.image ? (
-                                                                                    <Thumbnail source={product.image} alt={product.title} size="small" />
-                                                                                ) : (
-                                                                                    <Thumbnail source={ImageIcon} size="small" alt={product.title} />
-                                                                                )}
+                                                                            {product.image ? (
+                                                                                <Thumbnail source={product.image} alt={product.title} size="small" />
+                                                                            ) : (
+                                                                                <Thumbnail source={ImageIcon} size="small" alt={product.title} />
+                                                                            )}
 
-                                                                                <div style={{ flex: 1 }}>
-                                                                                    <Text fontWeight="medium" as="span">
-                                                                                        {truncate(product.title, { length: 20 })}
-                                                                                    </Text>
-                                                                                    {product.variants.length === 0 && (
-                                                                                        <Text variant="bodySm" color="subdued">Price: ${product.price}</Text>
-                                                                                    )}
-                                                                                </div>
+                                                                            <div style={{ flex: 1 }}>
+                                                                                <Text fontWeight="medium" as="span">
+                                                                                    {truncate(product.title, { length: 20 })}
+                                                                                </Text>
+                                                                                <span style={{ marginLeft: 8, color: '#888' }}>
+                                                                                    {product.variants.length === 0 && `• $${product.price}`}
+                                                                                </span>
                                                                             </div>
+                                                                        </div>
 
-                                                                            {product.variants.length > 0 && (
-                                                                                <div style={{ marginLeft: 44, marginTop: 8 }}>
-                                                                                    {product.variants.map(variant => (
-                                                                                        <div key={variant.id} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                                                                        {product.variants.length > 0 && (
+                                                                            <div style={{ marginLeft: 44, marginTop: 8 }}>
+                                                                                {product.variants.map(variant => {
+                                                                                    const variantUnavailable = !isVariantAvailable(variant);
+
+                                                                                    return (
+                                                                                        <div
+                                                                                            key={variant.id}
+                                                                                            style={{
+                                                                                                display: 'flex',
+                                                                                                alignItems: 'center',
+                                                                                                gap: 12,
+                                                                                                marginBottom: 8,
+                                                                                                opacity: variantUnavailable ? 0.5 : 1 // dim disabled variant row
+                                                                                            }}
+                                                                                        >
                                                                                             <Checkbox
                                                                                                 label=""
                                                                                                 checked={selectedIds.includes(variant.id)}
                                                                                                 onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
-                                                                                                disabled={!isVariantAvailable(variant)} // ✅ disable each variant individually
+                                                                                                disabled={variantUnavailable} // disable checkbox if unavailable
                                                                                             />
+
                                                                                             {variant.image ? (
                                                                                                 <Thumbnail source={variant.image} alt={variant.variantTitle} size="small" />
                                                                                             ) : (
                                                                                                 <Thumbnail source={ImageIcon} size="small" alt={variant.variantTitle} />
                                                                                             )}
-                                                                                            <div style={{ flex: 1 }}>
-                                                                                                <Text fontWeight="medium">{variant.variantTitle}</Text>
-                                                                                                <Text variant="bodySm" color="subdued">
-                                                                                                    Available: {variant.available && variant.available > 0 ? variant.available : 'Unlimited'}
-                                                                                                </Text>
-                                                                                                <Text variant="bodySm" color="subdued">Price: ${variant.price}</Text>
+
+                                                                                            <div
+                                                                                                style={{
+                                                                                                    flex: 1,
+                                                                                                    display: 'grid',
+                                                                                                    gridTemplateColumns: '1fr auto 1fr', // left = flexible, middle = auto, right = flexible
+                                                                                                    alignItems: 'center',
+                                                                                                }}
+                                                                                            >
+                                                                                                {/* Title (left, always aligned left) */}
+                                                                                                <div style={{ textAlign: 'left' }}>
+                                                                                                    <strong>{truncate(variant.variantTitle, { length: 7 })}</strong>
+                                                                                                </div>
+
+                                                                                                {/* Available (center, auto-sized, perfectly centered) */}
+                                                                                                <div style={{ textAlign: 'center', color: '#888' }}>
+                                                                                                    {variantUnavailable
+                                                                                                        ? "Sold Out"
+                                                                                                        : ` ${variant.available && variant.available > 0 ? variant.available : "Unlimited"} available`}
+                                                                                                </div>
+
+                                                                                                {/* Price (right, always aligned right) */}
+                                                                                                <div style={{ textAlign: 'right' }}>
+                                                                                                    ${variant.price}
+                                                                                                </div>
                                                                                             </div>
+
                                                                                         </div>
-                                                                                    ))}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
 
-
-                                                                    );
-                                                                })
-                                                            }
+                                                                );
+                                                            })}
                                                             {/* Show pagination only if needed - when there's more than one page */}
                                                             {(currentPage > 1 || currentPage < totalPages) && (
                                                                 <Box paddingBlockStart="200" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', paddingTop: '8px' }}>
@@ -1853,7 +1879,7 @@ export default function CreateLink() {
                                                                                         <InlineStack gap="200">
                                                                                             <Button variant="base" onClick={() => handleEditVariant(product)}>
                                                                                                 Edit
-                                                                                            </Button>     
+                                                                                            </Button>
                                                                                             <Button variant="plain" onClick={() => handleRemoveProduct(product.id)}>
                                                                                                 <Icon source={XIcon} tone='base' />
                                                                                             </Button>
@@ -1880,28 +1906,28 @@ export default function CreateLink() {
                                         </Box>
                                     )}
                                 </BlockStack>
-                                    
-                            {/* Discounts Card */}
-                                    
+
+                                {/* Discounts Card */}
+
                                 <BlockStack gap="400">
-                                         <Box background='bg' padding={'300'}>
-                                    <InlineStack align="space-between" padding="400">
-                                        <InlineStack align="center" gap='050'>
-                                            <Box>
-                                                <Icon source={SettingsIcon} tone="base" />
-                                            </Box>
-                                            <Text variant="bodyLg" fontWeight='bold'> Discounts</Text>
+                                    <Box background='bg' padding={'300'}>
+                                        <InlineStack align="space-between" padding="400">
+                                            <InlineStack align="center" gap='050'>
+                                                <Box>
+                                                    <Icon source={SettingsIcon} tone="base" />
+                                                </Box>
+                                                <Text variant="bodyLg" fontWeight='bold'> Discounts</Text>
+                                            </InlineStack>
+                                            <Button
+                                                onClick={handleDiscountsToggle}
+                                                ariaExpanded={discountsOpen}
+                                                ariaControls="discounts-content"
+                                                variant='plain'
+                                                tone='base'
+                                                icon={discountsOpen ? ChevronUpIcon : ChevronDownIcon}
+                                            />
                                         </InlineStack>
-                                        <Button
-                                            onClick={handleDiscountsToggle}
-                                            ariaExpanded={discountsOpen}
-                                            ariaControls="discounts-content"
-                                            variant='plain'
-                                            tone='base'
-                                            icon={discountsOpen ? ChevronUpIcon : ChevronDownIcon}
-                                        />
-                                    </InlineStack>
-                               </Box>
+                                    </Box>
                                     <Collapsible open={discountsOpen} id="discounts-content">
                                         <Box padding={'300'}>
                                             <Discount
@@ -1919,28 +1945,28 @@ export default function CreateLink() {
                                         </Box>
                                     </Collapsible>
                                 </BlockStack>
-                            
-                            {/* Popup Message Card */}
-                            {/* card  margin  bottom */}
-                                                
+
+                                {/* Popup Message Card */}
+                                {/* card  margin  bottom */}
+
                                 <BlockStack gap="400">
-                                     <Box background='bg' padding={'300'}>
-                                    <InlineStack align="space-between" padding="400">
-                                        <InlineStack align="center" gap='050'>
-                                            <Box>
-                                                <Icon source={StatusActiveIcon} tone="base" />
-                                            </Box>
-                                            <Text variant="bodyLg" fontWeight='bold'> Popup Message</Text>
+                                    <Box background='bg' padding={'300'}>
+                                        <InlineStack align="space-between" padding="400">
+                                            <InlineStack align="center" gap='050'>
+                                                <Box>
+                                                    <Icon source={StatusActiveIcon} tone="base" />
+                                                </Box>
+                                                <Text variant="bodyLg" fontWeight='bold'> Popup Message</Text>
+                                            </InlineStack>
+                                            <Button
+                                                onClick={handlePopupMessageToggle}
+                                                ariaExpanded={popupMessageOpen}
+                                                ariaControls="popup-message-content"
+                                                variant='plain'
+                                                tone='base'
+                                                icon={popupMessageOpen ? ChevronUpIcon : ChevronDownIcon}
+                                            />
                                         </InlineStack>
-                                        <Button
-                                            onClick={handlePopupMessageToggle}
-                                            ariaExpanded={popupMessageOpen}
-                                            ariaControls="popup-message-content"
-                                            variant='plain'
-                                            tone='base'
-                                            icon={popupMessageOpen ? ChevronUpIcon : ChevronDownIcon}
-                                        />
-                                    </InlineStack>
                                     </Box>
                                     <Collapsible open={popupMessageOpen} id="popup-message-content">
                                         <Box padding={'300'}>
@@ -2688,61 +2714,61 @@ export default function CreateLink() {
                                             && allVariantIds.some(id => selectedIds.includes(id))
                                             && !allVariantIds.every(id => selectedIds.includes(id));
 
-                                            return (
-                                                <div
-                                                    key={product.id}
-                                                    style={{
-                                                        borderBottom: '1px solid #eee',
-                                                        padding: '12px 0',
-                                                        opacity: allVariantsUnavailable(product) ? 0.5 : 1 // dim product if all variants unavailable
-                                                    }}
-                                                >
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                                                        <Checkbox
-                                                            label=""
-                                                            checked={productChecked}
-                                                            indeterminate={productIndeterminate}
-                                                            onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
-                                                            disabled={allVariantsUnavailable(product)} // disable product checkbox
-                                                        />
+                                        return (
+                                            <div
+                                                key={product.id}
+                                                style={{
+                                                    borderBottom: '1px solid #eee',
+                                                    padding: '12px 0',
+                                                    opacity: allVariantsUnavailable(product) ? 0.5 : 1 // dim product if all variants unavailable
+                                                }}
+                                            >
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                                    <Checkbox
+                                                        label=""
+                                                        checked={productChecked}
+                                                        indeterminate={productIndeterminate}
+                                                        onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
+                                                        disabled={allVariantsUnavailable(product)} // disable product checkbox
+                                                    />
 
-                                                        {product.image ? (
-                                                            <Thumbnail source={product.image} alt={product.title} size="small" />
-                                                        ) : (
-                                                            <Thumbnail source={ImageIcon} size="small" alt={product.title} />
-                                                        )}
+                                                    {product.image ? (
+                                                        <Thumbnail source={product.image} alt={product.title} size="small" />
+                                                    ) : (
+                                                        <Thumbnail source={ImageIcon} size="small" alt={product.title} />
+                                                    )}
 
-                                                        <div style={{ flex: 1 }}>
-                                                            <Text fontWeight="medium" as="span">
-                                                                {truncate(product.title, { length: 20 })}
-                                                            </Text>
-                                                            <span style={{ marginLeft: 8, color: '#888' }}>
-                                                                {product.variants.length === 0 && `• $${product.price}`}
-                                                            </span>
-                                                        </div>
+                                                    <div style={{ flex: 1 }}>
+                                                        <Text fontWeight="medium" as="span">
+                                                            {truncate(product.title, { length: 20 })}
+                                                        </Text>
+                                                        <span style={{ marginLeft: 8, color: '#888' }}>
+                                                            {product.variants.length === 0 && `• $${product.price}`}
+                                                        </span>
                                                     </div>
+                                                </div>
 
-                                                    {product.variants.length > 0 && (
-                                                        <div style={{ marginLeft: 44, marginTop: 8 }}>
-                                                            {product.variants.map(variant => {
-                                                                const variantUnavailable = !isVariantAvailable(variant);
+                                                {product.variants.length > 0 && (
+                                                    <div style={{ marginLeft: 44, marginTop: 8 }}>
+                                                        {product.variants.map(variant => {
+                                                            const variantUnavailable = !isVariantAvailable(variant);
 
-                                                                return (
+                                                            return (
                                                                 <div
-                                                                        key={variant.id} 
-                                                                        style={{
-                                                                            display: 'flex',
-                                                                            alignItems: 'center',
-                                                                            gap: 12,
-                                                                            marginBottom: 8,
-                                                                            opacity: variantUnavailable ? 0.5 : 1 // dim disabled variant row
-                                                                        }}
+                                                                    key={variant.id}
+                                                                    style={{
+                                                                        display: 'flex',
+                                                                        alignItems: 'center',
+                                                                        gap: 12,
+                                                                        marginBottom: 8,
+                                                                        opacity: variantUnavailable ? 0.5 : 1 // dim disabled variant row
+                                                                    }}
                                                                 >
                                                                     <Checkbox
                                                                         label=""
                                                                         checked={selectedIds.includes(variant.id)}
-                                                                            onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
-                                                                            disabled={variantUnavailable} // disable checkbox if unavailable
+                                                                        onChange={checked => handleProductOrVariantCheck(variant.id, checked, false, product)}
+                                                                        disabled={variantUnavailable} // disable checkbox if unavailable
                                                                     />
 
                                                                     {variant.image ? (
@@ -2751,22 +2777,41 @@ export default function CreateLink() {
                                                                         <Thumbnail source={ImageIcon} size="small" alt={variant.variantTitle} />
                                                                     )}
 
-                                                                    <div style={{ flex: 1 }}>
-                                                                        <span><strong>{variant.variantTitle}</strong></span>
-                                                                        <span style={{ marginLeft: 8, color: '#888' }}>• ${variant.price}</span>
-                                                                        <span style={{ marginLeft: 8, color: '#888' }}>
-                                                                            Available: {variant.available && variant.available > 0 ? variant.available : 'Unlimited'}
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                                );
-                                                            })}
-                                                        </div>
-                                                    )}
-                                                </div>
+                                                                    <div
+                                                                        style={{
+                                                                            flex: 1,
+                                                                            display: 'grid',
+                                                                            gridTemplateColumns: '1fr auto 1fr', // left = flexible, middle = auto, right = flexible
+                                                                            alignItems: 'center',
+                                                                        }}
+                                                                    >
+                                                                        {/* Title (left, always aligned left) */}
+                                                                        <div style={{ textAlign: 'left' }}>
+                                                                            <strong>{truncate(variant.variantTitle, { length: 7 })}</strong>
+                                                                        </div>
 
-                                            );
-                                        })}
+                                                                        {/* Available (center, auto-sized, perfectly centered) */}
+                                                                        <div style={{ textAlign: 'center', color: '#888' }}>
+                                                                            {variantUnavailable
+                                                                                ? "Sold Out"
+                                                                                : ` ${variant.available && variant.available > 0 ? variant.available : "Unlimited"} available`}
+                                                                        </div>
+
+                                                                        {/* Price (right, always aligned right) */}
+                                                                        <div style={{ textAlign: 'right' }}>
+                                                                            ${variant.price}
+                                                                        </div>
+                                                                    </div>
+
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                        );
+                                    })}
 
                                     {(currentPage > 1 || currentPage < totalPages) && (
                                         <Box
