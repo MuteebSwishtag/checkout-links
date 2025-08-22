@@ -54,7 +54,7 @@
     visibility: visible;
   }
   .modal-dialog {
-  max-width: 350px; /* 80% of the viewport width */
+  max-width: 400px; /* 80% of the viewport width */
   width: 100%;
   margin: 0 auto;
   display: flex;
@@ -107,6 +107,7 @@
 .modal-content {
   position: relative;
   padding-top: 10px;
+  padding-inline: 18px;
 }
 
 /* Make sure the modal body has proper spacing from the close button */
@@ -321,7 +322,10 @@
     margin-bottom: 15px;
     padding: 8px 15px;
     background-color: #f1f1f1;
-    font-size: 1.4rem;
+    font-size: 1.2rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
   }
   .countdown-label {
     font-size: 1.5rem;
