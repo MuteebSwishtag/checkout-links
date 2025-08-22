@@ -6,12 +6,23 @@
 }
 
 
+
 @media (min-width: 1440px) {
   .scroll-wrapper {
     height: 120dvh;
   }
 }
 
+
+
+.Polaris-Icon--toneBase svg {
+    color: rgb(0 0 0) !important;
+}
+
+
+.Polaris-Button--disabled.Polaris-Button--disabled svg {
+    fill: rgb(0 0 0) !important;
+}
 
 
 .custom-scroll {

@@ -10,9 +10,10 @@ import {
 } from '@shopify/polaris';
 import { useCallback, useEffect, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
-import { CartIcon, LogoMetaIcon, SandboxIcon, ChevronRightIcon, ChartFunnelIcon, EmailIcon, EmailFollowUpIcon, QuestionCircleIcon } from '@shopify/polaris-icons';
+import { CartIcon, LogoMetaIcon, SandboxIcon, ChevronRightIcon, ChartFunnelIcon, EmailIcon, EmailFollowUpIcon, QuestionCircleIcon, StatusActiveIcon } from '@shopify/polaris-icons';
 import bundle from '@/Pages/Images/Bundlo.png';
 import progressify from '@/Pages/Images/Progressify.png'
+import '@/Components/style.css';
 
 export default function Dashboard() {
     const [reload, setReload] = useState(true);
@@ -74,9 +75,9 @@ export default function Dashboard() {
             icon: '',
             backgroundColor: '#E0E0E0',
             buttonVariant: 'secondary',
-            buttonText: '✓ Installed ',
+            buttonText: 'Installed ',
             isDisabled: true,
-            minHeight: '280px',
+            minHeight: '1200px',
             price: '', // Empty price to maintain structure
             trial: '', // Empty trial to maintain structure
         },
@@ -253,12 +254,12 @@ export default function Dashboard() {
                 ) : (!links || links.length === 0) ? (
                     <Card >
                         <Box>
-                            <Text variant="headingLg" as="h2">
-                                Welcome James 👋
-                            </Text>
+                            <Text variant="headingLg" as="h2" >
+                                <p className='text-black font-bold'>Welcome James 👋
+                                </p>                             </Text>
                             <Box paddingBlockStart="200">
-                                <Text variant="bodyMd" tone="base">
-                                    Create your first checkout link in seconds. Here are 3 ways you can use your link.
+                                <Text variant="bodyMd" >
+                                    <p className='text-black'>Create your first checkout link in seconds. Here are 3 ways you can use your link.</p>
                                 </Text>
                             </Box>
                         </Box>
@@ -266,25 +267,27 @@ export default function Dashboard() {
                             <Grid>
                                 {featuresData.map((feature, index) => (
                                     <Grid.Cell key={index} columnSpan={{ xs: 12, sm: 6, md: 6, lg: 4, xl: 4 }}>
-                                        <Box background='bg-surface-secondary' borderRadius='200' padding="400" height="100%">
-                                            <InlineStack gap="100" blockAlign="start">
-                                                <Box >
-                                                    <Icon source={feature.icon} tone="base" />
+                                        <div className='main-icon-cstm'>
+                                            <Box background='bg-surface-secondary' borderRadius='200' padding="400" height="100%">
+                                                <InlineStack gap="100" blockAlign="start">
+                                                    <Box >
+                                                        <div className='text-black'><Icon source={feature.icon} tone="base" /></div>
+                                                    </Box>
+                                                    <Box maxWidth='200px'>
+                                                        <BlockStack gap="200">
+                                                            <Text variant="headingSm" as="h3">
+                                                                <p className='text-black font-bold'>{feature.title}</p>
+                                                            </Text>
+                                                        </BlockStack>
+                                                    </Box>
+                                                </InlineStack>
+                                                <Box paddingBlockStart={"200"}>
+                                                    <Text variant="bodySm" tone="subdued">
+                                                        <p className='text-black'>{feature.description}</p>
+                                                    </Text>
                                                 </Box>
-                                                <Box maxWidth='200px'>
-                                                    <BlockStack gap="200">
-                                                        <Text variant="headingSm" as="h3">
-                                                            {feature.title}
-                                                        </Text>
-                                                    </BlockStack>
-                                                </Box>
-                                            </InlineStack>
-                                            <Box paddingBlockStart={"200"}>
-                                                <Text variant="bodySm" tone="subdued">
-                                                    {feature.description}
-                                                </Text>
                                             </Box>
-                                        </Box>
+                                        </div>
                                     </Grid.Cell>
                                 ))}
                             </Grid>
@@ -341,15 +344,15 @@ export default function Dashboard() {
                 <Box paddingBlockStart="400">
                     <Grid>
 
-                        <Grid.Cell  columnSpan={{ xs: 12, sm: 6, md: 6, lg: 4, xl: 6 }}>
+                        <Grid.Cell columnSpan={{ xs: 12, sm: 6, md: 6, lg: 4, xl: 6 }}>
                             <Card sectioned>
-                                <Box minHeight='110px'>
+                                <Box minHeight='107px'>
                                     <Text variant="headingMd" as="h3">
-                                        How it works
+                                        <p className='text-black font-bold'>How it works</p>
                                     </Text>
                                     <Box paddingBlockStart="100" maxWidth='100'>
                                         <Text variant="bodyMd" tone="base">
-                                            Get the most out of checkout links by following these simple steps.
+                                            <p className='text-black'>Get the most out of checkout links by following these simple steps.</p>
                                         </Text>
                                     </Box>
                                     <Box paddingBlockStart="400">
@@ -363,24 +366,25 @@ export default function Dashboard() {
 
                         <Grid.Cell columnSpan={{ xs: 12, sm: 6, md: 6, lg: 4, xl: 6 }}>
                             <Card sectioned>
-                                <Box width='100%' minWidth='486px'>
+                                <Box width='100%' minWidth='500px'>
                                     <Text variant="headingMd" as="h3">
-                                        Need a hand? We're here to help
+                                        <p className='text-black font-bold'></p>  Need a hand? We're here to help
                                     </Text>
+
                                     <Box paddingBlockStart="300">
-                                        <Box paddingBlockEnd="200">
+                                        <Box paddingBlockEnd="">
                                             <Button variant="plain" textAlign="left" icon={<Icon source={EmailFollowUpIcon} tone="base" />} fullWidth>
-                                                 Start a live chat
+                                                Start a live chat
                                             </Button>
                                         </Box>
-                                        <Box paddingBlockEnd="200">
-                                            <Button variant="plain" textAlign="left"  icon={<Icon source={ EmailIcon} tone="base" />} fullWidth>
-                                                 Send us an email
+                                        <Box paddingBlockEnd="">
+                                            <Button variant="plain" textAlign="left" icon={<Icon source={EmailIcon} tone="base" />} fullWidth>
+                                                Send us an email
                                             </Button>
                                         </Box>
-                                        <Box>
+                                        <Box paddingBlockEnd="">
                                             <Button variant="plain" textAlign="left" icon={<Icon source={QuestionCircleIcon} tone="base" />} fullWidth>
-                                                 See our FAQs
+                                                See our FAQs
                                             </Button>
                                         </Box>
                                     </Box>
@@ -398,7 +402,7 @@ export default function Dashboard() {
                         <Box>
                             <InlineStack align="space-between" blockAlign="start">
                                 <Text variant="headingMd" as="h4">
-                                    Level up your store in 3 simple steps
+                                    <p className='text-black font-semibold'>Level up your store in 3 simple steps</p>
                                 </Text>
                                 <Button variant="plain" icon="X" accessibilityLabel="Close">
                                 </Button>
@@ -408,15 +412,15 @@ export default function Dashboard() {
                                 <Grid>
                                     {appsData.map((app, index) => (
                                         <Grid.Cell key={index} columnSpan={{ xs: 12, sm: 6, md: 4, lg: 4, xl: 4 }}>
-                                            <Card>
-                                                <Box padding="400" minHeight={app.minHeight} style={{ display: 'flex', flexDirection: 'column' }}>
-                                                    <Box textAlign="center" paddingBlockEnd="400">
+                                            <Card padding={index === 0 ? "" : "400"}>
+                                                <Box padding="400" minHeight={'800px'} style={{ display: 'flex', flexDirection: 'column' }}>
+                                                    <Box textAlign="center" paddingBlockEnd="400" paddingBlockStart={index===0?'400':'0'}>
                                                         <div style={{
                                                             width: '64px',
                                                             height: '64px',
                                                             backgroundColor: app.img ? 'transparent' : app.backgroundColor,
                                                             borderRadius: '12px',
-                                                            margin: '0 auto',
+                                                            margin: index === 0 ? '0px auto' : '0 auto',
                                                             display: 'flex',
                                                             alignItems: 'center',
                                                             justifyContent: 'center'
@@ -440,23 +444,30 @@ export default function Dashboard() {
                                                         </div>
                                                     </Box>
 
-                                                    <Box style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                                    <Box paddingBlockStart={index === 0 ? '1000' : '0'} style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                                                         <BlockStack gap="200" align="center">
-                                                            <Text variant="headingMd" as="h3" alignment="center">
-                                                                {app.name}
-                                                            </Text>
-                                                            <Text variant="bodyMd" tone="subdued" alignment="center">
-                                                                {app.description}
-                                                            </Text>
+                                                            <Box >
+
+                                                                <Text variant="headingMd" as="h3" alignment="center">
+                                                                    <p className='text-black font-bold'>{app.name}</p>
+                                                                </Text>
+                                                            </Box>
+                                                            <Box paddingInline={index === 0 ? '1200' : '0'}>
+                                                                <Text variant="bodyMd" tone="subdued" alignment="center">
+                                                                    {app.description}
+                                                                </Text>
+
+                                                            </Box>
                                                             <BlockStack gap="100" align="center">
                                                                 {app.price ? (
                                                                     <Text variant="headingMd" as="h4" alignment="center">
-                                                                        {app.price}
+                                                                        <p className='text-black font-semibold'>{app.price}</p>
                                                                     </Text>
                                                                 ) : (
-                                                                    <Box minHeight="24px" /> // Placeholder space
+                                                                    <Box minHeight="03px" /> // Placeholder space
                                                                 )}
                                                                 {app.trial ? (
+
                                                                     <Text variant="bodyMd" tone="subdued" alignment="center">
                                                                         {app.trial}
                                                                     </Text>
@@ -472,9 +483,20 @@ export default function Dashboard() {
                                                                 fullWidth
                                                                 disabled={app.isDisabled}
                                                                 url={app.link}
+
                                                                 target='_blank'
                                                             >
-                                                                {app.buttonText}
+                                                                <Box padding={index === 0 ? '300' : ''} >
+                                                                    <InlineStack gap='100'  blockAlign='center'>
+                                                                        {index === 0 &&
+  
+                                                                            <Icon source={StatusActiveIcon} tone='base' />
+                                                                        }
+                                                                        <Text tone={index === 0 ? 'base' : 'default'}><p className={index === 0 ? 'text-black' : ' '}>{app.buttonText}</p></Text>
+
+                                                                    </InlineStack>
+
+                                                                </Box>
                                                             </Button>
                                                         </Box>
                                                     </Box>
