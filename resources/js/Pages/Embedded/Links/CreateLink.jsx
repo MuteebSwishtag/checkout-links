@@ -2622,7 +2622,7 @@ export default function CreateLink() {
                 onClose={handleProductModalClose}
                 title="Select products"
                 primaryAction={{
-                    content: 'Done',
+                    content: 'Select',
                     onAction: handleProductModalDone,
                 }}
                 secondaryActions={[
