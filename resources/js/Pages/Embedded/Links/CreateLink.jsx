@@ -1713,7 +1713,7 @@ export default function CreateLink() {
                                                                 error={errors.selectedProducts}
                                                             />
                                                         </div>
-                                                        <Box><Button onClick={handleProductModalOpen}>Browse</Button></Box>
+                                                        <Box><Button onClick={handleProductModalOpen}><p className='text-black font-bold'>Browse</p></Button></Box>
                                                     </InlineStack>
 
                                                     {mainProductSearch && (
@@ -2179,7 +2179,7 @@ export default function CreateLink() {
                                         {!popupMessageData.isActive && (
                                             <Box background='bg-fill-disabled' borderRadius='200' padding={'300'}>
                                                 {selectedProductItems.length === 0 ? (
-                                                    <Text   alignment='center' ><p className='text-black font-normal'> Select product to see preview</p></Text>
+                                                    <Text   alignment='center' ><p className='text-black font-normal'> Select products to see preview</p></Text>
                                                 ) : (
 
                                                     <Box background='' padding={'400'} borderRadius='200' border="base">
