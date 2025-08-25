@@ -75,6 +75,7 @@ export default function CreateLink() {
     const [variantsModal, setVariantsModal] = useState(false);
     const [variantQuantity, setVariantQuantity] = useState(1);
     const [currentEditingVariant, setCurrentEditingVariant] = useState(null);
+
     const normalizeLinkedVariants = (link) => {
         if (!link || !link.linked_variants) return link;
         return {
@@ -457,6 +458,9 @@ export default function CreateLink() {
             setCurrentPage(prev => prev - 1);
         }
     }, [currentPage, isLoading]);
+    const hasPrevious = currentPage > 1;
+    const hasNext = currentPage < totalPages && !isLoading;
+    const disablePagination = isLoading;
 
     function isVariantAvailable(variant) {
         // Use rawVariant if available, otherwise use top-level fields
@@ -739,92 +743,41 @@ export default function CreateLink() {
     const handleDiscountsToggle = useCallback(() => setDiscountsOpen(!discountsOpen), [discountsOpen]);
     const handlePopupMessageToggle = useCallback(() => setPopupMessageOpen(!popupMessageOpen), [popupMessageOpen]);
     const handleProductModalOpen = useCallback(() => {
-        // Sync selectedVariantIds with selectedProductItems
-        const selectedIds = selectedProductItems.map(item => item.id);
-        setSelectedVariantIds(selectedIds);
-
-        // ...existing code...
+        // Save current selection to temp when opening modal
+        // Always initialize tempSelectedProductItems from selectedProductItems
+        setTempSelectedProductItems((Array.isArray(selectedProductItems) ? selectedProductItems : []).map(item => ({ ...item })));
         setIsProductModalOpen(true);
         setProductSearchValue('');
     }, [selectedProductItems]);
 
     const handleProductModalClose = useCallback(() => {
-        // Just close the modal without changing selections
-        // console.log("Closing product modal without changing selections");
+        // Restore temp selection to match original selection before modal was opened
+        // Always reset tempSelectedProductItems to match selectedProductItems
+        setTempSelectedProductItems((Array.isArray(selectedProductItems) ? selectedProductItems : []).map(item => ({ ...item })));
         setIsProductModalOpen(false);
         setProductSearchValue('');
     }, []);
 
     const handleProductModalDone = useCallback(() => {
-        // Get all selected product items from the temporary state
-        const selectedArray = Object.values(tempSelectedProductItems);
+        // Update the main selection with the temporary selection
+        setSelectedProductItems(tempSelectedProductItems);
+        setSelectedProducts(tempSelectedProductItems.length);
 
-        // If no products are selected in the modal, keep previous selection
-        if (selectedArray.length === 0) {
-            setIsProductModalOpen(false);
-            setProductSearchValue('');
-            return;
-        }
-
-        // Create a map of existing quantities for preservation
-        const quantityMap = {};
-        selectedProductItems.forEach(item => {
-            if (item && item.id) {
-                quantityMap[item.id] = parseInt(item.quantity) || 1;
-            }
-        });
-
-        // Merge: For each selected item, preserve quantity if it was already selected
-        // Also merge with existing link products (do not remove them)
-        const mergedMap = {};
-        // Add previous selected products first
-        selectedProductItems.forEach(item => {
-            if (item && item.id) {
-                mergedMap[item.id] = {
-                    ...item,
-                    quantity: quantityMap[item.id] || item.quantity || 1
-                };
-            }
-        });
-        // Add/overwrite with modal selections
-        selectedArray.forEach(item => {
-            if (item && item.id) {
-                mergedMap[item.id] = {
-                    ...item,
-                    quantity: quantityMap[item.id] || item.quantity || 1
-                };
-            }
-        });
-        // Convert to array and remove duplicates by ID
-        const allItems = Object.values(mergedMap);
-        const filteredItems = [];
-        const seenIds = new Set();
-        for (const item of allItems) {
-            if (!seenIds.has(item.id)) {
-                filteredItems.push(item);
-                seenIds.add(item.id);
-            }
-        }
-
-        // Update states
-        setInitialLinkDataLoaded(true);
-        setSelectedVariantIds(filteredItems.map(product => product.id));
-        setSelectedProducts(filteredItems.length);
-        setSelectedProductItems(filteredItems);
+        // Update selected variant IDs
+        const selectedIds = tempSelectedProductItems.map(item => item.id);
+        setSelectedVariantIds(selectedIds);
 
         // Update popup product checked state
         const checkedState = {};
-        filteredItems.forEach(product => {
-            if (product && product.id) {
-                checkedState[product.id] = true;
-            }
+        selectedIds.forEach(id => {
+            checkedState[id] = true;
         });
         setPopupProductChecked(checkedState);
 
         // Close the modal
         setIsProductModalOpen(false);
         setProductSearchValue('');
-    }, [tempSelectedProductItems, selectedProductItems]);
+    }, [tempSelectedProductItems]);
 
     // Helper: get all variant ids for a product
     const getAllVariantIds = (product) => {
@@ -881,14 +834,14 @@ export default function CreateLink() {
         // Also update the quantity in tempSelectedProductItems if modal is open
         if (Object.keys(tempSelectedProductItems).length > 0) {
             setTempSelectedProductItems(prev => {
-                const updated = {
-                    ...prev,
-                    [currentEditingVariant.id]: {
-                        ...(prev[currentEditingVariant.id] || {}),
-                        quantity: quantityValue
-                    }
-                };
-                return updated;
+                if (Array.isArray(prev)) {
+                    return prev.map(item =>
+                        item.id === currentEditingVariant.id
+                            ? { ...item, quantity: quantityValue }
+                            : item
+                    );
+                }
+                return prev;
             });
         }
 
@@ -919,27 +872,15 @@ export default function CreateLink() {
 
         // Restore in temp (modal) selections
         setTempSelectedProductItems(prev => {
-            // If array structure
             if (Array.isArray(prev)) {
-                const updated = prev.map(item =>
+                return prev.map(item =>
                     item.id === currentEditingVariant.id
                         ? { ...item, quantity: restoreValue }
                         : item
                 );
-                // console.log('Updated tempSelectedProductItems (array) after cancel:', updated);
-                return updated;
             }
-            // If object structure
-            if (!prev[currentEditingVariant.id]) return prev; // nothing to restore
-            const updated = {
-                ...prev,
-                [currentEditingVariant.id]: {
-                    ...prev[currentEditingVariant.id],
-                    quantity: restoreValue
-                }
-            };
-            // console.log('Updated tempSelectedProductItems (object) after cancel:', updated);
-            return updated;
+            // Always return an array, never an object
+            return [];
         });
 
         // Close the modal and clear editing state
@@ -957,47 +898,92 @@ export default function CreateLink() {
 
     // Handle product or variant checkbox change
     const handleProductOrVariantCheck = (id, checked, isProduct, product) => {
-        // console.log(`Checkbox changed for ${isProduct ? 'product' : 'variant'}: ${id}, checked: ${checked} ,product: ${JSON.stringify(product)}`);
-        // console.log('Checked variant:', { id, checked, isProduct, product });
+        if (isProductModalOpen) {
+            // Handle selection in modal
+            setTempSelectedProductItems(prev => {
+                let updated = Array.isArray(prev) ? [...prev] : [];
 
-        setSelectedVariantIds(prev => {
-            let newIds;
+                if (isProduct) {
+                    const availableVariantIds = (product.variants || [])
+                        .filter(isVariantAvailable)
+                        .map(v => v.id);
 
+                    if (checked) {
+                        // Add all available variants
+                        availableVariantIds.forEach(vid => {
+                            if (!updated.find(item => item.id === vid)) {
+                                // Find the variant in productData
+                                const variant = product.variants.find(v => v.id === vid);
+                                updated.push({
+                                    id: vid,
+                                    productId: product.id,
+                                    variantId: variant.variantId,
+                                    shopifyVariantId: variant.shopify_product_varient_id,
+                                    title: product.title,
+                                    variant: variant.title,
+                                    price: variant.price,
+                                    image: product.media?.[0]?.src || null,
+                                    available: variant.inventory_quantity,
+                                    quantity: 1
+                                });
+                            }
+                        });
+                    } else {
+                        // Remove all product's variants
+                        updated = updated.filter(item => !availableVariantIds.includes(item.id));
+                    }
+                } else {
+                    if (checked) {
+                        if (!updated.find(item => item.id === id)) {
+                            // Find the variant in productData
+                            const variant = product.variants.find(v => v.id === id);
+                            updated.push({
+                                id: id,
+                                productId: product.id,
+                                variantId: variant.variantId,
+                                shopifyVariantId: variant.shopify_product_varient_id,
+                                title: product.title,
+                                variant: variant.title,
+                                price: variant.price,
+                                image: product.media?.[0]?.src || null,
+                                available: variant.inventory_quantity,
+                                quantity: 1
+                            });
+                        }
+                    } else {
+                        updated = updated.filter(item => item.id !== id);
+                    }
+                }
+                return updated;
+            });
+        } else {
+            // Handle selection outside modal (main product search)
             if (isProduct) {
-                // ✅ Only select variants that are available
                 const availableVariantIds = (product.variants || [])
-                    .filter(isVariantAvailable) // <-- your custom availability check
+                    .filter(isVariantAvailable)
                     .map(v => v.id);
 
-                if (checked) {
-                    // Add available variants
-                    newIds = Array.from(new Set([...prev, ...availableVariantIds]));
-                } else {
-                    // Remove all product's variants
-                    const allVariantIds = (product.variants || []).map(v => v.id);
-                    newIds = prev.filter(vid => !allVariantIds.includes(vid));
-                }
+                setSelectedVariantIds(prev => {
+                    if (checked) {
+                        // Add all available variants
+                        const newSet = new Set([...prev, ...availableVariantIds]);
+                        return Array.from(newSet);
+                    } else {
+                        // Remove all product's variants
+                        return prev.filter(id => !availableVariantIds.includes(id));
+                    }
+                });
             } else {
-                // Variant-level: toggle only this variant
-                if (checked) {
-                    // But also enforce availability if needed
-                    const isAvailable = isVariantAvailable(product);
-                    newIds = isAvailable
-                        ? Array.from(new Set([...prev, id]))
-                        : prev;
-                } else {
-                    newIds = prev.filter(vid => vid !== id);
-                }
-            }
-
-            // ✅ Update popup product checked state
-            const checkedState = {};
-            newIds.forEach(id => (checkedState[id] = true));
-            setPopupProductChecked(prev => ({ ...prev, ...checkedState }));
-
-            return newIds;
+                setSelectedVariantIds(prev => {
+                    if (checked) {
+                        return [...prev, id];
+                    } else {
+                        return prev.filter(vid => vid !== id);
+                    }
         });
-    };
+            }
+        }
+    };;
     // Helper to update selectedProductItems based on selectedVariantIds
     const updateSelectedProductItems = (variantIds, existingItems = {}) => {
         // Try to load global quantities from localStorage if we haven't already
@@ -1229,64 +1215,8 @@ export default function CreateLink() {
 
         // console.log("🔍 Syncing tempSelectedProductItems with selectedVariantIds:", selectedVariantIds);
 
-        setTempSelectedProductItems(prev => {
-            // Flatten product data into a consistent variant/product list
-            const allVariants = productData.flatMap(product =>
-                product.variants.length > 0
-                    ? product.variants.map(v => ({
-                        id: v.id, // "590_46471084015864"
-                        productId: product.id,
-                        title: product.title,
-                        variant: v.title,
-                        variantId: v.variantId,
-                        shopifyVariantId: v.shopify_product_varient_id,
-                        available: v.inventory_quantity,
-                        price: v.price,
-                        image: product.media?.[0]?.src || null
-                    }))
-                    : [{
-                    id: product.id,
-                    productId: product.id,
-                    title: product.title,
-                        variant: null,
-                        variantId: null,
-                        shopifyVariantId: null,
-                    available: product.available,
-                        price: product.price,
-                        image: product.media?.[0]?.src || null
-                    }]
-            );
-
-            // Store current page IDs for easy filtering
-            const currentPageIds = new Set(allVariants.map(v => v.id));
-
-            // Make a copy of previous state to keep selections from other pages
-            let updated = { ...prev };
-
-            // ✅ Update or remove items for the current page
-            allVariants.forEach(item => {
-                if (selectedVariantIds.includes(item.id)) {
-                    // Add/update if selected
-                    updated[item.id] = {
-                        ...item,
-                        quantity: updated[item.id]?.quantity || 1 // keep user-set quantity if exists
-                    };
-                } else {
-                    // Remove if deselected on current page
-                    delete updated[item.id];
-                }
-            });
-
-            // ✅ Cleanup: remove any selections not in selectedVariantIds anymore
-            Object.keys(updated).forEach(id => {
-                if (!selectedVariantIds.includes(id)) {
-                    delete updated[id];
-                }
-            });
-
-            // console.log("✅ Updated tempSelectedProductItems:", updated);
-            return updated;
-        });
+        // Do NOT reset tempSelectedProductItems when page or productData changes
+        // Only update tempSelectedProductItems when opening/closing modal or selecting/deselecting products
     }, [selectedVariantIds, productData]);
 
     const handleDragEnd = useCallback((result) => {
@@ -1750,15 +1680,20 @@ export default function CreateLink() {
                                                                 const allVariantIds = product.variants.map(v => v.id);
                                                                 const selectedIds = selectedProductItems.map(item => item.id);
 
+                                                                // Use tempSelectedProductItems for modal selection
+                                                                const modalSelectedIds = isProductModalOpen
+                                                                    ? tempSelectedProductItems.map(item => item.id)
+                                                                    : selectedProductItems.map(item => item.id);
+
                                                                 const productChecked =
                                                                     product.variants.length === 0
-                                                                        ? selectedIds.includes(product.id)
-                                                                        : allVariantIds.every(id => selectedIds.includes(id)) && allVariantIds.length > 0;
+                                                                        ? modalSelectedIds.includes(product.id)
+                                                                        : allVariantIds.every(id => modalSelectedIds.includes(id)) && allVariantIds.length > 0;
 
                                                                 const productIndeterminate =
                                                                     product.variants.length > 0 &&
-                                                                    allVariantIds.some(id => selectedIds.includes(id)) &&
-                                                                    !allVariantIds.every(id => selectedIds.includes(id));
+                                                                    allVariantIds.some(id => modalSelectedIds.includes(id)) &&
+                                                                    !allVariantIds.every(id => modalSelectedIds.includes(id));
 
                                                                 return (
 
@@ -1774,7 +1709,11 @@ export default function CreateLink() {
                                                                         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                                                             <Checkbox
                                                                                 label=""
-                                                                                checked={productChecked}
+                                                                                checked={selectedVariantIds.some(id =>
+                                                                                    product.variants.length === 0
+                                                                                        ? id === product.id
+                                                                                        : product.variants.every(v => selectedVariantIds.includes(v.id))
+                                                                                )}
                                                                                 indeterminate={productIndeterminate}
                                                                                 onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
                                                                                 disabled={allVariantsUnavailable(product)}
@@ -1813,7 +1752,7 @@ export default function CreateLink() {
                                                                                         >
                                                                                             <Checkbox
                                                                                                 label=""
-                                                                                                checked={selectedIds.includes(variant.id)}
+                                                                                                checked={selectedVariantIds.includes(variant.id)}
                                                                                                 onChange={checked =>
                                                                                                     handleProductOrVariantCheck(
                                                                                                         variant.id,
@@ -2812,7 +2751,11 @@ export default function CreateLink() {
                                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                                     <Checkbox
                                                         label=""
-                                                        checked={productChecked}
+                                                        checked={Array.isArray(tempSelectedProductItems) && tempSelectedProductItems.some(item =>
+                                                            product.variants.length === 0
+                                                                ? item.id === product.id
+                                                                : product.variants.every(v => Array.isArray(tempSelectedProductItems) && tempSelectedProductItems.some(i => i.id === v.id))
+                                                        )}
                                                         indeterminate={productIndeterminate}
                                                         onChange={checked => handleProductOrVariantCheck(product.id, checked, true, product)}
                                                         disabled={allVariantsUnavailable(product)}
@@ -2851,7 +2794,7 @@ export default function CreateLink() {
                                                                 >
                                                                     <Checkbox
                                                                         label=""
-                                                                        checked={selectedIds.includes(variant.id)}
+                                                                        checked={Array.isArray(tempSelectedProductItems) && tempSelectedProductItems.some(item => item.id === variant.id)}
                                                                         onChange={checked =>
                                                                             handleProductOrVariantCheck(
                                                                                 variant.id,
@@ -2905,20 +2848,25 @@ export default function CreateLink() {
                                     })}
 
 
-                                    {(currentPage > 1 || currentPage < totalPages) && (
-                                        <Box
-                                            paddingBlockStart="200"
-                                            style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}
-                                        >
-                                            <Pagination
-                                                hasPrevious={currentPage > 1 && !isLoading}
-                                                onPrevious={handlePrevious}
-                                                hasNext={currentPage < totalPages && !isLoading}
-                                                onNext={handleNext}
-                                                disabled={isLoading}
-                                            />
-                                        </Box>
-                                    )}
+                                        {(currentPage > 1 || currentPage < totalPages) && (
+                                            <Box
+                                                paddingBlockStart="200"
+                                                style={{
+                                                    display: 'flex',
+                                                    justifyContent: 'center',
+                                                    alignItems: 'center',
+                                                    paddingTop: '8px',
+                                                }}
+                                            >
+                                                <Pagination
+                                                    hasPrevious={hasPrevious ? true : false}
+                                                    onPrevious={handlePrevious}
+                                                    hasNext={hasNext ? true : false}
+                                                    onNext={handleNext}
+
+                                                />
+                                            </Box>
+                                        )}
                                 </>
                             )}
                         </div>
