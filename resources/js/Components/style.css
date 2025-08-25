@@ -20,6 +20,11 @@
 }
 
 
+.Polaris-Button.Polaris-Button svg{
+    fill: rgb(0 0 0) !important;
+
+}
+
 .Polaris-Button--disabled.Polaris-Button--disabled svg {
     fill: rgb(0 0 0) !important;
 }
