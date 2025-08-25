@@ -17,17 +17,21 @@ import {
     EmptySearchResult,
     Pagination,
     Box,
-    Spinner
+    Spinner,
+    Modal,
+    InlineStack,
+
 } from '@shopify/polaris'
 import { EditIcon, DeleteIcon, DuplicateIcon } from '@shopify/polaris-icons'
 import React, { useState, useCallback, useEffect } from 'react'
 import { Link, router, usePage } from '@inertiajs/react'
-import toast from 'react-hot-toast';
-import SweetAlert2 from 'react-sweetalert2';
+// import toast from 'react-hot-toast';
+import { useAppBridge } from '@shopify/app-bridge-react';;
 import '../../../../css/links.css'
 
 const LinksIndex = () => {
     const { props } = usePage();
+    const app = useAppBridge();
     const query = props.ziggy.query;
     const [selectedTab, setSelectedTab] = useState(0);
     const [queryValue, setQueryValue] = useState('');
@@ -88,7 +92,9 @@ const LinksIndex = () => {
             setLinks([]);
             setTotalPages(1);
             setTotalLinks(0);
-            toast.error('Failed to load links. Please try again.');
+            if (app && app.toast) {
+                app.toast.show('Failed to load links. Please try again.', { isError: true, duration: 3000 });
+            }
         } finally {
             setLoading(false); // Always set loading to false when done
         }
@@ -172,71 +178,63 @@ const LinksIndex = () => {
         router.get(route('links.edit', { ...query, id: linkId }));
     };
 
-    const [swalProps, setSwalProps] = useState({});
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [deleteTargetId, setDeleteTargetId] = useState(null);
 
 
     // Clear any existing toasts
-    const handleDelete = async (linkId) => {
-        toast.dismiss(); // Clear any existing toasts
-        setSwalProps({
-            show: true,
-            title: 'Are you sure?',
-            text: 'You will not be able to recover this link!',
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonText: 'Yes, delete it!',
-            cancelButtonText: 'No, cancel!',
-            reverseButtons: true,
-            onConfirm: async () => {
-                try {
-                    const response = await fetch(route('links.delete', { ...query, id: linkId }), {
-                        method: 'DELETE',
-                        headers: {
-                            'X-Requested-With': 'XMLHttpRequest',
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json',
-                        },
-                    });
+    const handleDelete = (linkId) => {
+        if (app && app.toast && app.toast.dismiss) {
+            app.toast.dismiss(); // Clear any existing toasts
+        }
+        setDeleteTargetId(linkId);
+        setDeleteModalOpen(true);
+    };
 
-                    const result = await response.json();
-
-                    if (!response.ok || !result.success) {
-                        toast.error(result.message || 'Failed to delete the link. Please try again.');
-                        throw new Error(result.message || 'Unexpected error.');
-                    }
-
-                    await fetchLinks(); // Refresh the list
-                    toast.success(result.message || 'Link deleted successfully.');
-                } catch (error) {
-                    console.error('Error in handleDelete:', error);
+    const confirmDelete = async () => {
+        if (!deleteTargetId) return;
+        try {
+            const response = await fetch(route('links.delete', { ...query, id: deleteTargetId }), {
+                method: 'DELETE',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                },
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                if (app && app.toast) {
+                    app.toast.show(result.message || 'Failed to delete the link. Please try again.', { isError: true, duration: 3000 });
                 }
-                setSwalProps({});
-            },
-            onCancel: () => {
-                setSwalProps({});
-            },
-            onClose: () => {
-                setSwalProps({});
+                throw new Error(result.message || 'Unexpected error.');
             }
-        });
+            await fetchLinks(); // Refresh the list
+            if (app && app.toast) {
+                app.toast.show(result.message || 'Link deleted successfully.', { duration: 3000 });
+            }
+        } catch (error) {
+            console.error('Error in confirmDelete:', error);
+        }
+        setDeleteModalOpen(false);
+        setDeleteTargetId(null);
+    };
+
+    const cancelDelete = () => {
+        setDeleteModalOpen(false);
+        setDeleteTargetId(null);
     };
 
     const rowMarkup = links.map(
         ({ id, linkName, urlCode, status, clicks, placedOrder }, index) => {
             const handleCopy = () => {
                 //with toast notification
-                toast.dismiss(); // Clear any existing toasts
-                toast.success('URL code copied to clipboard!', {
-                    position: 'bottom-center',
-                    style: {
-                        background: '#1E293B', // Deep slate gray/blue (better than pure black)
-                        color: '#F1F5F9',       // Light gray-blue for text (more readable than white)
-                        fontSize: '15px',
-                        padding: '14px 20px',
-                        borderRadius: '8px',
-                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)', // subtle depth
-                    },
-                });
+                if (app && app.toast && app.toast.dismiss) {
+                    app.toast.dismiss(); // Clear any existing toasts
+                }
+                if (app && app.toast) {
+                    app.toast.show('URL code copied to clipboard!', { duration: 3000 });
+                }
                 if (navigator && navigator.clipboard) {
                     navigator.clipboard.writeText(urlCode);
                 } else {
@@ -297,13 +295,43 @@ const LinksIndex = () => {
 
     return (
         <div>
-            <SweetAlert2
-                {...swalProps}
-                didClose={() => {
-                    // Reset state when alert is closed by any means
-                    setSwalProps({});
+            <Modal
+                open={deleteModalOpen}
+                onClose={cancelDelete}
+                title="Delete Link"
+                primaryAction={{
+                    content: 'Delete',
+                    destructive: true,
+                    onAction: confirmDelete,
                 }}
-            />
+                secondaryActions={[
+                    {
+                        content: 'Cancel',
+                        onAction: cancelDelete,
+                    },
+                ]}
+            >
+                <Box padding="500">
+                    {/* <InlineStack align="center" blockAlign="center" gap="400"> */}
+                    {/* <div className="p-4 bg-red-50 rounded-full"> */}
+                    {/* Control size with fontSize */}
+                    {/* <div >
+                        <Icon source={DeleteIcon} tone="critical" />
+                    </div> */}
+                    {/* </div> */}
+                    {/* </InlineStack> */}
+
+                    <Box paddingBlock="400" textAlign="center">
+                        <Text as="h2" variant="headingMd" fontWeight="bold">
+                            Are you sure you want to delete this link?
+                        </Text>
+                        <Text tone="subdued" as="p">
+                            This action cannot be undone. Once deleted, you will not be able to recover this link.
+                        </Text>
+                    </Box>
+                </Box>
+            </Modal>
+
             <Page 
                 title="Links"
                 primaryAction={{

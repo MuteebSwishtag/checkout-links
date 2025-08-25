@@ -47,6 +47,9 @@ import PopupMessage from './PopupMessage';
 import '@/Components/style.css';
 import '../../../../css/links.css';
 import truncate from 'lodash/truncate';
+// import { useAppBridge } from '@shopify/app-bridge-react';
+
+
 
 // Global quantity tracker as a last resort fallback
 const GLOBAL_QUANTITIES = {};
@@ -66,6 +69,7 @@ export default function CreateLink() {
     const { props } = usePage();
     const query = props.ziggy.query;
     const app = useAppBridge();
+    // const shopify = useAppBridge();
     const { link } = props;
     const [shop, setShop] = useState('');
     const [variantsModal, setVariantsModal] = useState(false);
@@ -225,6 +229,7 @@ export default function CreateLink() {
     const [timerSeconds, setTimerSeconds] = useState(0);
     const [isTimerActive, setIsTimerActive] = useState(false);
     const [initialLinkDataLoaded, setInitialLinkDataLoaded] = useState(false);
+    const [totalProducts, setTotalProducts] = useState(0);
     const [discountData, setDiscountData] = useState({
         freeShipping: false,
         orderDiscount: false,
@@ -290,6 +295,7 @@ export default function CreateLink() {
                     setCurrentPage(data.pagination.current_page);
                     setTotalPages(data.pagination.last_page);
                     setShop(data.pagination.shop || '');
+                    setTotalProducts(data.pagination.total || 0);
                 } else {
                     setProducts([]);
                     setCurrentPage(1);
@@ -326,7 +332,9 @@ export default function CreateLink() {
 
         // Ensure we have products selected
         if (mappedSelectedProductItems.length === 0) {
-            toast.error('Please select at least one product');
+            if (app && app.toast) {
+                app.toast.show('Please select at least one product', { isError: true, duration: 3000 });
+            }
             return null;
         }
 
@@ -354,7 +362,9 @@ export default function CreateLink() {
 
     const saveLinkData = useCallback(async () => {
         // Clear any existing toast notifications before starting the request
-        toast.dismiss();
+        if (app && app.toast && app.toast.dismiss) {
+            app.toast.dismiss();
+        }
 
         // Define the URL based on whether we are editing an existing link or creating a new one
         const isEdit = localLink && localLink.id;
@@ -376,7 +386,9 @@ export default function CreateLink() {
             const data = await response.json();
             if (!response.ok || !data.success) {
                 console.error('Error saving link:', data);
-                toast.error('Failed to save the localLink. Please try again.');
+                if (app && app.toast) {
+                    app.toast.show('Failed to save the localLink. Please try again.', { isError: true, duration: 3000 });
+                }
 
                 if (data.errors && typeof data.errors === 'object' && Object.keys(data.errors).length > 0) {
                     const backendErrors = data.errors;
@@ -417,7 +429,9 @@ export default function CreateLink() {
                     setErrors(newErrors);
                 }
             } else {
-                toast.success('Link saved successfully!');
+                if (app && app.toast) {
+                    app.toast.show('Link saved successfully!', { duration: 3000 });
+                }
 
                 // Redirect to the links page after successful save
                 setTimeout(() => {
@@ -426,7 +440,9 @@ export default function CreateLink() {
             }
         } catch (error) {
             console.error('Unexpected error:', error);
-            toast.error('An unexpected error occurred. Please try again.');
+            if (app && app.toast) {
+                app.toast.show('An unexpected error occurred. Please try again.', { isError: true, duration: 3000 });
+            }
         }
     }, [selectedProductItems, linkName, linkId, selectedProducts, discountData, popupMessageData, selectedVariantIds, localLink, query]);
 
@@ -1432,7 +1448,9 @@ export default function CreateLink() {
 
     // Copy to clipboard handler
     const handleCopyLink = useCallback(async () => {
-        toast.dismiss(); // Clear any existing toasts
+        if (app && app.toast && app.toast.dismiss) {
+            app.toast.dismiss(); // Clear any existing toasts
+        }
         // Get the text value from the link-url-field TextField
         const linkUrlField = document.getElementById('link-url-field');
         const linkUrl = linkUrlField ? linkUrlField.value : (fullUrl || (linkId ? `${shop}/checkout/${linkId}` : ""));
@@ -1451,10 +1469,9 @@ export default function CreateLink() {
             // Try the modern clipboard API first
             await navigator.clipboard.writeText(linkUrl);
 
-            toast.success('Link copied to clipboard!', {
-                isError: false,
-                duration: 3000
-            });
+            if (app && app.toast) {
+                app.toast.show('Link copied to clipboard!', { duration: 3000 });
+            }
         } catch (error) {
             console.error('Failed to use clipboard API, falling back to execCommand', error);
             // Fallback for browsers that don't support clipboard API
@@ -1473,17 +1490,17 @@ export default function CreateLink() {
                 document.body.removeChild(textArea);
 
                 if (successful) {
-                    toast.success('Link copied to clipboard!', {
-                        duration: 3000
-                    });
+                    if (app && app.toast) {
+                        app.toast.show('Link copied to clipboard!', { duration: 3000 });
+                    }
                 } else {
                     throw new Error('execCommand copy failed');
                 }
             } catch (fallbackError) {
                 // console.error('Clipboard copy failed completely', fallbackError);
-                toast.error('Failed to copy localLink. Please try again or copy manually.', {
-                    duration: 3000
-                });
+                if (app && app.toast) {
+                    app.toast.show('Failed to copy localLink. Please try again or copy manually.', { isError: true, duration: 3000 });
+                }
             }
         }
     }, [fullUrl, linkId, app]);
@@ -1589,20 +1606,30 @@ export default function CreateLink() {
                             // console.log('Popup Message Data:', popupMessageData);
 
                             // Clear any existing toast notifications before trying to save
-                            toast.dismiss();
+                            if (app && app.toast && app.toast.dismiss) {
+                                app.toast.dismiss();
+                            }
                             saveLinkData();
                         } catch (error) {
                             console.error('Error when saving link:', error);
                             // Only show error if it's not a validation error (which already shows a toast)
                             if (!error.message || !error.message.includes('validation errors')) {
-                                toast.dismiss();
-                                toast.error('An unexpected error occurred. Please try again.');
+                                if (app && app.toast && app.toast.dismiss) {
+                                    app.toast.dismiss();
+                                }
+                                if (app && app.toast) {
+                                    app.toast.show('An unexpected error occurred. Please try again.', { isError: true, duration: 3000 });
+                                }
                             }
                         }
                     } else {
                         // Clear any existing toast notifications before showing error
-                        toast.dismiss();
-                        toast.error('Please fix the validation errors before saving');
+                        if (app && app.toast && app.toast.dismiss) {
+                            app.toast.dismiss();
+                        }
+                        if (app && app.toast) {
+                            app.toast.show('Please fix the validation errors before saving', { isError: true, duration: 3000 });
+                        }
                     }
                 },
                 disabled: false // Remove the disabled state to allow validation messages to show
@@ -1664,33 +1691,60 @@ export default function CreateLink() {
                                     <Collapsible open={productsOpen} id="products-content">
                                         <Box padding={'300'}>
                                             <BlockStack gap="400">
-                                                <InlineStack align="space-between" gap="400" >
-                                                    <div style={{ flexGrow: 1 }}>
-                                                        <TextField
-                                                            label=""
-                                                            value={mainProductSearch}
-                                                            onChange={handleMainProductSearchChange}
-                                                            placeholder="Search products..."
-                                                            clearButton
-                                                            onClearButtonClick={() => handleMainProductSearchChange('')}
-                                                            autoComplete="off"
-                                                        />
-                                                    </div>
-                                                    <Button onClick={handleProductModalOpen}>Browse</Button>
-                                                </InlineStack>
+                                                {/* Unified search bar and results block */}
+                                                <div style={{
+                                                    background: '#fff',
+                                                    border: '1px solid #e1e3e5',
+                                                    borderRadius: 8,
+                                                    boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+                                                    padding: '12px',
+                                                    marginBottom: '0',
+                                                }}>
+                                                    <InlineStack align="space-between" gap="400" >
+                                                        <div style={{ flexGrow: 1 }}>
+                                                            <TextField
+                                                                label=""
+                                                                value={mainProductSearch}
+                                                                onChange={handleMainProductSearchChange}
+                                                                placeholder="Search products..."
+                                                                clearButton
+                                                                onClearButtonClick={() => handleMainProductSearchChange('')}
+                                                                autoComplete="off"
+                                                                error={errors.selectedProducts}
+                                                            />
+                                                        </div>
+                                                        <Box><Button onClick={handleProductModalOpen}>Browse</Button></Box>
+                                                    </InlineStack>
 
-                                                {/* Show filtered products under the search field */}
-                                                {mainProductSearch && (
-                                                    <>
+                                                    {mainProductSearch && (
+                                                        <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-start', margin: '10px 0 0 0' }}>
+                                                            <span style={{
+                                                                background: '#f4f6f8',
+                                                                color: '#6d7175',
+                                                                borderRadius: '16px',
+                                                                padding: '4px 16px',
+                                                                fontSize: '14px',
+                                                                fontWeight: 500,
+                                                                minWidth: '40px',
+                                                                textAlign: 'center',
+                                                                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                                                            }}>
+                                                                Total products: {totalProducts}
+                                                            </span>
+                                                        </div>)}
+
+                                                    {/* Show filtered products under the search field */}
+                                                    {mainProductSearch && (
                                                         <div style={{
                                                             maxHeight: '320px',
                                                             overflowY: 'auto',
-                                                            margin: '12px 0',
-                                                            background: '#fff',
-                                                            border: '1px solid #e1e3e5',
-                                                            borderRadius: 8,
-                                                            boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
-                                                            padding: '8px 0',
+                                                            marginTop: '12px',
+                                                            marginBottom: '0',
+                                                            background: 'transparent',
+                                                            border: 'none',
+                                                            borderRadius: 0,
+                                                            boxShadow: 'none',
+                                                            padding: '0',
                                                         }}>
                                                             {productData.map(product => {
                                                                 const allVariantIds = product.variants.map(v => v.id);
@@ -1707,11 +1761,12 @@ export default function CreateLink() {
                                                                     !allVariantIds.every(id => selectedIds.includes(id));
 
                                                                 return (
+
                                                                     <div
                                                                         key={product.id}
                                                                         style={{
                                                                             borderBottom: '1px solid #eee',
-                                                                            padding: '12px 0',
+                                                                            padding: '12px 10px',
                                                                             opacity: allVariantsUnavailable(product) ? 0.5 : 1
                                                                         }}
                                                                     >
@@ -1805,6 +1860,7 @@ export default function CreateLink() {
                                                                             </div>
                                                                         )}
                                                                     </div>
+
                                                                 );
                                                             })}
 
@@ -1828,8 +1884,8 @@ export default function CreateLink() {
                                                                 </EmptyState>
                                                             )}
                                                         </div>
-                                                    </>
-                                                )}
+                                                    )}
+                                                </div>
                                                 {selectedProductItems.length > 0 && (
                                                     <DragDropContext onDragEnd={handleDragEnd}>
                                                         <Droppable droppableId="selected-products">
@@ -1912,13 +1968,7 @@ export default function CreateLink() {
                                             </BlockStack>
                                         </Box>
                                     </Collapsible>
-                                    {errors.selectedProducts && (
-                                        <Box paddingInline="400">
-                                            <Banner status="critical" title="Error" tone='critical'>
-                                                {errors.selectedProducts}
-                                            </Banner>
-                                        </Box>
-                                    )}
+
                                 </BlockStack>
 
                                 {/* Discounts Card */}
@@ -2488,15 +2538,13 @@ export default function CreateLink() {
                                                                                     discount = subtotal * (codeValue / 100);
                                                                                     hasDiscount = true;
                                                                                 }
-                                                                                // Free shipping doesn't affect the product total, only shipping cost
-
+                                                                                    // Free shipping doesn't affect the product total, only shipping cost
                                                                                 return (subtotal - discount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
                                                                             })()}
                                                                             </p>
                                                                         </Text>
                                                                     </InlineStack>
                                                                 </InlineStack>
-
                                                                 {/* Display discount information */}
                                                                 {(discountData.orderDiscount || discountData.discountCode) && (
                                                                     <InlineStack align="start" gap="200">
@@ -2513,7 +2561,6 @@ export default function CreateLink() {
                                                                 )}
                                                             </>
                                                         )}
-
                                                         {/* Action Buttons */}
                                                         <BlockStack gap="300">
                                                             <Button variant="primary" size="large" fullWidth>
@@ -2531,9 +2578,6 @@ export default function CreateLink() {
                                                 </Box>
                                             </Box>
                                         )}
-
-
-
                                     </BlockStack>
                                 </Box>
                             </BlockStack>
@@ -2705,6 +2749,21 @@ export default function CreateLink() {
                                 />
                             </div>
                         </InlineStack>
+                        <div style={{ width: '100%', display: 'flex', justifyContent: 'flex-start', margin: '10px 0 0 0' }}>
+                            <span style={{
+                                background: '#f4f6f8',
+                                color: '#6d7175',
+                                borderRadius: '16px',
+                                padding: '4px 16px',
+                                fontSize: '14px',
+                                fontWeight: 500,
+                                minWidth: '40px',
+                                textAlign: 'center',
+                                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
+                            }}>
+                                Total products: {totalProducts}
+                            </span>
+                        </div>
 
                         <div style={{ maxHeight: '400px', overflowY: 'auto' }}>
                             {productData.filter(product =>

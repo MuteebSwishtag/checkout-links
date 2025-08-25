@@ -248,18 +248,8 @@ export default function PopupMessage({
                                 <Box paddingBlockStart="200">
                                     <TextField
                                         value={popupMessageData.closeButtonLink}
-                                        onChange={(val) => {
-                                            // Always enforce https:// at the start
-                                            let newValue = val.trim();
-
-                                            // Remove any existing http:// or https:// from user input
-                                            newValue = newValue.replace(/^https?:\/\//, '');
-
-                                            // Add https:// back
-                                            newValue = `https://${newValue}`;
-
-                                            onCloseButtonLinkChange(newValue);
-                                        }}
+                                        type="url"
+                                        onChange={onCloseButtonLinkChange}
                                         autoComplete="off"
                                         error={errors && errors.closeButtonLink}
                                     />
@@ -269,8 +259,6 @@ export default function PopupMessage({
                     </Box>
                 </Card>
             </Box>
-           
-
         </div>
     )
 }
