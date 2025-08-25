@@ -269,11 +269,10 @@ const LinksIndex = () => {
                     <IndexTable.Cell>{placedOrder}</IndexTable.Cell>
                     <IndexTable.Cell>
                         <ButtonGroup>
-                            <Tooltip content="Edit">
-
+                            <Tooltip content="Copy">
                                 <Button size="slim" icon={ClipboardIcon} onClick={handleCopy} />
                             </Tooltip>
-                            <Tooltip content="Copy">
+                            <Tooltip content="Edit">
                                 <Button size="slim" icon={EditIcon} onClick={() => handleEdit(id)} />
                             </Tooltip>
                             <Tooltip content="Delete">
@@ -282,10 +281,9 @@ const LinksIndex = () => {
                         </ButtonGroup>
                     </IndexTable.Cell>
                 </IndexTable.Row>
-            );  
+            );
         }
     );
-
     const emptyStateMarkup = (
         <EmptySearchResult
             title="No links found"
