@@ -31,6 +31,9 @@ export default function PopupMessage({
             {errors && errors.general && (
                 <Banner status="critical">{errors.general}</Banner>
             )}
+
+            <Card>
+              
            
             <Box  paddingBlockEnd='300'>
                     <InlineStack align="space-between" blockAlign="start">
@@ -53,7 +56,7 @@ export default function PopupMessage({
                 </Box>
 
             {/* Content Section */}
-            <Box paddingBlockStart=''>
+            <Box paddingBlockStart='400'>
                 <Card>
                     <BlockStack gap="400">
                         <Box>
@@ -259,6 +262,11 @@ export default function PopupMessage({
                     </Box>
                 </Card>
             </Box>
+           
+
+            </Card>
+           
+
         </div>
     )
 }

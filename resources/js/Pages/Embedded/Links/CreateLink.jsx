@@ -1669,7 +1669,7 @@ export default function CreateLink() {
                                 <BlockStack gap="400">
                                     <Box background='bg' padding={'300'}  borderBlockEndWidth='0165' borderColor='border-brand'>
                                         <InlineStack align="space-between" padding="400">
-                                            <InlineStack align="center" gap='050'>
+                                            <InlineStack align="center" gap='150'>
                                                 <Box>
                                                     <Icon source={ProductAddIcon} tone="base" />
                                                 </Box>
@@ -1894,14 +1894,16 @@ export default function CreateLink() {
                                                                     {...provided.droppableProps}
                                                                     ref={provided.innerRef}
                                                                 >
-                                                                    {/* {console.log("Rendering selected products for me:", selectedProductItems)} */}
+                                                                    <Card padding='0'>
                                                                     {selectedProductItems.map((product, index) => {
                                                                         if (!product) return null;
                                                                         // Use a unique key by combining id and index
                                                                         return (
+                                                                           
                                                                             <Draggable key={`${product.id}_${index}`} draggableId={`${product.id}_${index}`} index={index}>
                                                                                 {(provided) => (
                                                                                     <div
+                                                                            
                                                                                         ref={provided.innerRef}
                                                                                         {...provided.draggableProps}
                                                                                         style={{
@@ -1914,12 +1916,13 @@ export default function CreateLink() {
                                                                                             justifyContent: 'space-between',
                                                                                         }}
                                                                                     >
+                                                                                        
                                                                                         <InlineStack gap="400">
                                                                                             <div {...provided.dragHandleProps} style={{ color: '#6d7175', display: 'flex', alignItems: 'center' }}>
                                                                                                 <Icon source={DragHandleIcon} tone='base' />
                                                                                             </div>
                                                                                             {product.image ? (
-                                                                                                <Thumbnail
+                                                                                                <Thumbnail  
                                                                                                     source={product.image}
                                                                                                     alt={product.title}
                                                                                                     size="small"
@@ -1954,11 +1957,15 @@ export default function CreateLink() {
                                                                                                 <Icon source={XIcon} tone='base' />
                                                                                             </Button>
                                                                                         </InlineStack>
+                                                                                    
                                                                                     </div>
                                                                                 )}
                                                                             </Draggable>
+                                                                        
                                                                         );
+
                                                                     })}
+                                                                    </Card>
                                                                     {provided.placeholder}
                                                                 </div>
                                                             )}
@@ -1976,7 +1983,7 @@ export default function CreateLink() {
                                 <BlockStack gap="400">
                                          <Box background='bg' padding={'300'} borderBlockEndWidth='0165' borderColor='border-brand'>
                                     <InlineStack align="space-between" padding="400">
-                                        <InlineStack align="center" gap='050'>
+                                        <InlineStack align="center" gap='150'>
                                             <Box>
                                                 <Icon source={SettingsIcon} tone="base" />
                                             </Box>
@@ -2016,7 +2023,7 @@ export default function CreateLink() {
                                 <BlockStack gap="400">
                                      <Box background='bg' padding={'300'} >
                                     <InlineStack align="space-between" padding="400">
-                                        <InlineStack align="center" gap='050'>
+                                        <InlineStack align="center" gap='150'>
                                             <Box>
                                                 <Icon source={StatusActiveIcon} tone="base" />
                                             </Box>
@@ -2142,7 +2149,7 @@ export default function CreateLink() {
                             <BlockStack gap="400" >
                                 <InlineStack align="space-between">
                                     <Text variant="bodyMd" fontWeight='bold'> <p className='text-black font-bold'>Preview</p> </Text>
-                                    {/* <Button variant='plain'>Test</Button> */}
+                                    <Button variant='plain'>Test</Button>
                                 </InlineStack>
 
                                 <Box background="" borderRadius="2" border="base">
@@ -2172,7 +2179,7 @@ export default function CreateLink() {
                                         {!popupMessageData.isActive && (
                                             <Box background='bg-fill-disabled' borderRadius='200' padding={'300'}>
                                                 {selectedProductItems.length === 0 ? (
-                                                    <Text variant="headingSm" as="h3" textAlign='center' tone="subdued">No products selected</Text>
+                                                    <Text   alignment='center' ><p className='text-black font-normal'> Select product to see preview</p></Text>
                                                 ) : (
 
                                                     <Box background='' padding={'400'} borderRadius='200' border="base">

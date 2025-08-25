@@ -1,12 +1,12 @@
-import { 
-    Card, 
-    Page, 
-    Text, 
-    IndexTable, 
-    Tabs, 
-    Link as PolarisLink, 
-    Button, 
-    Icon, 
+import {
+    Card,
+    Page,
+    Text,
+    IndexTable,
+    Tabs,
+    Link as PolarisLink,
+    Button,
+    Icon,
     useIndexResourceState,
     TextField,
     ButtonGroup,
@@ -22,7 +22,7 @@ import {
     InlineStack,
 
 } from '@shopify/polaris'
-import { EditIcon, DeleteIcon, DuplicateIcon } from '@shopify/polaris-icons'
+import { EditIcon, DeleteIcon, DuplicateIcon, ClipboardIcon } from '@shopify/polaris-icons'
 import React, { useState, useCallback, useEffect } from 'react'
 import { Link, router, usePage } from '@inertiajs/react'
 // import toast from 'react-hot-toast';
@@ -110,7 +110,7 @@ const LinksIndex = () => {
         fetchLinks(currentPage, queryValue);
     }, [currentPage, queryValue]);
 
-    const { selectedResources, allResourcesSelected, handleSelectionChange } = 
+    const { selectedResources, allResourcesSelected, handleSelectionChange } =
         useIndexResourceState(links);
 
     const tabs = [
@@ -247,7 +247,7 @@ const LinksIndex = () => {
                     document.body.removeChild(textarea);
                 }
             };
-            const shortCode = urlCode.split('/').pop(); 
+            const shortCode = urlCode.split('/').pop();
             return (
                 <IndexTable.Row
                     id={id}
@@ -270,10 +270,11 @@ const LinksIndex = () => {
                     <IndexTable.Cell>
                         <ButtonGroup>
                             <Tooltip content="Edit">
-                                <Button size="slim" icon={EditIcon} onClick={() => handleEdit(id)} />
+
+                                <Button size="slim" icon={ClipboardIcon} onClick={handleCopy} />
                             </Tooltip>
                             <Tooltip content="Copy">
-                                <Button size="slim" icon={DuplicateIcon} onClick={handleCopy} />
+                                <Button size="slim" icon={EditIcon} onClick={() => handleEdit(id)} />
                             </Tooltip>
                             <Tooltip content="Delete">
                                 <Button size="slim" icon={DeleteIcon} onClick={() => handleDelete(id)} />
@@ -281,7 +282,7 @@ const LinksIndex = () => {
                         </ButtonGroup>
                     </IndexTable.Cell>
                 </IndexTable.Row>
-            );
+            );  
         }
     );
 
@@ -378,18 +379,18 @@ const LinksIndex = () => {
                             paddingBlockStart="200"
                             style={{
                                 display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            paddingTop: '8px',
-                        }}
-                    >
-                        <Pagination
-                            hasPrevious={currentPage > 1}
-                            onPrevious={handlePreviousPage}
-                            hasNext={currentPage < totalPages}
-                            onNext={handleNextPage}
-                        />
-                    </Box>
+                                justifyContent: 'center',
+                                alignItems: 'center',
+                                paddingTop: '8px',
+                            }}
+                        >
+                            <Pagination
+                                hasPrevious={currentPage > 1}
+                                onPrevious={handlePreviousPage}
+                                hasNext={currentPage < totalPages}
+                                onNext={handleNextPage}
+                            />
+                        </Box>
                     )}
                 </Card>
             </Page>
