@@ -255,6 +255,7 @@ export default function PopupMessage({
                                         onChange={onCloseButtonLinkChange}
                                         autoComplete="off"
                                         error={errors && errors.closeButtonLink}
+                                            placeholder='i.e. https://www.example.com'
                                     />
                                 </Box>
                             </Box>
