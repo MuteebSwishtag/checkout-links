@@ -442,259 +442,199 @@ trait ShopifyOrderTrait
      * @param array $customerData Customer information for the order
      * @return array|null The draft order data with invoice URL or null on failure
      */
+    // ...existing code...
     public function createDraftOrder($linkId, $customerData = [])
-    {
-        try {
-            // Get the link with its products and popup message
-            $link = Link::with(['popupMessage', 'linkedVariants.variant.product', 'user'])
-                ->findOrFail($linkId);
+{
+    try {
+        $link = Link::with(['linkedVariants.variant.product', 'user'])->findOrFail($linkId);
 
-            // If link not found or has no user, return null
-            if (!$link || !$link->user) {
-                Log::error("Link not found or has no associated user", ['link_id' => $linkId]);
-                return null;
-            }
+        if (!$link || !$link->user) {
+            Log::error("Link not found or has no associated user", ['link_id' => $linkId]);
+            return null;
+        }
 
-            // Initialize line items array for GraphQL
-            $lineItemsInput = [];
+        $lineItemsInput = [];
+        $totalProductPrice = 0;
 
-            // Add all linked product variants to the order
-            foreach ($link->linkedVariants as $linkedVariant) {
-    $variant = $linkedVariant->variant;
-    if (!$variant)
-        continue;
+        foreach ($link->linkedVariants as $linkedVariant) {
+            $variant = $linkedVariant->variant;
+            if (!$variant) continue;
 
-    $price = $linkedVariant->price ?? $variant->price ?? 0; // Fallback to variant price if custom not set
-    $totalProductPrice += floatval($price);
-}
-$actualDiscountValue = 0;
-if (!empty($link->discount_value)) {
-    $percentage = floatval($link->discount_value);
-    $actualDiscountValue = ($totalProductPrice * $percentage) / 100;
-}
-            // If no line items, return null
-            if (empty($lineItemsInput)) {
-                Log::error("No valid line items found for link", ['link_id' => $linkId]);
-                return null;
-            }
+            $price = $linkedVariant->price ?? $variant->price ?? 0;
+            $totalProductPrice += floatval($price);
 
-            // Build the mutation for creating a draft order
-            $mutation = $this->buildDraftOrderCreateMutation(
-                $lineItemsInput,
-                $link->link_name,
-                $customerData,
-                $link->discount_code,
-                $actualDiscountValue,
-                $link->free_shipping,
-                $link->order_discount
-            );
-
-            // Execute the GraphQL mutation
-            $result = $this->arrayToObject($link->user->api()->graph($mutation));
-
-            // Log the complete response for debugging
-            Log::info("Draft Order Create Response", ['response' => json_encode($result, JSON_PRETTY_PRINT)]);
-
-            // Check for errors
-            if (!empty($result->errors)) {
-                Log::error("Failed to create draft order via GraphQL", [
-                    'errors' => $result->errors,
-                    'link_id' => $linkId
-                ]);
-                return null;
-            }
-
-            // Check if the response has the expected structure
-            if (
-                !isset($result->body) || !isset($result->body->data) ||
-                !isset($result->body->data->draftOrderCreate) ||
-                !isset($result->body->data->draftOrderCreate->draftOrder)
-            ) {
-                Log::error("Unexpected response structure from Shopify API", [
-                    'result' => $result,
-                    'link_id' => $linkId
-                ]);
-                return null;
-            }
-
-            // Extract draft order data
-            $draftOrder = $result->body->data->draftOrderCreate->draftOrder;
-
-            if (!$draftOrder) {
-                \Illuminate\Support\Facades\Log::error("Draft order creation failed but no error returned", [
-                    'result' => $result,
-                    'link_id' => $linkId
-                ]);
-                return null;
-            }
-            // Increment the placed_order count for the link
-            $link->increment('placed_order');
-
-            // Return the draft order data with invoice URL
-            return [
-                'draft_order_id' => $this->extractId($draftOrder->id),
-                'invoice_url' => $draftOrder->invoiceUrl,
-                'status' => $draftOrder->status,
-                'total_price' => is_object($draftOrder->totalPrice) ? $draftOrder->totalPrice->amount : $draftOrder->totalPrice
+            $lineItemsInput[] = [
+                "variantId" => "gid://shopify/ProductVariant/" . $linkedVariant->variant_id,
+                "quantity" => $linkedVariant->quantity ?? 1,
+                "customAttributes" => [
+                    ["key" => "Order placed", "value" => (string) $link->id]
+                ]
             ];
-        } catch (\Exception $e) {
-            Log::error("Exception when creating draft order: " . $e->getMessage(), [
-                'link_id' => $linkId,
-                'trace' => $e->getTraceAsString()
+        }
+
+        if (empty($lineItemsInput)) {
+            Log::error("No valid line items found for link", ['link_id' => $linkId]);
+            return null;
+        }
+
+        $actualDiscountValue = 0;
+        if (!empty($link->discount_value)) {
+            $percentage = floatval($link->discount_value);
+            $actualDiscountValue = ($totalProductPrice * $percentage) / 100;
+        }
+        $linkId = $link->id; // Ensure $linkId is defined
+
+        $mutation = $this->buildDraftOrderCreateMutation(
+            $lineItemsInput,
+            $link->link_name,
+            $customerData,
+            $link->discount_code,
+            $actualDiscountValue,
+            $link->free_shipping,
+            $link->order_discount,
+            $linkId
+        );
+
+        $result = $this->arrayToObject($link->user->api()->graph($mutation));
+        Log::info("Draft Order Create Response", ['response' => json_encode($result, JSON_PRETTY_PRINT)]);
+
+        if (!empty($result->errors)) {
+            Log::error("Failed to create draft order via GraphQL", [
+                'errors' => $result->errors,
+                'link_id' => $linkId
             ]);
             return null;
         }
+
+        $draftOrder = $result->body->data->draftOrderCreate->draftOrder ?? null;
+        if (!$draftOrder) {
+            Log::error("Draft order creation failed but no error returned", ['result' => $result, 'link_id' => $linkId]);
+            return null;
+        }
+
+        return [
+            'draft_order_id' => $this->extractId($draftOrder->id),
+            'invoice_url' => $draftOrder->invoiceUrl,
+            'status' => $draftOrder->status,
+            'total_price' => is_object($draftOrder->totalPrice) ? $draftOrder->totalPrice->amount : $draftOrder->totalPrice
+        ];
+    } catch (\Exception $e) {
+        Log::error("Exception when creating draft order: " . $e->getMessage(), [
+            'link_id' => $linkId,
+            'trace' => $e->getTraceAsString()
+        ]);
+        return null;
+    }
+}
+
+/**
+ * Build the GraphQL mutation for creating a draft order
+ */
+private function buildDraftOrderCreateMutation($lineItems, $linkName, $customerData, $discountCode, $discountValue, $freeShipping, $orderDiscount, $linkId)
+{
+    $input = [];
+    $input['lineItems'] = $lineItems;
+    $input['note'] = "Created from Checkout Link: $linkId";
+
+    if (!empty($customerData)) {
+        $input['customerId'] = $customerData['id'] ?? null;
     }
 
-    /**
-     * Build the GraphQL mutation for creating a draft order
-     * 
-     * @param array $lineItems Line items data
-     * @param string $linkName Name of the link for order note
-     * @param array $customerData Customer information
-     * @param string|null $discountCode Discount code
-     * @param float|null $discountValue Discount value
-     * @param bool $freeShipping Whether to apply free shipping
-     * @param float|null $orderDiscount Order-level discount amount
-     * @return string The GraphQL mutation string
-     */
-    private function buildDraftOrderCreateMutation($lineItems, $linkName, $customerData, $discountCode, $discountValue, $freeShipping, $orderDiscount)
-    {
-        // Build the input object as an array first
-        $input = [];
-        log::info("building draft order create mutation" . json_encode($discountValue, JSON_PRETTY_PRINT));
+    if ($freeShipping) {
+        $input['shippingLine'] = [
+            "title" => "Free Shipping",
+            "price" => ["amount" => "0.0", "currencyCode" => "USD"]
+        ];
+    }
 
-        // Add line items
-        $input['lineItems'] = $lineItems;
-
-        // Add note
-        $input['note'] = "Created from Checkout Link: $linkName";
-
-        // Add customer if provided
-        if (!empty($customerData)) {
-            $input['customerId'] = $customerData['id'] ?? null;
-        }
-
-        // Add discount if specified
-        if ($discountCode && $discountValue > 0) {
-            // Add a discount as a custom line item with negative price
-            $discountLineItem = [
-                "title" => "Discount ($discountCode)",
-                "price" => [
-                    "amount" => (-1 * $discountValue),
-                    "currencyCode" => "USD" // You might want to make this dynamic
-                ],
-                "quantity" => 1
-            ];
-            $input['lineItems'][] = $discountLineItem;
-        }
-
-        // Apply free shipping if enabled
-        if ($freeShipping) {
-            $input['shippingLine'] = [
-                "title" => "Free Shipping",
-                "price" => ["amount" => "0.0", "currencyCode" => "USD"]
-            ];
-        }
-
-        // Apply order discount if specified
-        // Order discount must be a float for Shopify GraphQL API
+    if ($orderDiscount && $orderDiscount > 0) {
         $floatDiscountValue = (float) ($discountValue ?? 0);
-        // log::info("Order Discount Value: " . json_encode($floatDiscountValue, JSON_PRETTY_PRINT));
-        if ($orderDiscount && $orderDiscount > 0) {
-            $floatDiscountValue = (float) ($discountValue ?? 0);
-            $input['appliedDiscount'] = [
-                "description" => "Order Discount",
-                "value" => $floatDiscountValue, // Raw float value
-                "valueType" => "FIXED_AMOUNT"
-            ];
-        }
-
-        // Format the input variables correctly for GraphQL
-        $inputParams = [];
-        foreach ($input as $key => $value) {
-            if ($key === 'lineItems') {
-                $items = [];
-                foreach ($value as $item) {
-                    $itemStr = '{';
-                    foreach ($item as $itemKey => $itemValue) {
-                        if ($itemKey === 'price' && is_array($itemValue)) {
-                            $itemStr .= "$itemKey: {amount: \"{$itemValue['amount']}\", currencyCode: {$itemValue['currencyCode']}}, ";
-                        } elseif ($itemKey === 'customAttributes' && is_array($itemValue)) {
-                            $attrsStr = '[';
-                            foreach ($itemValue as $attr) {
-                                $attrsStr .= "{key: \"{$attr['key']}\", value: \"{$attr['value']}\"},";
-                            }
-                            $attrsStr .= ']';
-                            $itemStr .= "$itemKey: $attrsStr, ";
-                        } else {
-                            // Add quotes for string values
-                            if (is_string($itemValue)) {
-                                $itemStr .= "$itemKey: \"$itemValue\", ";
-                            } else {
-                                $itemStr .= "$itemKey: $itemValue, ";
-                            }
-                        }
-                    }
-                    $itemStr = rtrim($itemStr, ', ') . '}';
-                    $items[] = $itemStr;
-                }
-                $inputParams[] = "$key: [" . implode(', ', $items) . "]";
-            } else if ($key === 'shippingLine') {
-                $shippingStr = "{";
-                foreach ($value as $shippingKey => $shippingValue) {
-                    if ($shippingKey === 'price' && is_array($shippingValue)) {
-                        $shippingStr .= "$shippingKey: {amount: \"{$shippingValue['amount']}\", currencyCode: {$shippingValue['currencyCode']}}, ";
-                    } else {
-                        $shippingStr .= "$shippingKey: \"$shippingValue\", ";
-                    }
-                }
-                $shippingStr = rtrim($shippingStr, ', ') . "}";
-                $inputParams[] = "$key: $shippingStr";
-            } else if ($key === 'appliedDiscount') {
-                $discountStr = "{";
-                foreach ($value as $discountKey => $discountValue) {
-                    if ($discountKey === 'valueType') {
-                        $discountStr .= "$discountKey: $discountValue, ";
-                    } elseif ($discountKey === 'value') {
-                        // Send value as unquoted number
-                        $discountStr .= "$discountKey: $discountValue, ";
-                    } else {
-                        $discountStr .= "$discountKey: \"$discountValue\", ";
-                    }
-                }
-                $discountStr = rtrim($discountStr, ', ') . "}";
-                $inputParams[] = "$key: $discountStr";
-            }
-        }
-
-        // Join all input fields
-        $inputString = implode(", ", $inputParams);
-
-        // Build the complete mutation
-        $mutation = <<<GRAPHQL
-        mutation {
-            draftOrderCreate(input: {
-                $inputString
-            }) {
-                draftOrder {
-                    id
-                    name
-                    status
-                    invoiceUrl
-                    totalPrice
-                    subtotalPrice
-                    totalTax
-                }
-                userErrors {
-                    field
-                    message
-                }
-            }
-        }
-        GRAPHQL;
-        return $mutation;
+        $input['appliedDiscount'] = [
+            "description" => "Order Discount",
+            "value" => $floatDiscountValue,
+            "valueType" => "FIXED_AMOUNT"
+        ];
     }
+
+    // Convert PHP array to GraphQL input string
+    $inputParams = [];
+    foreach ($input as $key => $value) {
+        if ($key === 'lineItems') {
+            $items = [];
+            foreach ($value as $item) {
+                $itemStr = '{';
+                foreach ($item as $itemKey => $itemValue) {
+                    if ($itemKey === 'customAttributes' && is_array($itemValue)) {
+                        $attrsStr = '[';
+                        foreach ($itemValue as $attr) {
+                            $attrsStr .= "{key: \"{$attr['key']}\", value: \"{$attr['value']}\"},";
+                        }
+                        $attrsStr = rtrim($attrsStr, ',') . ']';
+                        $itemStr .= "$itemKey: $attrsStr, ";
+                    } elseif (is_string($itemValue)) {
+                        $itemStr .= "$itemKey: \"$itemValue\", ";
+                    } else {
+                        $itemStr .= "$itemKey: $itemValue, ";
+                    }
+                }
+                $itemStr = rtrim($itemStr, ', ') . '}';
+                $items[] = $itemStr;
+            }
+            $inputParams[] = "$key: [" . implode(', ', $items) . "]";
+        } elseif ($key === 'shippingLine') {
+            $shippingStr = "{";
+            foreach ($value as $shippingKey => $shippingValue) {
+                if ($shippingKey === 'price') {
+                    $shippingStr .= "$shippingKey: {amount: \"{$shippingValue['amount']}\", currencyCode: {$shippingValue['currencyCode']}}, ";
+                } else {
+                    $shippingStr .= "$shippingKey: \"$shippingValue\", ";
+                }
+            }
+            $shippingStr = rtrim($shippingStr, ', ') . "}";
+            $inputParams[] = "$key: $shippingStr";
+        } elseif ($key === 'appliedDiscount') {
+            $discountStr = "{";
+            foreach ($value as $discountKey => $discountValue) {
+                if ($discountKey === 'valueType') {
+                    $discountStr .= "$discountKey: $discountValue, ";
+                } elseif ($discountKey === 'value') {
+                    $discountStr .= "$discountKey: $discountValue, ";
+                } else {
+                    $discountStr .= "$discountKey: \"$discountValue\", ";
+                }
+            }
+            $discountStr = rtrim($discountStr, ', ') . "}";
+            $inputParams[] = "$key: $discountStr";
+        } else {
+            $inputParams[] = "$key: \"$value\"";
+        }
+    }
+
+    $inputString = implode(", ", $inputParams);
+
+    return <<<GRAPHQL
+    mutation {
+        draftOrderCreate(input: {
+            $inputString
+        }) {
+            draftOrder {
+                id
+                name
+                status
+                invoiceUrl
+                totalPrice
+                subtotalPrice
+                totalTax
+            }
+            userErrors {
+                field
+                message
+            }
+        }
+    }
+    GRAPHQL;
+}
+
 
     public function createDiscountOnShopify($link)
     {
@@ -839,7 +779,7 @@ GRAPHQL;
         $endsAt = Carbon::now()->addHour()->utc()->format('Y-m-d\TH:i:s\Z'); // Set expiration to 1 hour
 
         // Generate a unique code for free shipping
-        $code = "FREESHIP" . $link->id.strtoupper(substr(md5(mt_rand()), 0, 4));
+        $code = "FREESHIP" . $link->id . strtoupper(substr(md5(mt_rand()), 0, 4));
 
         $variables = [
             "freeShippingCodeDiscount" => [
@@ -866,5 +806,4 @@ GRAPHQL;
         $response = $link->user->api()->graph($mutation, $variables);
         return $this->arrayToObject($response);
     }
-
 }

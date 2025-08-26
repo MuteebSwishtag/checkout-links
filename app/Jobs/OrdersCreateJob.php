@@ -84,35 +84,60 @@ class OrdersCreateJob implements ShouldQueue
      * @return void
      */
     private function updateLinkOrderCount($payload)
-    {
-        // Check if note_attributes exist in the payload
+{
+    try {
+        $checkoutLinkId = null;
+
+        // Case 1: Look in note_attributes
         if (!empty($payload->note_attributes)) {
-            $checkoutLinkId = null;
-            // Look for the checkout_link_id in note_attributes
             foreach ($payload->note_attributes as $attribute) {
-                Log::info("Processing note attribute: {$attribute->name} with value: {$attribute->value}");
                 if ($attribute->name === 'checkout_link_id') {
                     $checkoutLinkId = $attribute->value;
                     break;
                 }
             }
-            Log::info("Checkout Link ID: {$checkoutLinkId}");
-            // If we found a checkout_link_id, update the Link record
-            if ($checkoutLinkId) {
-                $link = Link::find($checkoutLinkId);
-                if ($link) {
-                    Log::info("Found link with ID: {$checkoutLinkId}");
-                    // Increment the placed_order count by 1
-                    $link->increment('placed_order', 1);
-                    $this->logInfo("Updated placed order count for link ID: {$checkoutLinkId}");
-                } else {
-                    $this->logInfo("Link not found with ID: {$checkoutLinkId}");
+        }
+
+        // Case 2: Look in note (only if draft order)
+        if (!$checkoutLinkId && !empty($payload->note) && $payload->source_name === 'shopify_draft_order') {
+            if (preg_match('/Checkout Link:\s*(\d+)/i', $payload->note, $matches)) {
+                $checkoutLinkId = $matches[1];
+                Log::info("Extracted Checkout Link ID from note: {$checkoutLinkId}");
+            }
+        }
+
+        // Case 3: Look in line_items properties
+        if (!$checkoutLinkId && !empty($payload->line_items)) {
+            foreach ($payload->line_items as $item) {
+                if (!empty($item->properties)) {
+                    foreach ($item->properties as $property) {
+                        if ($property->name === 'Order placed' && is_numeric($property->value)) {
+                            $checkoutLinkId = $property->value;
+                            Log::info("Extracted Checkout Link ID from line item property: {$checkoutLinkId}");
+                            break 2;
+                        }
+                    }
                 }
+            }
+        }
+
+        // Update Link model if ID found
+        if ($checkoutLinkId) {
+            $link = Link::find($checkoutLinkId);
+            if ($link) {
+                $link->increment('placed_order', 1);
+                Log::info("✅ Updated placed order count for link ID: {$checkoutLinkId}");
             } else {
-                $this->logInfo("No checkout_link_id found in order note attributes");
+                Log::warning("❌ Link not found with ID: {$checkoutLinkId}");
             }
         } else {
-            $this->logInfo("No note_attributes found in order payload");
+            Log::warning("⚠️ No checkout_link_id found in order payload");
         }
+    } catch (\Exception $e) {
+        Log::error("Exception in updateLinkOrderCount: " . $e->getMessage(), [
+            'trace' => $e->getTraceAsString()
+        ]);
     }
+}
+
 }
