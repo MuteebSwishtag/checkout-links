@@ -495,7 +495,10 @@ trait ShopifyOrderTrait
             $linkId
         );
 
-        $result = $this->arrayToObject($link->user->api()->graph($mutation));
+            // Log the mutation string before sending to Shopify
+            Log::info("Draft Order Mutation", ["mutation" => $mutation]);
+
+            $result = $this->arrayToObject($link->user->api()->graph($mutation));
         Log::info("Draft Order Create Response", ['response' => json_encode($result, JSON_PRETTY_PRINT)]);
 
         if (!empty($result->errors)) {
@@ -530,8 +533,16 @@ trait ShopifyOrderTrait
 /**
  * Build the GraphQL mutation for creating a draft order
  */
-private function buildDraftOrderCreateMutation($lineItems, $linkName, $customerData, $discountCode, $discountValue, $freeShipping, $orderDiscount, $linkId)
-{
+    private function buildDraftOrderCreateMutation(
+        $lineItems,
+        $linkName,
+        $customerData,
+        $discountCode,
+        $discountValue,
+        $freeShipping,
+        $orderDiscount,
+        $linkId
+    ) {
     $input = [];
     $input['lineItems'] = $lineItems;
     $input['note'] = "Created from Checkout Link: $linkId";
@@ -540,12 +551,16 @@ private function buildDraftOrderCreateMutation($lineItems, $linkName, $customerD
         $input['customerId'] = $customerData['id'] ?? null;
     }
 
-    if ($freeShipping) {
-        $input['shippingLine'] = [
-            "title" => "Free Shipping",
-            "price" => ["amount" => "0.0", "currencyCode" => "USD"]
-        ];
-    }
+        if ($freeShipping) {
+            $input['shippingLine'] = [
+                "title" => "Free Shipping",
+                // Pass as array, will be formatted as GraphQL object below
+                "priceWithCurrency" => [
+                    "amount" => "0.0",
+                    "currencyCode" => "USD"
+                ]
+            ];
+        }
 
     if ($orderDiscount && $orderDiscount > 0) {
         $floatDiscountValue = (float) ($discountValue ?? 0);
@@ -556,59 +571,67 @@ private function buildDraftOrderCreateMutation($lineItems, $linkName, $customerD
         ];
     }
 
-    // Convert PHP array to GraphQL input string
+        // --- Convert array to GraphQL ---
     $inputParams = [];
-    foreach ($input as $key => $value) {
-        if ($key === 'lineItems') {
-            $items = [];
-            foreach ($value as $item) {
-                $itemStr = '{';
-                foreach ($item as $itemKey => $itemValue) {
-                    if ($itemKey === 'customAttributes' && is_array($itemValue)) {
-                        $attrsStr = '[';
-                        foreach ($itemValue as $attr) {
-                            $attrsStr .= "{key: \"{$attr['key']}\", value: \"{$attr['value']}\"},";
+        foreach ($input as $key => $value) {
+            if ($key === 'lineItems') {
+                // handle line items
+                $items = [];
+                foreach ($value as $item) {
+                    $itemStr = '{';
+                    foreach ($item as $itemKey => $itemValue) {
+                        if ($itemKey === 'customAttributes' && is_array($itemValue)) {
+                            $attrsStr = '[';
+                            foreach ($itemValue as $attr) {
+                                $attrsStr .= "{key: \"{$attr['key']}\", value: \"{$attr['value']}\"},";
+                            }
+                            $attrsStr = rtrim($attrsStr, ',') . ']';
+                            $itemStr .= "$itemKey: $attrsStr, ";
+                        } elseif (is_string($itemValue)) {
+                            $itemStr .= "$itemKey: \"$itemValue\", ";
+                        } else {
+                            $itemStr .= "$itemKey: $itemValue, ";
                         }
-                        $attrsStr = rtrim($attrsStr, ',') . ']';
-                        $itemStr .= "$itemKey: $attrsStr, ";
-                    } elseif (is_string($itemValue)) {
-                        $itemStr .= "$itemKey: \"$itemValue\", ";
+                    }
+                    $itemStr = rtrim($itemStr, ', ') . '}';
+                    $items[] = $itemStr;
+                }
+                $inputParams[] = "$key: [" . implode(', ', $items) . "]";
+
+            } elseif ($key === 'shippingLine') {
+                // handle shippingLine with MoneyInput
+                $shippingStr = "{";
+                foreach ($value as $shippingKey => $shippingValue) {
+                    if ($shippingKey === 'priceWithCurrency' && is_array($shippingValue)) {
+                        // Format priceWithCurrency as GraphQL object
+                        $shippingStr .= "$shippingKey: { amount: \"{$shippingValue['amount']}\", currencyCode: {$shippingValue['currencyCode']} }, ";
                     } else {
-                        $itemStr .= "$itemKey: $itemValue, ";
+                        $shippingStr .= "$shippingKey: \"$shippingValue\", ";
                     }
                 }
-                $itemStr = rtrim($itemStr, ', ') . '}';
-                $items[] = $itemStr;
-            }
-            $inputParams[] = "$key: [" . implode(', ', $items) . "]";
-        } elseif ($key === 'shippingLine') {
-            $shippingStr = "{";
-            foreach ($value as $shippingKey => $shippingValue) {
-                if ($shippingKey === 'price') {
-                    $shippingStr .= "$shippingKey: {amount: \"{$shippingValue['amount']}\", currencyCode: {$shippingValue['currencyCode']}}, ";
-                } else {
-                    $shippingStr .= "$shippingKey: \"$shippingValue\", ";
+                $shippingStr = rtrim($shippingStr, ', ') . "}";
+                $inputParams[] = "$key: $shippingStr";
+
+            } elseif ($key === 'appliedDiscount') {
+                // handle appliedDiscount
+                $discountStr = "{";
+                foreach ($value as $discountKey => $discountValue) {
+                    if ($discountKey === 'valueType') {
+                        $discountStr .= "$discountKey: $discountValue, ";
+                    } elseif ($discountKey === 'value') {
+                        $discountStr .= "$discountKey: $discountValue, ";
+                    } else {
+                        $discountStr .= "$discountKey: \"$discountValue\", ";
+                    }
                 }
+                $discountStr = rtrim($discountStr, ', ') . "}";
+                $inputParams[] = "$key: $discountStr";
+
+            } else {
+                // default string
+                $inputParams[] = "$key: \"$value\"";
             }
-            $shippingStr = rtrim($shippingStr, ', ') . "}";
-            $inputParams[] = "$key: $shippingStr";
-        } elseif ($key === 'appliedDiscount') {
-            $discountStr = "{";
-            foreach ($value as $discountKey => $discountValue) {
-                if ($discountKey === 'valueType') {
-                    $discountStr .= "$discountKey: $discountValue, ";
-                } elseif ($discountKey === 'value') {
-                    $discountStr .= "$discountKey: $discountValue, ";
-                } else {
-                    $discountStr .= "$discountKey: \"$discountValue\", ";
-                }
-            }
-            $discountStr = rtrim($discountStr, ', ') . "}";
-            $inputParams[] = "$key: $discountStr";
-        } else {
-            $inputParams[] = "$key: \"$value\"";
         }
-    }
 
     $inputString = implode(", ", $inputParams);
 
@@ -634,6 +657,7 @@ private function buildDraftOrderCreateMutation($lineItems, $linkName, $customerD
     }
     GRAPHQL;
 }
+
 
 
     public function createDiscountOnShopify($link)

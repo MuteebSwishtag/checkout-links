@@ -543,6 +543,23 @@ export default function CreateLink() {
         setProductSearchValue(value);
         setCurrentPage(1);
     };
+    const searchFilterRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (
+                searchFilterRef.current &&
+                !searchFilterRef.current.contains(event.target)
+            ) {
+                setMainProductSearch('');
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
 
     // Structure product data for hierarchical rendering (product + variants), memoized to avoid infinite loop
     const productData = React.useMemo(() => {
@@ -1227,16 +1244,12 @@ export default function CreateLink() {
         setSelectedProductItems(items);
     }, [selectedProductItems]);
 
+    // Fix: Remove product from all selection states
     const handleRemoveProduct = useCallback((productId) => {
-        const newSelection = selectedProductItems.filter(product => product.id !== productId);
-        setSelectedProductItems(newSelection);
-        setSelectedProducts(newSelection.length);
-        setPopupProductChecked(prev => {
-            const newState = { ...prev };
-            delete newState[productId];
-            return newState;
-        });
-    }, [selectedProductItems]);
+        setSelectedProductItems(prev => prev.filter(item => item.id !== productId));
+        setTempSelectedProductItems(prev => prev.filter(item => item.id !== productId));
+        setSelectedVariantIds(prev => prev.filter(id => id !== productId));
+    }, []);
 
     // -- Discount and Popup handlers (unchanged)
     const handleFreeShippingChange = useCallback((value) => setDiscountData(prev => ({ ...prev, freeShipping: value })), []);
@@ -1622,14 +1635,17 @@ export default function CreateLink() {
                                         <Box padding={'300'}>
                                             <BlockStack gap="400">
                                                 {/* Unified search bar and results block */}
-                                                <div style={{
+                                                <div
+                                                    ref={searchFilterRef}
+                                                    style={{
                                                     background: '#fff',
                                                     border: '1px solid #e1e3e5',
                                                     borderRadius: 8,
                                                     boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
                                                     padding: '12px',
                                                     marginBottom: '0',
-                                                }}>
+
+                                                    }}>
                                                     <InlineStack align="space-between" gap="400" >
                                                         <div style={{ flexGrow: 1 }}>
                                                             <TextField
@@ -2097,7 +2113,7 @@ export default function CreateLink() {
 
                                             <InlineStack gap='050'>
                                                 <Icon source={DragDropIcon} tone={popupMessageData.isActive ? 'base' : 'subdued'} />
-                                                <div onClick={() => { setPopupMessageData(prev => ({ ...prev, isActive: true })) }} style={{ cursor: 'pointer' }}>
+                                                <div style={{ cursor: 'pointer' }}>
                                                     <Text tone={popupMessageData.isActive ? 'base' : 'disabled'}
                                                         variant={popupMessageData.isActive ? 'bodyMd' : 'bodySm'}
                                                         fontWeight={popupMessageData.isActive ? 'semibold' : 'regular'}>
@@ -2176,7 +2192,7 @@ export default function CreateLink() {
                                                                                 </div>
                                                                                 <InlineStack align='center' blockAlign='center' >
                                                                                     <Box maxWidth='150px'>
-                                                                                        <div title={product.title + (product.variant ? ` (${product.variant})` : '')}>
+                                                                                        <div title={product.title}>
                                                                                             <Text
                                                                                                 fontWeight="medium"
                                                                                                 textAlign="center"
@@ -2828,10 +2844,7 @@ export default function CreateLink() {
                                                                         </div>
 
                                                                         {/* Inventory */}
-                                                                        <div style={{ textAlign: 'center', color: '#888' }}> {variantUnavailable ? "Sold Out" : `${variant.inventory_quantity > 0
-                                                                            ? variant.inventory_quantity
-                                                                            : 'Unlimited'} available`} </div>
-
+                                                                        <div style={{ textAlign: 'center', color: '#888' }}> {variantUnavailable ? "Sold Out" : `${variant.available && variant.available > 0 ? variant.available : "Unlimited"} available`} </div>
 
                                                                         {/* Price */}
                                                                         <div style={{ textAlign: 'right' }}>
