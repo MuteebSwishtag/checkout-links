@@ -34,50 +34,72 @@ class DashboardController extends Controller
     public function theme_setting_status(Request $request)
     {
         $shop = User::where("name", $request->query('shop'))->first();
+
+        // Check if shop exists
+        if (!$shop) {
+            Log::error('Shop not found: ' . $request->query('shop'));
+            return response()->json(['error' => 'Shop not found'], 404);
+        }
+
         $parts = explode(".", $shop->name);
         $storeName = $parts[0];
 
-        if ($shop->theme_status == 0) {
-            // GraphQL query to get themes
-            $query = <<<QUERY
-            {
-              themes(first: 10) {
-                edges {
-                  node {
-                    id
-                    name
-                    role
-                  }
-                }
+        // Always get themes regardless of theme_status
+        // GraphQL query to get themes
+        $query = <<<QUERY
+        {
+          themes(first: 10) {
+            edges {
+              node {
+                id
+                name
+                role
               }
             }
-            QUERY;
+          }
+        }
+        QUERY;
 
-            // Execute GraphQL query
-            $response = $shop->api()->graph($query);
-            Log::info('GraphQL Response: ' . print_r($response, true));
-            Log::info('Store Name: ' . $storeName);
-            Log::info('Theme Status: ' . $shop->theme_status);
-            Log::info('Response Body: ' . print_r($response['body'], true));
+        // Execute GraphQL query
+        $response = $shop->api()->graph($query);
+        Log::info('GraphQL Response: ' . print_r($response, true));
+        Log::info('Store Name: ' . $storeName);
+        Log::info('Theme Status: ' . $shop->theme_status);
+        Log::info('Response Body: ' . print_r($response['body'], true));
 
             if (isset($response['body']['data']['themes']['edges']) && !empty($response['body']['data']['themes']['edges'])) {
-                $shop->update(['theme_status' => 1]);
+            // Update theme status if it was 0
+            if ($shop->theme_status == 0) {
+                $previousStatus = $shop->theme_status;
+                $updateResult = $shop->update(['theme_status' => 1]);
+                Log::info('Theme status updated: ' . ($updateResult ? 'Success' : 'Failed') .
+                    ' (Previous: ' . $previousStatus . ', Current: ' . $shop->theme_status . ')');
+            }
 
-                // Find the main theme
-                foreach ($response['body']['data']['themes']['edges'] as $themeEdge) {
-                    $theme = $themeEdge['node'];
-                    if ($theme['role'] == 'main') {
-                        // Extract the theme ID from the GraphQL ID (format: gid://shopify/Theme/12345)
-                        $themeIdParts = explode('/', $theme['id']);
-                        $themeId = end($themeIdParts);
+            // Find the main theme
+            foreach ($response['body']['data']['themes']['edges'] as $themeEdge) {
+                $theme = $themeEdge['node'];
+                if (strtoupper($theme['role']) == 'MAIN') {
+                    // Extract the theme ID from the GraphQL ID (format: gid://shopify/OnlineStoreTheme/12345)
+                    $themeIdParts = explode('/', $theme['id']);
+                    $themeId = end($themeIdParts);
 
+                    Log::info('Found main theme: ' . $theme['name'] . ' with ID: ' . $themeId);
+
+                    // Make sure we have a valid numeric ID
+                    if (is_numeric($themeId)) {
                         $url = "https://admin.shopify.com/store/" . $storeName . "/admin/themes/" . $themeId . "/editor?context=apps";
                         return response()->json($url, 201);
+                    } else {
+                        Log::error('Invalid theme ID format: ' . $theme['id']);
                     }
                 }
             }
         }
-        return response()->json(['error' => 'No main theme found or theme already activated'], 404);
+
+        // If we reached here, no main theme was found
+        Log::info('Theme setup failed: No main theme found');
+        return response()->json(['error' => 'No main theme found'], 404);
     }
 
     public function checkThemeStatus(Request $request)

@@ -181,7 +181,7 @@ export default function Dashboard() {
                 }}
                 secondaryActions={[
                     {
-                        content: isRedirecting ? 'Opening Theme Editor...' : 'Setup Theme Editor',
+                        content: isRedirecting ? 'Opening Theme Editor...' : themeStatus === 0 ? 'Setup Theme Editor' : 'Open Theme Editor',
                         loading: isRedirecting,
                         disabled: isRedirecting,
                         onAction: redirectToThemeEditor,
@@ -551,30 +551,29 @@ export default function Dashboard() {
                     </Box>
                 </Box>
 
-                {/* Theme Setup Card - Only show if theme not configured */}
-                {themeStatus === 0 && (
-                    <Box paddingBlockStart="600">
-                        <Card>
-                            <BlockStack gap="400">
-                                <InlineStack align="space-between" blockAlign="center">
-                                    <Text variant="headingMd" as="h2">Theme Setup Required</Text>
-                                    <Button
-                                        onClick={redirectToThemeEditor}
-                                        primary
-                                        loading={isRedirecting}
-                                        disabled={isRedirecting}
-                                    >
-                                        {isRedirecting ? 'Opening...' : 'Setup Theme Editor'}
-                                    </Button>
-                                </InlineStack>
-                                <Text variant="bodyMd">
-                                    To complete your app installation, you need to set up your theme.
-                                    Click the button above to open the theme editor and enable checkout link features on your store.
-                                </Text>
-                            </BlockStack>
-                        </Card>
-                    </Box>
-                )}
+                {/* Theme Setup Card - Always show */}
+                <Box paddingBlockStart="600">
+                    <Card>
+                        <BlockStack gap="400">
+                            <InlineStack align="space-between" blockAlign="center">
+                                <Text variant="headingMd" as="h2">{themeStatus === 0 ? 'Theme Setup Required' : 'Theme Editor'}</Text>
+                                <Button
+                                    onClick={redirectToThemeEditor}
+                                    primary
+                                    loading={isRedirecting}
+                                    disabled={isRedirecting}
+                                >
+                                    {isRedirecting ? 'Opening...' : themeStatus === 0 ? 'Setup Theme Editor' : 'Open Theme Editor'}
+                                </Button>
+                            </InlineStack>
+                            <Text variant="bodyMd">
+                                {themeStatus === 0
+                                    ? 'To complete your app installation, you need to set up your theme. Click the button above to open the theme editor and enable checkout link features on your store.'
+                                    : 'Need to make changes to your theme? Click the button above to open the theme editor.'}
+                            </Text>
+                        </BlockStack>
+                    </Card>
+                </Box>
             </Page>
         </Box>
     )
