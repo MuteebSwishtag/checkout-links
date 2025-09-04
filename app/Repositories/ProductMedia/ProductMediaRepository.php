@@ -3,7 +3,7 @@ namespace App\Repositories\ProductMedia;
 
 use App\Http\Traits\ResponseTrait;
 use Illuminate\Support\Facades\Log;
-use App\Models\Products\ProductMedia;
+use App\Models\ProductMedia;
 use App\Http\Resources\ProductResource;
 use App\Http\Resources\ProductMediaResource;
 use App\Repositories\ProductMedia\ProductMediaRepositoryInterface;

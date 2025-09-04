@@ -343,7 +343,6 @@ export default function Dashboard() {
 
                 <Box paddingBlockStart="400">
                     <Grid>
-
                         <Grid.Cell columnSpan={{ xs: 12, sm: 6, md: 6, lg: 4, xl: 6 }}>
                             <Card sectioned>
                                 <Box minHeight='107px'>
@@ -356,21 +355,19 @@ export default function Dashboard() {
                                         </Text>
                                     </Box>
                                     <Box paddingBlockStart="400">
-                                        <Button variant="secondary">
+                                        <Button variant="secondary" onClick={() => router.get(route('how-it-works', query))}>
                                             Learn more
                                         </Button>
                                     </Box>
                                 </Box>
                             </Card>
                         </Grid.Cell>
-
-                        <Grid.Cell columnSpan={{ xs: 12, sm: 6, md: 6, lg: 4, xl: 6 }}>
+                        {/* <Grid.Cell columnSpan={{ xs: 12, sm: 6, md: 6, lg: 4, xl: 6 }}>
                             <Card sectioned>
                                 <Box width='100%' minWidth='500px'>
                                     <Text variant="headingMd" as="h3">
                                         <p className='text-black font-bold'></p>  Need a hand? We're here to help
                                     </Text>
-
                                     <Box paddingBlockStart="300">
                                         <Box paddingBlockEnd="">
                                             <Button variant="plain" textAlign="left" icon={<Icon source={EmailFollowUpIcon} tone="base" />} fullWidth>
@@ -390,25 +387,21 @@ export default function Dashboard() {
                                     </Box>
                                 </Box>
                             </Card>
-                        </Grid.Cell>
+                       </Grid.Cell> */}
                     </Grid>
-
                 </Box>
-
-
-
                 <Box paddingBlockStart="400">
-                    <Card sectioned>
-                        <Box>
+                    {/* <Card sectioned> */}
+                        {/* <Box>
                             <InlineStack align="space-between" blockAlign="start">
                                 <Text variant="headingMd" as="h4">
                                     <p className='text-black font-semibold'>Level up your store in 3 simple steps</p>
                                 </Text>
                                 <Button variant="plain" icon="X" accessibilityLabel="Close">
                                 </Button>
-                            </InlineStack>
+                            </InlineStack> */}
 
-                            <Box paddingBlockStart="600">
+                            {/* <Box paddingBlockStart="600">
                                 <Grid>
                                     {appsData.map((app, index) => (
                                         <Grid.Cell key={index} columnSpan={{ xs: 12, sm: 6, md: 4, lg: 4, xl: 4 }}>
@@ -505,11 +498,9 @@ export default function Dashboard() {
                                         </Grid.Cell>
                                     ))}
                                 </Grid>
-                            </Box>
-
-
-                        </Box>
-                    </Card>
+                            </Box> */}
+                        {/* </Box>
+                    </Card> */}
                     <Box paddingBlockStart="600">
 
                         <Text variant="bodyMd" tone="subdued" alignment='center'>
@@ -519,15 +510,12 @@ export default function Dashboard() {
                             </Button>
                             {' '}and we're happy to help.
                         </Text>
-
                     </Box>
                 </Box>
             </Page>
         </Box>
     )
 }
-
-
 function isEmpty(value) {
     if (Array.isArray(value)) {
         return value.length === 0;

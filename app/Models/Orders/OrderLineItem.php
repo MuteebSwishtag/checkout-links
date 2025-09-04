@@ -2,7 +2,7 @@
 
 namespace App\Models\Orders;
 
-use App\Models\Products\ProductVarient;
+use App\Models\ProductVarient;
 use Illuminate\Database\Eloquent\Model;
 
 class OrderLineItem extends Model

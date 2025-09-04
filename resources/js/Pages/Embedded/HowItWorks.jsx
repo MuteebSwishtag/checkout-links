@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { use } from 'react';
 import {
     Page,
     Card,
@@ -13,14 +13,18 @@ import { PlusIcon } from '@shopify/polaris-icons';
 import { router } from '@inertiajs/react';
 import Image1 from '@/Pages/Images/image1.jpeg';
 import Image2 from '@/Pages/Images/image2.jpeg'
+import { usePage } from '@inertiajs/react';
+
 
 export default function HowItWorks() {
     const handleCreateNewLink = () => {
         router.visit(route('create-link'));
     };
+    const { props } = usePage();
+        const query = props.ziggy.query;
 
     return (
-        <Page title="How it works" primaryAction={{ content: 'Create a new link', onAction: handleCreateNewLink }}>
+        <Page title="How it works" primaryAction={{ content: 'Create a new link', onAction: () => router.get(route('links.create', query)), icon: PlusIcon }}>
 
             {/* Header */}
             {/* <div style={{
@@ -52,7 +56,7 @@ export default function HowItWorks() {
                         backgroundColor: '#f6f6f7'
                     }}>
                         <iframe
-                            src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                            src="https://www.youtube.com/embed/f6P8twdu_f0"
                             style={{
                                 position: 'absolute',
                                 top: 0,
@@ -96,7 +100,7 @@ export default function HowItWorks() {
                                 </Text>
                             </div>
                             <div style={{ marginTop: '10px' }}>
-                                <Button variant="secondary" onClick={handleCreateNewLink}>
+                                <Button variant="secondary" onClick={() => router.get(route('links.create', query))}>
                                     Create a link
                                 </Button>
                             </div>
@@ -139,7 +143,7 @@ export default function HowItWorks() {
                                 </Text>
                             </div>
                             <div style={{ marginTop: '10px' }}>
-                                <Button variant="secondary" onClick={handleCreateNewLink}>
+                                <Button variant="secondary" onClick={() => router.get(route('links.create', query))}>
                                     Create a link
                                 </Button>
                             </div>

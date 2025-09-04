@@ -202,12 +202,12 @@ export default function Settings() {
                 <div style={{ padding: '2rem' }}>
                     <BlockStack gap="600">
 
-                        <div style={{
+                        {/* <div style={{
                             display: 'grid',
                             gridTemplateColumns: '200px 1fr',
                             gap: '2rem',
                             alignItems: 'center'
-                        }}>
+                           }}>
                             <Text variant="headingMd" as="h4">
                                 App version
                             </Text>
@@ -215,7 +215,7 @@ export default function Settings() {
                             <Card>
                                 <Text variant='headingMd' as='h5'>{appVersion}</Text>
                             </Card>
-                        </div>
+                        </div> */}
 
                         {/* Brand color */}
                         <div style={{

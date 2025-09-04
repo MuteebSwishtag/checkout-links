@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use App\Models\Products\Product;
-use App\Models\Products\ProductVarient;
+use App\Models\Product;
+use App\Models\ProductVarient;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 

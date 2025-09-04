@@ -2,7 +2,7 @@
 namespace App\Repositories\Product;
 
 use App\Models\LinkProductVarient;
-use App\Models\Products\Product;
+use App\Models\Product;
 use App\Http\Traits\ResponseTrait;
 use Illuminate\Support\Facades\Log;
 use App\Http\Resources\ProductResource;

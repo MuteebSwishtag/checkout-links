@@ -3,9 +3,9 @@
 namespace App\Jobs;
 
 use App\Models\LinkProductVarient;
-use App\Models\Products\Product;
-use App\Models\Products\ProductMedia;
-use App\Models\Products\ProductVarient;
+use App\Models\Product;
+use App\Models\ProductMedia;
+use App\Models\ProductVarient;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Support\Facades\DB;

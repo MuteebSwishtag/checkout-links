@@ -247,7 +247,7 @@ const LinksIndex = () => {
                     document.body.removeChild(textarea);
                 }
             };
-            const shortCode = urlCode.split('/').pop();
+            // const shortCode = urlCode.split('/').pop();
             return (
                 <IndexTable.Row
                     id={id}
@@ -260,11 +260,18 @@ const LinksIndex = () => {
                         </Text>
                     </IndexTable.Cell>
                     <IndexTable.Cell>
-                        {shortCode.length > 12 ? `${shortCode.slice(0, 12)}...` : shortCode}
+                            <a
+                                href={urlCode}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ color: '#2c6ecb', textDecoration: 'underline' }}
+                            >
+                                {urlCode.length > 30 ? `${urlCode.slice(0, 30)}...` : urlCode}
+                            </a>
                     </IndexTable.Cell>
-                    <IndexTable.Cell>
+                    {/* <IndexTable.Cell>
                         <Badge tone="success">{status}</Badge>
-                    </IndexTable.Cell>
+                    </IndexTable.Cell> */}
                     <IndexTable.Cell>{clicks}</IndexTable.Cell>
                     <IndexTable.Cell>{placedOrder}</IndexTable.Cell>
                     <IndexTable.Cell>
@@ -331,7 +338,7 @@ const LinksIndex = () => {
                 </Box>
             </Modal>
 
-            <Page 
+            <Page
                 title="Links"
                 primaryAction={{
                     content: 'Create a new link',
@@ -362,8 +369,8 @@ const LinksIndex = () => {
                         selectable={false}
                         headings={[
                             { title: 'Link Name' },
-                            { title: 'URL Code' },
-                            { title: 'Status' },
+                            { title: 'URL Link' },
+                            // { title: 'Status' },
                             { title: 'Clicks' },
                             { title: 'Placed Order' },
                             { title: 'Actions' },

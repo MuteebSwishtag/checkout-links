@@ -218,7 +218,7 @@ export default function CreateLink() {
     const [fullUrl, setFullUrl] = useState(''); // Store the full URL with shop name
     const [productsOpen, setProductsOpen] = useState(true);
     const [discountsOpen, setDiscountsOpen] = useState(false);
-    const [popupMessageOpen, setPopupMessageOpen] = useState(false);
+    const [popupMessageOpen, setPopupMessageOpen] = useState(true);
     const [selectedProducts, setSelectedProducts] = useState(0);
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [productSearchValue, setProductSearchValue] = useState('');
@@ -739,6 +739,9 @@ export default function CreateLink() {
                 GLOBAL_QUANTITIES[id] = parseInt(globalQuantities[id]) || 1;
             });
 
+            // Initialize tempSelectedProductItems with the same values as selectedProductItems
+            setTempSelectedProductItems([...selectedProductItems]);
+
             // console.log('Loaded quantities from all storage mechanisms:', GLOBAL_QUANTITIES);
         } catch (e) {
             console.error('Failed to load quantities from localStorage:', e);
@@ -762,9 +765,15 @@ export default function CreateLink() {
     const handleProductModalOpen = useCallback(() => {
         // Save current selection to temp when opening modal
         // Always initialize tempSelectedProductItems from selectedProductItems
-        setTempSelectedProductItems((Array.isArray(selectedProductItems) ? selectedProductItems : []).map(item => ({ ...item })));
+        // Create a deep copy to avoid reference issues
+        const selectedItemsCopy = (Array.isArray(selectedProductItems) ? selectedProductItems : [])
+            .map(item => ({ ...item }));
+        setTempSelectedProductItems(selectedItemsCopy);
         setIsProductModalOpen(true);
         setProductSearchValue('');
+
+        // Log for debugging
+        console.log('Modal opened with', selectedItemsCopy.length, 'items');
     }, [selectedProductItems]);
 
     const handleProductModalClose = useCallback(() => {
@@ -971,6 +980,8 @@ export default function CreateLink() {
                         updated = updated.filter(item => item.id !== id);
                     }
                 }
+
+                console.log('Updated tempSelectedProductItems:', updated.length);
                 return updated;
             });
         } else {
@@ -997,10 +1008,10 @@ export default function CreateLink() {
                     } else {
                         return prev.filter(vid => vid !== id);
                     }
-        });
+                });
             }
         }
-    };;
+    };
     // Helper to update selectedProductItems based on selectedVariantIds
     const updateSelectedProductItems = (variantIds, existingItems = {}) => {
         // Try to load global quantities from localStorage if we haven't already
@@ -2657,7 +2668,9 @@ export default function CreateLink() {
                     (() => {
                         // Group selected items by product id prefix
                         const productVariantMap = {};
-                        selectedProductItems.forEach(item => {
+                        // Use tempSelectedProductItems instead of selectedProductItems
+                        // This ensures the footer updates with the current selections
+                        tempSelectedProductItems.forEach(item => {
                             // Assume id format is "productId_variantId" for variants, or just "productId" for products
                             const [productId, variantId] = item.id.split('_');
                             if (!productVariantMap[productId]) {
@@ -2685,8 +2698,10 @@ export default function CreateLink() {
                             text = `${productCount} product${productCount !== 1 ? 's' : ''}, ${variantCount} variant${variantCount !== 1 ? 's' : ''} selected`;
                         } else if (productCount > 0) {
                             text = `${productCount} product${productCount !== 1 ? 's' : ''} selected`;
-                        } else {
+                        } else if (variantCount > 0) {
                             text = `${variantCount} variant${variantCount !== 1 ? 's' : ''} selected`;
+                        } else {
+                            text = "No products selected";
                         }
                         return (
                             <div style={{ padding: '12px 16px', textAlign: 'left' }}>

@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Models\Products;
+namespace App\Models;
 
 use App\Models\Link;
 use App\Models\LinkProductVarient;
-use App\Models\Products\Product;
+use App\Models\Product;
 use App\Models\Orders\OrderLineItem;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;

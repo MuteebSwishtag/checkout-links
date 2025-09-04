@@ -4,7 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\Orders\Order;
-use app\Models\Products\Product;
+use App\Models\Product;
 use Osiset\ShopifyApp\Traits\ShopModel;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;

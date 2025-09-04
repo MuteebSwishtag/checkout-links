@@ -2,7 +2,7 @@
 namespace App\Repositories\ProductVarient;
 
 use App\Http\Traits\ResponseTrait;
-use App\Models\Products\ProductVarient;
+use App\Models\ProductVarient;
 use App\Repositories\ProductVarient\ProductVarientRepositoryInterface;
 
 
