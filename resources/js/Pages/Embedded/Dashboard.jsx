@@ -22,6 +22,8 @@ export default function Dashboard() {
     const [queryValue, setQueryValue] = useState('');
     const [links, setLinks] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRedirecting, setIsRedirecting] = useState(false);
+    const [themeStatus, setThemeStatus] = useState(null);
     const page = usePage().props;
     const query = page.ziggy.query;
 
@@ -46,27 +48,55 @@ export default function Dashboard() {
     const fetchLinks = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(route('links.get', { ...query, last: 2 }), {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
-                },
-            });
+            const response = await fetch(route('links.get'));
             const data = await response.json();
-            console.log("Links fetched:", data);
-            if (data.success && Array.isArray(data.links)) {
-                setLinks(data.links);
-            }
-            setIsLoading(false);
+            setLinks(data);
         } catch (error) {
             console.error("Error fetching links:", error);
+        } finally {
             setIsLoading(false);
         }
     };
+
+    // Check theme status
+    const checkThemeStatus = async () => {
+        try {
+            const response = await fetch(`/api/theme-status-check?shop=${query.shop}`);
+            const data = await response.json();
+            setThemeStatus(data.theme_status);
+        } catch (error) {
+            console.error("Error checking theme status:", error);
+            setThemeStatus(0); // Default to not configured
+        }
+    };
+
     useEffect(() => {
         fetchLinks();
+        checkThemeStatus();
     }, []);
+
+    // Function to redirect to theme editor
+    const redirectToThemeEditor = async () => {
+        try {
+            setIsRedirecting(true);
+            const response = await fetch(route('theme.status', { shop: query.shop }));
+
+            if (response.status === 201) {
+                const editorUrl = await response.json();
+                // Open the theme editor URL in a new tab
+                window.open(editorUrl, '_blank');
+            } else {
+                const errorData = await response.json();
+                console.error("Theme editor redirection failed:", errorData);
+                alert("Unable to access theme editor. Theme may already be configured.");
+            }
+        } catch (error) {
+            console.error("Theme editor redirection error:", error);
+            alert("There was an error accessing the theme editor.");
+        } finally {
+            setIsRedirecting(false);
+        }
+    };
 
     const appsData = [
         {
@@ -149,6 +179,14 @@ export default function Dashboard() {
                     content: 'Create checkout link',
                     onAction: () => router.get(route('links.create', query)),
                 }}
+                secondaryActions={[
+                    {
+                        content: isRedirecting ? 'Opening Theme Editor...' : 'Setup Theme Editor',
+                        loading: isRedirecting,
+                        disabled: isRedirecting,
+                        onAction: redirectToThemeEditor,
+                    },
+                ]}
             >
                 {/* Show features card if no links, otherwise show recent order links card */}
                 {/* Show skeleton loading state while data is being fetched */}
@@ -512,6 +550,31 @@ export default function Dashboard() {
                         </Text>
                     </Box>
                 </Box>
+
+                {/* Theme Setup Card - Only show if theme not configured */}
+                {themeStatus === 0 && (
+                    <Box paddingBlockStart="600">
+                        <Card>
+                            <BlockStack gap="400">
+                                <InlineStack align="space-between" blockAlign="center">
+                                    <Text variant="headingMd" as="h2">Theme Setup Required</Text>
+                                    <Button
+                                        onClick={redirectToThemeEditor}
+                                        primary
+                                        loading={isRedirecting}
+                                        disabled={isRedirecting}
+                                    >
+                                        {isRedirecting ? 'Opening...' : 'Setup Theme Editor'}
+                                    </Button>
+                                </InlineStack>
+                                <Text variant="bodyMd">
+                                    To complete your app installation, you need to set up your theme.
+                                    Click the button above to open the theme editor and enable checkout link features on your store.
+                                </Text>
+                            </BlockStack>
+                        </Card>
+                    </Box>
+                )}
             </Page>
         </Box>
     )

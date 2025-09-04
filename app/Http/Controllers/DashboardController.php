@@ -79,6 +79,17 @@ class DashboardController extends Controller
         }
         return response()->json(['error' => 'No main theme found or theme already activated'], 404);
     }
+
+    public function checkThemeStatus(Request $request)
+    {
+        $shop = User::where("name", $request->query('shop'))->first();
+        if (!$shop) {
+            return response()->json(['theme_status' => 0], 200);
+        }
+
+        return response()->json(['theme_status' => (int) $shop->theme_status], 200);
+    }
+
     public function orderSeacrhfilter(Request $request)
     {
         $filters = $request->all();
