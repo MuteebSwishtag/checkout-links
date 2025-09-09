@@ -712,7 +712,11 @@ document.addEventListener('DOMContentLoaded', function () {
   // Update modal content
   function updateModalContent() {
     const modalContent = document.querySelector('.modal-content');
-    if (!modalContent || !window.checkoutConfig) return;
+    if (!modalContent || !window.checkoutConfig)
+      return;
+
+    // Make function globally accessible for theme-editor-helper.js
+    window.updateModalContent = updateModalContent; return;
 
     // Check if there are any products linked to this link
     const hasProducts = window.checkoutConfig.products && window.checkoutConfig.products.length > 0;
@@ -1492,6 +1496,12 @@ document.addEventListener('DOMContentLoaded', function () {
     // Check for stored discount and apply it if we're on the cart or checkout page
     checkAndApplyStoredDiscount();
 
+    // Listen for custom refresh event from theme-editor-helper.js
+    window.addEventListener('refresh-checkout-modal', function () {
+      console.log('Refresh checkout modal event received');
+      updateModalContent();
+    });
+
     // Add CSS for the close button
     const styleSheet = document.createElement("link");
     styleSheet.rel = "stylesheet";
@@ -1544,11 +1554,23 @@ document.addEventListener('DOMContentLoaded', function () {
     // Only set link_id if it doesn't exist
     window.checkoutConfig.link_id = window.checkoutConfig.link_id || 'sample-link-id';
     
+    // First check if there are products in the theme editor settings
+    const hasThemeEditorProducts = window.checkoutConfig.theme_editor &&
+      window.checkoutConfig.theme_editor.selected_products &&
+      window.checkoutConfig.theme_editor.selected_products.length > 0;
+
+    if (hasThemeEditorProducts) {
+      console.log('Using products from theme editor schema settings:', window.checkoutConfig.theme_editor.selected_products);
+      // Use the schema-selected products in the main products array
+      window.checkoutConfig.products = window.checkoutConfig.theme_editor.selected_products;
+      return; // Exit function since we found products
+    }
+
     // Check if products are already set from schema
     const hasProductsFromSchema = window.checkoutConfig.products && window.checkoutConfig.products.length > 0;
     console.log('Products from schema available:', hasProductsFromSchema);
     
-    // Only set products if they don't exist and weren't set via schema
+    // Only set products if they don't exist and weren't set via schema or theme editor
     if (!hasProductsFromSchema) {
       console.log('No products from schema, using sample products');
       window.checkoutConfig.products = [

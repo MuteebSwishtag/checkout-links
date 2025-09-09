@@ -8,7 +8,16 @@ async function setupSampleDataForThemeEditor() {
     // First check if there are products already set from selected_products in the schema
     const hasSelectedProducts = window.checkoutConfig.products && window.checkoutConfig.products.length > 0;
     
-    if (hasSelectedProducts) {
+    // Check if products are in the theme_editor.selected_products array (this is where they'll be from schema settings)
+    const hasThemeEditorProducts = window.checkoutConfig.theme_editor && 
+                                  window.checkoutConfig.theme_editor.selected_products && 
+                                  window.checkoutConfig.theme_editor.selected_products.length > 0;
+    
+    if (hasThemeEditorProducts) {
+        console.log('Using products from theme editor schema settings:', window.checkoutConfig.theme_editor.selected_products);
+        // Use the schema-selected products in the main products array
+        window.checkoutConfig.products = window.checkoutConfig.theme_editor.selected_products;
+    } else if (hasSelectedProducts) {
         console.log('Using products selected in theme editor schema:', window.checkoutConfig.products);
     }
     // Otherwise check if there is a selected collection
@@ -19,29 +28,40 @@ async function setupSampleDataForThemeEditor() {
             const collectionId = window.checkoutConfig.theme_editor.selected_collection;
             console.log('Using collection for theme editor preview:', collectionId);
 
+            // Get collection info if available
+            const collectionInfo = window.checkoutConfig.theme_editor.collection_info || { 
+                id: collectionId, 
+                title: 'Selected Collection' 
+            };
+            
+            console.log('Collection info:', collectionInfo);
+
             // In a real implementation, you would fetch products from the collection
             // Here we'll simulate some sample products as if they came from the collection
             const sampleCollectionProducts = [
                 {
                     id: 'collection-product-1',
-                    title: 'Collection Product 1',
+                    title: `${collectionInfo.title} - Product 1`,
                     price: '29.99',
                     image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png',
-                    quantity: 1
+                    quantity: 1,
+                    collection_id: collectionId
                 },
                 {
                     id: 'collection-product-2',
-                    title: 'Collection Product 2',
+                    title: `${collectionInfo.title} - Product 2`,
                     price: '49.99',
                     image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-2_large.png',
-                    quantity: 1
+                    quantity: 1,
+                    collection_id: collectionId
                 },
                 {
                     id: 'collection-product-3',
-                    title: 'Collection Product 3',
+                    title: `${collectionInfo.title} - Product 3`,
                     price: '79.99',
                     image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-3_large.png',
-                    quantity: 1
+                    quantity: 1,
+                    collection_id: collectionId
                 }
             ];
 
@@ -149,7 +169,14 @@ async function setupSampleDataForThemeEditor() {
     }
 
     // Initialize UI with the sample data
-    updateModalContent();
+    if (typeof window.updateModalContent === 'function') {
+        window.updateModalContent();
+    } else {
+        console.warn('updateModalContent function not found. Modal may not show products correctly.');
+        // Try to refresh the modal content through a global event
+        const refreshEvent = new CustomEvent('refresh-checkout-modal');
+        window.dispatchEvent(refreshEvent);
+    }
 
     // Override button actions for theme editor preview
     setTimeout(() => {

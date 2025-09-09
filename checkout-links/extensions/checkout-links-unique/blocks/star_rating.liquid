@@ -86,6 +86,16 @@
         const collectionId = {{ block.settings.selected_collection | json }};
         if (collectionId) {
           console.log('Theme editor: Using products from collection', collectionId);
+          
+          // In a real implementation, you would fetch products from the collection
+          // This would happen in the theme-editor-helper.js file
+          
+          // Add theme editor information about the collection
+          window.checkoutConfig.theme_editor.collection_info = {
+            id: collectionId,
+            handle: '{{ block.settings.selected_collection.handle }}',
+            title: '{{ block.settings.selected_collection.title | escape }}'
+          };
         }
       } catch (error) {
         console.error('Error initializing theme editor products:', error);
@@ -570,6 +580,7 @@
     { "type": "checkbox", "id": "show_order_total", "label": "Show Order Total", "default": true },
     { "type": "checkbox", "id": "allow_deselect", "label": "Allow Product Deselection", "default": true },
     { "type": "product_list", "id": "selected_products", "label": "Select Products", "limit": 10 },
+    { "type": "collection", "id": "selected_collection", "label": "Or Select Collection (optional)" },
     { "type": "header", "content": "Discount Settings" },
     { "type": "text", "id": "discount_code", "label": "Discount Code" },
     { "type": "number", "id": "discount_value", "label": "Discount Value", "default": 10 },
