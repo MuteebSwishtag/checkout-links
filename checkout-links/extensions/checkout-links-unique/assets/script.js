@@ -788,6 +788,14 @@ document.addEventListener('DOMContentLoaded', function () {
       });
     }
 
+    // Apply button color if specified in settings
+    if (window.checkoutConfig.theme_editor && window.checkoutConfig.theme_editor.button_color) {
+      const confirmButton = document.querySelector('.confirm-btn');
+      if (confirmButton) {
+        confirmButton.style.backgroundColor = window.checkoutConfig.theme_editor.button_color;
+      }
+    }
+
     // Call your other listener setup if needed
     attachEventListeners();
   }
@@ -882,17 +890,25 @@ document.addEventListener('DOMContentLoaded', function () {
         // Check if timer has expired
         const discountExpired = document.querySelector('.expiration-message')?.style.display === 'block';
 
+        // Check if we should direct to checkout or cart
+        const directCheckout = window.checkoutConfig.popupMessage?.direct_checkout !== false;
+
         // If we have a discount code and the timer hasn't expired, redirect to checkout with discount applied
         const discountCode = window.checkoutConfig.discount?.code || '';
-        if (discountCode && !discountExpired) {
-          // Get the specific product IDs that the discount applies to
-          const specificProductIds = cartItems.map(item => parseInt(item.id)).join(',');
+        if (directCheckout) {
+          if (discountCode && !discountExpired) {
+            // Get the specific product IDs that the discount applies to
+            const specificProductIds = cartItems.map(item => parseInt(item.id)).join(',');
 
-          // Redirect to checkout with discount applied to specific products
-          window.location.href = `/checkout?discount=${encodeURIComponent(discountCode)}&discount_specific_products=${specificProductIds}`;
+            // Redirect to checkout with discount applied to specific products
+            window.location.href = `/checkout?discount=${encodeURIComponent(discountCode)}&discount_specific_products=${specificProductIds}`;
+          } else {
+            // console.log('Redirecting to checkout without discount');
+            window.location.href = '/checkout';
+          }
         } else {
-          // console.log('Redirecting to checkout without discount');
-          window.location.href = '/checkout';
+          // If direct checkout is disabled, redirect to cart page
+          window.location.href = '/cart';
         }
       }, 300);
 
@@ -1102,6 +1118,15 @@ document.addEventListener('DOMContentLoaded', function () {
           return false;
         }
 
+        // Check if there's a specified link in the popup message settings
+        const closeLink = window.checkoutConfig.popupMessage?.close_button_link;
+
+        if (closeLink && closeLink !== '#') {
+          e.preventDefault();
+          window.location.href = closeLink;
+          return false;
+        }
+
         // Don't prevent default behavior - allow the redirect to happen
         // First close the modal
         closeModal();
@@ -1110,12 +1135,8 @@ document.addEventListener('DOMContentLoaded', function () {
         if (window.forceCloseModal) {
           window.forceCloseModal();
         }
-
-        // We'll let the default link navigation happen
       });
-    }
-
-    updateTotal();
+    } updateTotal();
   }
 
   // Update total calculation

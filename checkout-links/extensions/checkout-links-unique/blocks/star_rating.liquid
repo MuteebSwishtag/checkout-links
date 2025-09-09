@@ -10,12 +10,12 @@
     products: [],
     discount: {
       code: "{{ block.settings.discount_code }}",
-      value: {{ block.settings.discount_value }},
+      value: {{ block.settings.discount_value | default: 0 }},
       freeShipping: {{ block.settings.free_shipping | json }},
       orderDiscount: true
     },
     popupMessage: {
-      is_active: true,
+      is_active: {{ block.settings.enable_popup | default: true | json }},
       heading_text: "{{ block.settings.heading_text }}",
       message_text: "{{ block.settings.message_text }}",
       countdown_active: {{ block.settings.countdown_active | json }},
@@ -26,11 +26,37 @@
       show_order_total: {{ block.settings.show_order_total | json }},
       checkout_button_text: "{{ block.settings.checkout_button_text }}",
       close_button_text: "{{ block.settings.close_button_text }}",
-      close_button_link: "{{ block.settings.close_button_link }}"
+      close_button_link: "{{ block.settings.close_button_link }}",
+      direct_checkout: {{ block.settings.direct_checkout | json }}
+    },
+    theme_editor: {
+      is_theme_editor: {{ request.design_mode | json }},
+      selected_products: {{ block.settings.selected_products | json }},
+      button_color: "{{ block.settings.button_color }}"
     }
   };
+  
+  // If we're in theme editor, initialize with selected products from settings
+  if (window.Shopify && window.Shopify.designMode) {
+    (async function() {
+      try {
+        // Get selected products from settings
+        const productIds = {{ block.settings.selected_products | json }};
+        if (productIds && productIds.length > 0) {
+          // Products will be fetched by the product IDs in the setupSampleDataForThemeEditor function
+          console.log('Theme editor: Using selected products', productIds);
+        }
+      } catch (error) {
+        console.error('Error initializing theme editor products:', error);
+      }
+    })();
+  }
 </script>
 <style>
+  :root {
+    --checkout-links-button-color: {{ block.settings.button_color | default: '#000000' }};
+  }
+  
   body {
     background: #f7f7f7;
     font-family: 'Open Sans', Arial, sans-serif;
@@ -289,7 +315,7 @@
   }
   .confirm-btn {
     width: 100%;
-    background: #000;
+    background: var(--checkout-links-button-color, #000);
     color: #fff;
     font-size: 1.7rem;
     font-weight: 600;
@@ -301,7 +327,8 @@
     transition: background 0.12s;
   }
   .confirm-btn:active {
-    background: #333;
+    background: var(--checkout-links-button-color, #333);
+    opacity: 0.8;
   }
   .no-thanks {
     display: block;
@@ -478,24 +505,170 @@
 
 {% schema %}
    {
-     "name": "Checkout Links Extensions",
+     "name": "Checkout Links Popup",
      "target": "body",
      "settings": [
        {
-         "type": "paragraph",
-         "content": "This extension displays popup messages for Checkout Links. In the theme editor, you'll see a sample preview with multiple products."
+         "type": "header",
+         "content": "Popup Configuration"
        },
        {
-         "type": "paragraph",
-         "content": "The sample preview includes:"
+         "type": "checkbox",
+         "id": "enable_popup",
+         "label": "Enable Popup",
+         "default": true,
+         "info": "Enable or disable the checkout links popup"
        },
        {
-         "type": "paragraph",
-         "content": "• Multiple sample products with images and prices\n• Active countdown timer\n• Discount information\n• Working checkboxes for products"
+         "type": "text",
+         "id": "heading_text",
+         "label": "Popup Heading",
+         "default": "Complete Your Order",
+         "info": "The heading text displayed at the top of the popup"
        },
        {
-         "type": "paragraph",
-         "content": "Note: The buttons in the preview are non-functional and will only show alert messages. In the actual storefront, they will add products to cart or close the popup."
+         "type": "textarea",
+         "id": "message_text",
+         "label": "Popup Message",
+         "default": "Add these recommended products to your cart before checkout. Limited time offer!",
+         "info": "The main message displayed in the popup"
+       },
+       {
+         "type": "header",
+         "content": "Countdown Timer"
+       },
+       {
+         "type": "checkbox",
+         "id": "countdown_active",
+         "label": "Enable Countdown",
+         "default": true,
+         "info": "Enable or disable the countdown timer"
+       },
+       {
+         "type": "text",
+         "id": "copy_text",
+         "label": "Timer Label",
+         "default": "This offer expires in:",
+         "info": "Text displayed before the countdown timer"
+       },
+       {
+         "type": "range",
+         "id": "timer_seconds",
+         "min": 60,
+         "max": 3600,
+         "step": 60,
+         "default": 600,
+         "label": "Countdown Time (seconds)",
+         "info": "The duration of the countdown timer in seconds"
+       },
+       {
+         "type": "header",
+         "content": "Product Display"
+       },
+       {
+         "type": "checkbox",
+         "id": "show_price",
+         "label": "Show Product Prices",
+         "default": true,
+         "info": "Show or hide individual product prices"
+       },
+       {
+         "type": "checkbox",
+         "id": "show_order_total",
+         "label": "Show Order Total",
+         "default": true,
+         "info": "Show or hide the order total"
+       },
+       {
+         "type": "checkbox",
+         "id": "allow_deselect",
+         "label": "Allow Product Deselection",
+         "default": true,
+         "info": "Allow customers to deselect products"
+       },
+       {
+         "type": "product_list",
+         "id": "selected_products",
+         "label": "Products to Display",
+         "limit": 5,
+         "info": "Select products to display in the popup (maximum 5)"
+       },
+       {
+         "type": "header",
+         "content": "Discount Settings"
+       },
+       {
+         "type": "text",
+         "id": "discount_code",
+         "label": "Discount Code",
+         "info": "Optional discount code to apply"
+       },
+       {
+         "type": "number",
+         "id": "discount_value",
+         "label": "Discount Value",
+         "default": 10,
+         "info": "Value of the discount (percentage or fixed amount)"
+       },
+       {
+         "type": "checkbox",
+         "id": "free_shipping",
+         "label": "Include Free Shipping",
+         "default": false,
+         "info": "Include free shipping with the discount"
+       },
+       {
+         "type": "header",
+         "content": "Button Settings"
+       },
+       {
+         "type": "text",
+         "id": "checkout_button_text",
+         "label": "Confirm Button Text",
+         "default": "Add to Cart & Checkout",
+         "info": "Text displayed on the confirm button"
+       },
+       {
+         "type": "color",
+         "id": "button_color",
+         "label": "Button Color",
+         "default": "#000000",
+         "info": "Color of the confirm button"
+       },
+       {
+         "type": "text",
+         "id": "close_button_text",
+         "label": "Close Button Text",
+         "default": "No thanks",
+         "info": "Text displayed on the close button"
+       },
+       {
+         "type": "url",
+         "id": "close_button_link",
+         "label": "Close Button Link",
+         "info": "Optional link for the close button"
+       },
+       {
+         "type": "header",
+         "content": "Advanced Settings"
+       },
+       {
+         "type": "text",
+         "id": "link_id",
+         "label": "Link ID",
+         "info": "For internal use - automatically populated from checkout links"
+       },
+       {
+         "type": "checkbox",
+         "id": "direct_checkout",
+         "label": "Direct to Checkout",
+         "default": true,
+         "info": "Go directly to checkout after adding products to cart"
+       }
+     ],
+     "presets": [
+       {
+         "name": "Checkout Links Popup"
        }
      ]
    }
