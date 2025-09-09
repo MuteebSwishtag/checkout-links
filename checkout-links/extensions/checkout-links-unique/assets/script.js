@@ -100,6 +100,44 @@ window.orderCounter = {
 };
 
 document.addEventListener('DOMContentLoaded', function () {
+  // Log window.checkoutConfig at startup for debugging
+  console.log('Initial checkoutConfig:', window.checkoutConfig);
+  console.log('Theme editor settings:', window.checkoutConfig?.theme_editor);
+
+  // Try to load the theme editor helper script if we're in the theme editor
+  if (window.Shopify && window.Shopify.designMode) {
+    try {
+      // First try to get the extension URL from the current script
+      let extensionUrl = '';
+      const scripts = document.querySelectorAll('script');
+      scripts.forEach(script => {
+        if (script.src && script.src.includes('checkout-links-unique')) {
+          extensionUrl = script.src.split('/assets/')[0];
+        }
+      });
+
+      console.log('Detected extension URL:', extensionUrl);
+
+      const helperScript = document.createElement('script');
+      // If we found the extension URL, use it, otherwise fall back to placeholder
+      if (extensionUrl) {
+        helperScript.src = `${extensionUrl}/assets/theme-editor-helper.js`;
+      } else {
+        helperScript.src = 'https://cdn.shopify.com/extensions/[EXTENSION_ID]/[VERSION]/assets/theme-editor-helper.js';
+      }
+
+      helperScript.onload = function () {
+        console.log('Theme editor helper script loaded successfully');
+      };
+      helperScript.onerror = function () {
+        console.warn('Could not load theme editor helper script, falling back to built-in function');
+      };
+      document.head.appendChild(helperScript);
+    } catch (e) {
+      console.error('Error loading theme editor helper script:', e);
+    }
+  }
+
   // Immediately make sure the modal is properly hidden on page load
   const initialModalElement = document.getElementById('orderSummaryModal');
   if (initialModalElement) {
@@ -128,6 +166,72 @@ document.addEventListener('DOMContentLoaded', function () {
             btn.style.backgroundColor = buttonColor;
           });
         }, 100);
+      }
+
+      // Apply text settings from theme editor
+      if (window.checkoutConfig.theme_editor) {
+        // Heading text
+        if (window.checkoutConfig.theme_editor.popup_title) {
+          console.log('Applying popup title from theme editor:', window.checkoutConfig.theme_editor.popup_title);
+          window.checkoutConfig.popupMessage.heading_text = window.checkoutConfig.theme_editor.popup_title;
+        }
+
+        // Message text
+        if (window.checkoutConfig.theme_editor.popup_description) {
+          console.log('Applying popup description from theme editor:', window.checkoutConfig.theme_editor.popup_description);
+          window.checkoutConfig.popupMessage.message_text = window.checkoutConfig.theme_editor.popup_description;
+        }
+
+        // Checkout button text
+        if (window.checkoutConfig.theme_editor.checkout_button_text) {
+          console.log('Applying checkout button text from theme editor:', window.checkoutConfig.theme_editor.checkout_button_text);
+          window.checkoutConfig.popupMessage.checkout_button_text = window.checkoutConfig.theme_editor.checkout_button_text;
+        }
+
+        // Close button text
+        if (window.checkoutConfig.theme_editor.close_button_text) {
+          console.log('Applying close button text from theme editor:', window.checkoutConfig.theme_editor.close_button_text);
+          window.checkoutConfig.popupMessage.close_button_text = window.checkoutConfig.theme_editor.close_button_text;
+        }
+
+        // Countdown settings
+        if (window.checkoutConfig.theme_editor.show_countdown !== undefined) {
+          console.log('Applying countdown visibility from theme editor:', window.checkoutConfig.theme_editor.show_countdown);
+          window.checkoutConfig.popupMessage.countdown_active = window.checkoutConfig.theme_editor.show_countdown;
+        }
+
+        if (window.checkoutConfig.theme_editor.countdown_time) {
+          const countdownMinutes = Math.floor(parseInt(window.checkoutConfig.theme_editor.countdown_time, 10) / 60) || 10;
+          console.log('Applying countdown time from theme editor:', countdownMinutes + ' minutes');
+          window.checkoutConfig.popupMessage.timer_text = countdownMinutes + " minute";
+        }
+
+        if (window.checkoutConfig.theme_editor.countdown_label) {
+          console.log('Applying countdown label from theme editor:', window.checkoutConfig.theme_editor.countdown_label);
+          window.checkoutConfig.popupMessage.copy_text = window.checkoutConfig.theme_editor.countdown_label;
+        }
+
+        // Display settings
+        if (window.checkoutConfig.theme_editor.show_price !== undefined) {
+          console.log('Applying price visibility from theme editor:', window.checkoutConfig.theme_editor.show_price);
+          window.checkoutConfig.popupMessage.show_price = window.checkoutConfig.theme_editor.show_price;
+        }
+
+        if (window.checkoutConfig.theme_editor.show_order_total !== undefined) {
+          console.log('Applying order total visibility from theme editor:', window.checkoutConfig.theme_editor.show_order_total);
+          window.checkoutConfig.popupMessage.show_order_total = window.checkoutConfig.theme_editor.show_order_total;
+        }
+
+        if (window.checkoutConfig.theme_editor.allow_deselect !== undefined) {
+          console.log('Applying deselect option from theme editor:', window.checkoutConfig.theme_editor.allow_deselect);
+          window.checkoutConfig.popupMessage.allow_deselect = window.checkoutConfig.theme_editor.allow_deselect;
+        }
+
+        // Direct checkout option
+        if (window.checkoutConfig.theme_editor.direct_checkout !== undefined) {
+          console.log('Applying direct checkout option from theme editor:', window.checkoutConfig.theme_editor.direct_checkout);
+          window.checkoutConfig.popupMessage.direct_checkout = window.checkoutConfig.theme_editor.direct_checkout;
+        }
       }
 
       // Update the modal content to reflect current settings
@@ -1417,60 +1521,122 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Function to set up sample data for theme editor preview
   function setupSampleDataForThemeEditor() {
-    // Set up sample data for theme editor preview with multiple products
+    console.log('Setting up sample data for theme editor (internal function)');
+
+    // Only set link_id if it doesn't exist
     window.checkoutConfig.link_id = window.checkoutConfig.link_id || 'sample-link-id';
-    window.checkoutConfig.products = [
-      {
-        id: 'sample-product-1',
-        title: 'Premium T-Shirt',
-        price: '29.99',
-        image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png',
-        quantity: 1
-      },
-      {
-        id: 'sample-product-2',
-        title: 'Stylish Hoodie',
-        price: '49.99',
-        image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-2_large.png',
-        quantity: 2
-      },
-      {
-        id: 'sample-product-3',
-        title: 'Designer Jeans',
-        price: '79.99',
-        image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-3_large.png',
-        quantity: 1
+
+    // Only set products if they don't exist
+    if (!window.checkoutConfig.products || !window.checkoutConfig.products.length) {
+      window.checkoutConfig.products = [
+        {
+          id: 'sample-product-1',
+          title: 'Premium T-Shirt',
+          price: '29.99',
+          image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png',
+          quantity: 1
+        },
+        {
+          id: 'sample-product-2',
+          title: 'Stylish Hoodie',
+          price: '49.99',
+          image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-2_large.png',
+          quantity: 2
+        },
+        {
+          id: 'sample-product-3',
+          title: 'Designer Jeans',
+          price: '79.99',
+          image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-3_large.png',
+          quantity: 1
+        }
+      ];
+    }
+
+    // Set up currency code if not already set
+    window.checkoutConfig.currency_code = window.checkoutConfig.currency_code || (window.Shopify ? (window.Shopify.currency?.active || 'USD') : 'USD');
+
+    // Only set discount if it doesn't exist
+    if (!window.checkoutConfig.discount || !window.checkoutConfig.discount.code) {
+      window.checkoutConfig.discount = window.checkoutConfig.discount || {};
+      window.checkoutConfig.discount.code = window.checkoutConfig.discount.code || 'SAMPLE20OFF';
+      window.checkoutConfig.discount.value = window.checkoutConfig.discount.value || 20;
+      window.checkoutConfig.discount.freeShipping = window.checkoutConfig.discount.freeShipping || true;
+      window.checkoutConfig.discount.orderDiscount = window.checkoutConfig.discount.orderDiscount || true;
+    }
+
+    // IMPORTANT: Only set popup message properties if they don't exist from schema
+    // This ensures schema settings take precedence
+    window.checkoutConfig.popupMessage = window.checkoutConfig.popupMessage || {};
+
+    // Apply theme editor settings first
+    if (window.checkoutConfig.theme_editor) {
+      console.log('Applying theme editor settings to popup:', window.checkoutConfig.theme_editor);
+
+      // Heading text
+      if (window.checkoutConfig.theme_editor.popup_title) {
+        window.checkoutConfig.popupMessage.heading_text = window.checkoutConfig.theme_editor.popup_title;
       }
-    ];
 
-    // Set up currency code
-    window.checkoutConfig.currency_code = 'USD';
+      // Message text
+      if (window.checkoutConfig.theme_editor.popup_description) {
+        window.checkoutConfig.popupMessage.message_text = window.checkoutConfig.theme_editor.popup_description;
+      }
 
-    // Ensure discount is set up
-    window.checkoutConfig.discount = {
-      code: 'SAMPLE20OFF',
-      value: 20,
-      freeShipping: true,
-      orderDiscount: true
-    };
+      // Countdown settings
+      if (window.checkoutConfig.theme_editor.show_countdown !== undefined) {
+        window.checkoutConfig.popupMessage.countdown_active = window.checkoutConfig.theme_editor.show_countdown;
+      }
 
-    // Set up popup message configuration
-    window.checkoutConfig.popupMessage = {
-      is_active: true,
-      heading_text: "Complete Your Order",
-      message_text: "Add these recommended products to your cart before checkout. Limited time offer!",
-      countdown_active: true,
-      timer_text: "10 minute",
-      copy_text: "This offer expires in:",
-      allow_deselect: true,
-      show_price: true,
-      show_order_total: true,
-      checkout_button_text: "Add to Cart",
-      close_button_text: "No Thanks",
-      close_button_link: "#"
-    };
+      if (window.checkoutConfig.theme_editor.countdown_time) {
+        const countdownMinutes = Math.floor(parseInt(window.checkoutConfig.theme_editor.countdown_time, 10) / 60) || 10;
+        window.checkoutConfig.popupMessage.timer_text = countdownMinutes + " minute";
+      }
 
-    // Initialize UI with the sample data
+      if (window.checkoutConfig.theme_editor.countdown_label) {
+        window.checkoutConfig.popupMessage.copy_text = window.checkoutConfig.theme_editor.countdown_label;
+      }
+
+      // Button text
+      if (window.checkoutConfig.theme_editor.checkout_button_text) {
+        window.checkoutConfig.popupMessage.checkout_button_text = window.checkoutConfig.theme_editor.checkout_button_text;
+      }
+
+      if (window.checkoutConfig.theme_editor.close_button_text) {
+        window.checkoutConfig.popupMessage.close_button_text = window.checkoutConfig.theme_editor.close_button_text;
+      }
+
+      // Display settings
+      if (window.checkoutConfig.theme_editor.show_price !== undefined) {
+        window.checkoutConfig.popupMessage.show_price = window.checkoutConfig.theme_editor.show_price;
+      }
+
+      if (window.checkoutConfig.theme_editor.show_order_total !== undefined) {
+        window.checkoutConfig.popupMessage.show_order_total = window.checkoutConfig.theme_editor.show_order_total;
+      }
+
+      if (window.checkoutConfig.theme_editor.allow_deselect !== undefined) {
+        window.checkoutConfig.popupMessage.allow_deselect = window.checkoutConfig.theme_editor.allow_deselect;
+      }
+    }
+
+    // Then fill in missing fields with defaults
+    window.checkoutConfig.popupMessage.is_active = window.checkoutConfig.popupMessage.is_active ?? true;
+    window.checkoutConfig.popupMessage.heading_text = window.checkoutConfig.popupMessage.heading_text || "Complete Your Order";
+    window.checkoutConfig.popupMessage.message_text = window.checkoutConfig.popupMessage.message_text || "Add these recommended products to your cart before checkout. Limited time offer!";
+    window.checkoutConfig.popupMessage.countdown_active = window.checkoutConfig.popupMessage.countdown_active ?? true;
+    window.checkoutConfig.popupMessage.timer_text = window.checkoutConfig.popupMessage.timer_text || "10 minute";
+    window.checkoutConfig.popupMessage.copy_text = window.checkoutConfig.popupMessage.copy_text || "This offer expires in:";
+    window.checkoutConfig.popupMessage.allow_deselect = window.checkoutConfig.popupMessage.allow_deselect ?? true;
+    window.checkoutConfig.popupMessage.show_price = window.checkoutConfig.popupMessage.show_price ?? true;
+    window.checkoutConfig.popupMessage.show_order_total = window.checkoutConfig.popupMessage.show_order_total ?? true;
+    window.checkoutConfig.popupMessage.checkout_button_text = window.checkoutConfig.popupMessage.checkout_button_text || "Add to Cart";
+    window.checkoutConfig.popupMessage.close_button_text = window.checkoutConfig.popupMessage.close_button_text || "No Thanks";
+    window.checkoutConfig.popupMessage.close_button_link = window.checkoutConfig.popupMessage.close_button_link || "#";
+
+    console.log('Final popup configuration after applying schema settings:', window.checkoutConfig.popupMessage);
+
+    // Initialize UI with the settings
     updateModalContent();
 
     // Override button actions for theme editor preview
@@ -1564,7 +1730,13 @@ document.addEventListener('DOMContentLoaded', function () {
       if (isThemeEditor) {
         // In theme editor, show sample data even on error
         console.log('In theme editor - showing sample modal despite fetch error');
+
+        // First apply schema settings
+        applySchemaSettings();
+
+        // Then apply sample data for missing fields only
         setupSampleDataForThemeEditor();
+
         setTimeout(() => {
           showModal();
         }, 500);
@@ -1575,11 +1747,24 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   } else if (isThemeEditor) {
     // In theme editor, set up sample data and preview
-    if (typeof setupSampleDataForThemeEditor === 'function') {
+    console.log('In theme editor, checking for setupSampleDataForThemeEditor function');
+
+    // First apply schema settings if available
+    applySchemaSettings();
+
+    // Then use the external helper function if available, otherwise use the local one
+    if (typeof window.setupSampleDataForThemeEditor === 'function') {
+      console.log('Using external setupSampleDataForThemeEditor function');
+      window.setupSampleDataForThemeEditor();
+    } else if (typeof setupSampleDataForThemeEditor === 'function') {
+      console.log('Using local setupSampleDataForThemeEditor function');
       setupSampleDataForThemeEditor();
     } else {
       console.warn('Sample data function not found, but needed for theme editor preview');
     }
+
+    // Show the modal after settings are applied
+    setTimeout(showModal, 500);
   } else {
     // If no link ID and not in theme editor, don't show the modal
     console.log('No link ID found, modal will not be displayed');
