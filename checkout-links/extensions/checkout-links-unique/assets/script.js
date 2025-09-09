@@ -712,11 +712,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Update modal content
   function updateModalContent() {
     const modalContent = document.querySelector('.modal-content');
-    if (!modalContent || !window.checkoutConfig)
-      return;
-
-    // Make function globally accessible for theme-editor-helper.js
-    window.updateModalContent = updateModalContent; return;
+    if (!modalContent || !window.checkoutConfig) return;
 
     // Check if there are any products linked to this link
     const hasProducts = window.checkoutConfig.products && window.checkoutConfig.products.length > 0;
@@ -1179,25 +1175,7 @@ document.addEventListener('DOMContentLoaded', function () {
       confirmBtn.addEventListener('click', async () => {
         // Special handling for theme editor
         if (isThemeEditor) {
-          // Get only the checked products
-          const checkedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked'));
-          const selectedProductCount = checkedProducts.length;
-          
-          if (selectedProductCount === 0) {
-            alert('Please select at least one product to continue.');
-            return;
-          }
-          
-          // Get product names for better feedback
-          const productNames = checkedProducts.map(checkbox => {
-            const productTitle = checkbox.closest('.order-item').querySelector('.product-title').textContent;
-            return productTitle;
-          }).join(', ');
-          
-          // Get direct checkout setting
-          const directCheckout = window.checkoutConfig.popupMessage?.direct_checkout;
-          
-          alert(`This would add ${selectedProductCount} product(s) to your cart: ${productNames}${directCheckout ? ' and proceed to checkout' : ''}. (Demo mode in theme editor)`);
+          alert('This button would add the selected items to cart. (Demo mode in theme editor)');
           return;
         }
 
@@ -1442,11 +1420,6 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
-  // Make key functions globally accessible for the theme editor
-  window.showModal = showModal;
-  window.updateModalContent = updateModalContent;
-  window.setupSampleDataForThemeEditor = setupSampleDataForThemeEditor;
-
   // Add a global closeModal function that can be called from anywhere
   window.forceCloseModal = function () {
     console.log('Force close modal called from global scope');
@@ -1501,12 +1474,6 @@ document.addEventListener('DOMContentLoaded', function () {
     // Check for stored discount and apply it if we're on the cart or checkout page
     checkAndApplyStoredDiscount();
 
-    // Listen for custom refresh event from theme-editor-helper.js
-    window.addEventListener('refresh-checkout-modal', function () {
-      console.log('Refresh checkout modal event received');
-      updateModalContent();
-    });
-
     // Add CSS for the close button
     const styleSheet = document.createElement("link");
     styleSheet.rel = "stylesheet";
@@ -1555,29 +1522,12 @@ document.addEventListener('DOMContentLoaded', function () {
   // Function to set up sample data for theme editor preview
   function setupSampleDataForThemeEditor() {
     console.log('Setting up sample data for theme editor (internal function)');
-    
+
     // Only set link_id if it doesn't exist
     window.checkoutConfig.link_id = window.checkoutConfig.link_id || 'sample-link-id';
-    
-    // First check if there are products in the theme editor settings
-    const hasThemeEditorProducts = window.checkoutConfig.theme_editor &&
-      window.checkoutConfig.theme_editor.selected_products &&
-      window.checkoutConfig.theme_editor.selected_products.length > 0;
 
-    if (hasThemeEditorProducts) {
-      console.log('Using products from theme editor schema settings:', window.checkoutConfig.theme_editor.selected_products);
-      // Use the schema-selected products in the main products array
-      window.checkoutConfig.products = window.checkoutConfig.theme_editor.selected_products;
-      return; // Exit function since we found products
-    }
-
-    // Check if products are already set from schema
-    const hasProductsFromSchema = window.checkoutConfig.products && window.checkoutConfig.products.length > 0;
-    console.log('Products from schema available:', hasProductsFromSchema);
-    
-    // Only set products if they don't exist and weren't set via schema or theme editor
-    if (!hasProductsFromSchema) {
-      console.log('No products from schema, using sample products');
+    // Only set products if they don't exist
+    if (!window.checkoutConfig.products || !window.checkoutConfig.products.length) {
       window.checkoutConfig.products = [
         {
           id: 'sample-product-1',
@@ -1601,9 +1551,9 @@ document.addEventListener('DOMContentLoaded', function () {
           quantity: 1
         }
       ];
-    } else {
-      console.log('Using products from schema:', window.checkoutConfig.products);
-    }    // Set up currency code if not already set
+    }
+
+    // Set up currency code if not already set
     window.checkoutConfig.currency_code = window.checkoutConfig.currency_code || (window.Shopify ? (window.Shopify.currency?.active || 'USD') : 'USD');
 
     // Only set discount if it doesn't exist
