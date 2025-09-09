@@ -1,6 +1,7 @@
 {{ 'bootstrap.css' | asset_url | stylesheet_tag }}
 <script src="{{ 'script.js' | asset_url }}" defer></script>
 <script src="{{ 'discount-persister.js' | asset_url }}" defer></script>
+<script src="{{ 'theme-editor-helper.js' | asset_url }}" defer></script>
 <script>
   // Initialize checkout config object for data from backend
   window.checkoutConfig = {
@@ -429,9 +430,23 @@
   document.addEventListener('DOMContentLoaded', function() {
     const modalElement = document.getElementById('orderSummaryModal');
     if (modalElement) {
-      // Reset modal to initial state to avoid any CSS issues
-      modalElement.style.display = 'none';
-      modalElement.style.visibility = 'hidden';
+      // Check if we're in the Shopify theme editor
+      const isThemeEditor = window.Shopify && window.Shopify.designMode;
+      
+      if (isThemeEditor) {
+        // Always show modal in theme editor for preview
+        setTimeout(() => {
+          modalElement.style.display = 'flex';
+          modalElement.style.visibility = 'visible';
+          modalElement.classList.add('show');
+          document.body.classList.add('modal-open');
+          console.log("Modal automatically shown in theme editor");
+        }, 1000); // Small delay to ensure content is loaded
+      } else {
+        // Reset modal to initial state to avoid any CSS issues
+        modalElement.style.display = 'none';
+        modalElement.style.visibility = 'hidden';
+      }
       
       // Add helper functions to the window object
       window.checkModalVisibility = function() {
@@ -465,6 +480,23 @@
    {
      "name": "Checkout Links Extensions",
      "target": "body",
-     "settings": []
+     "settings": [
+       {
+         "type": "paragraph",
+         "content": "This extension displays popup messages for Checkout Links. In the theme editor, you'll see a sample preview with multiple products."
+       },
+       {
+         "type": "paragraph",
+         "content": "The sample preview includes:"
+       },
+       {
+         "type": "paragraph",
+         "content": "• Multiple sample products with images and prices\n• Active countdown timer\n• Discount information\n• Working checkboxes for products"
+       },
+       {
+         "type": "paragraph",
+         "content": "Note: The buttons in the preview are non-functional and will only show alert messages. In the actual storefront, they will add products to cart or close the popup."
+       }
+     ]
    }
    {% endschema %}
