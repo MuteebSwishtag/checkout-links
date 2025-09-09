@@ -168,9 +168,28 @@ async function setupSampleDataForThemeEditor() {
         document.documentElement.style.setProperty('--checkout-links-button-color', buttonColor);
     }
 
-    // Initialize UI with the sample data
+    // Initialize UI with the sample data and show the modal
     if (typeof window.updateModalContent === 'function') {
         window.updateModalContent();
+
+        // Force show the modal in theme editor
+        setTimeout(() => {
+            if (typeof window.showModal === 'function') {
+                console.log('Showing modal via window.showModal()');
+                window.showModal();
+            } else {
+                console.log('Showing modal via direct DOM manipulation');
+                const modalElement = document.getElementById('orderSummaryModal');
+                if (modalElement) {
+                    modalElement.classList.add('show');
+                    modalElement.style.display = 'flex';
+                    modalElement.style.visibility = 'visible';
+                    modalElement.style.opacity = '1';
+                    modalElement.setAttribute('aria-hidden', 'false');
+                    document.body.classList.add('modal-open');
+                }
+            }
+        }, 500);
     } else {
         console.warn('updateModalContent function not found. Modal may not show products correctly.');
         // Try to refresh the modal content through a global event

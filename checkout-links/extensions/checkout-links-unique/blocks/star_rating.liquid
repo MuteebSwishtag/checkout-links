@@ -97,6 +97,14 @@
             title: '{{ block.settings.selected_collection.title | escape }}'
           };
         }
+        
+        // Force show the modal in theme editor after a delay to ensure everything is loaded
+        setTimeout(() => {
+          console.log('Attempting to force show modal in theme editor (initial setup)');
+          if (typeof window.themeEditorShowModal === 'function') {
+            window.themeEditorShowModal();
+          }
+        }, 1500);
       } catch (error) {
         console.error('Error initializing theme editor products:', error);
       }
@@ -495,7 +503,7 @@
 </style>
 
 
-<div class="modal fade" id="orderSummaryModal" tabindex="-1" aria-modal="true" role="dialog" style="display: none; visibility: hidden;" aria-hidden="true">
+<div class="modal fade" id="orderSummaryModal" tabindex="-1" aria-modal="true" role="dialog" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <!-- Modal content will be dynamically populated by JavaScript -->
@@ -514,13 +522,22 @@
       if (isThemeEditor) {
         // Always show modal in theme editor for preview
         setTimeout(() => {
-          modalElement.style.display = 'flex';
-          modalElement.style.visibility = 'visible';
+          // Force the modal to be visible with multiple approaches
           modalElement.classList.add('show');
+          modalElement.style.display = 'flex !important';
+          modalElement.style.visibility = 'visible';
+          modalElement.style.opacity = '1';
+          modalElement.style.zIndex = '1050';
+          modalElement.setAttribute('aria-hidden', 'false');
           document.body.classList.add('modal-open');
           
+          // Add inline style to ensure the modal is visible
+          modalElement.setAttribute('style', 'display: flex !important; visibility: visible !important; opacity: 1 !important; z-index: 1050 !important;');
+          
           // Set up sample data for theme editor preview
-          if (typeof setupSampleDataForThemeEditor === 'function') {
+          if (typeof window.setupSampleDataForThemeEditor === 'function') {
+            window.setupSampleDataForThemeEditor();
+          } else if (typeof setupSampleDataForThemeEditor === 'function') {
             setupSampleDataForThemeEditor();
           } else {
             console.error('setupSampleDataForThemeEditor function not found');
@@ -549,16 +566,52 @@
       window.showModalManually = function() {
         const modal = document.getElementById('orderSummaryModal');
         if (modal) {
+          // Force the modal to be visible
+          modal.classList.add('show');
           modal.style.display = 'flex';
           modal.style.visibility = 'visible';
-          modal.classList.add('show');
+          modal.style.opacity = '1';
+          modal.style.zIndex = '1050';
+          modal.setAttribute('aria-hidden', 'false');
           document.body.classList.add('modal-open');
-          console.log("Modal shown manually");
+          
+          // Add inline style to ensure the modal is visible
+          modal.setAttribute('style', 'display: flex !important; visibility: visible !important; opacity: 1 !important; z-index: 1050 !important;');
+          
+          console.log("Modal manually shown");
+        }
+      };
+      
+      // Add function to show the modal in theme editor
+      window.themeEditorShowModal = function() {
+        if (window.Shopify && window.Shopify.designMode) {
+          console.log('Attempting to show modal in theme editor');
+          
+          // Try all possible methods
+          setTimeout(() => {
+            const modal = document.getElementById('orderSummaryModal');
+            if (modal) {
+              modal.style.display = 'flex';
+              modal.style.visibility = 'visible';
+              modal.classList.add('show');
+              document.body.classList.add('modal-open');
+              modal.setAttribute('style', 'display: flex !important; visibility: visible !important; opacity: 1 !important; z-index: 1050 !important;');
+              
+              // Also try to update the content
+              if (typeof window.updateModalContent === 'function') {
+                window.updateModalContent();
+              }
+              
+              console.log("Modal shown via themeEditorShowModal");
+              return true;
+            } else {
+              console.error('Modal element not found');
+            }
+          }, 300);
           return true;
         }
         return false;
       };
-    }
   });
 </script>
 
@@ -596,3 +649,33 @@
   ],
 }
 {% endschema %}
+
+<script>
+// Final attempt to ensure the modal is visible in theme editor mode
+(function() {
+  if (window.Shopify && window.Shopify.designMode) {
+    function attemptToShowModal() {
+      console.log('Final attempt to force show modal in theme editor');
+      
+      // Try to use our defined functions first
+      if (typeof window.themeEditorShowModal === 'function') {
+        window.themeEditorShowModal();
+      } else {
+        // Direct DOM manipulation as a last resort
+        const modal = document.getElementById('orderSummaryModal');
+        if (modal) {
+          modal.setAttribute('style', 'display: flex !important; visibility: visible !important; opacity: 1 !important; z-index: 1050 !important;');
+          modal.classList.add('show');
+          document.body.classList.add('modal-open');
+          console.log('Direct DOM manipulation to show modal');
+        }
+      }
+    }
+    
+    // Try multiple times to ensure it shows
+    setTimeout(attemptToShowModal, 1000);
+    setTimeout(attemptToShowModal, 2000);
+    setTimeout(attemptToShowModal, 3000);
+  }
+})();
+</script>

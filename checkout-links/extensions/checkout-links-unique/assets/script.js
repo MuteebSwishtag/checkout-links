@@ -1442,6 +1442,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  // Make key functions globally accessible for the theme editor
+  window.showModal = showModal;
+  window.updateModalContent = updateModalContent;
+  window.setupSampleDataForThemeEditor = setupSampleDataForThemeEditor;
+
   // Add a global closeModal function that can be called from anywhere
   window.forceCloseModal = function () {
     console.log('Force close modal called from global scope');
