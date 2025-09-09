@@ -2,25 +2,17 @@
 
 client_id = "293f810a998b598dc1cbcc650ba1ca82"
 name = "CheckoutLinks"
-handle = "OneClickCheckoutLinks"
+handle = "oneclickcheckoutlinks"
 application_url = "https://phpstack-1035961-5713949.cloudwaysapps.com/"
 embedded = true
 use_legacy_install_flow = true
 
-[build]
-include_config_on_deploy = true
-
-
 [webhooks]
-api_version = "2025-04"
+api_version = "2024-04"
 
-  [[webhooks.subscriptions]]
-  topics = [ "app/uninstalled" ]
-  uri = "/webhooks/app/uninstalled"
-
-  [[webhooks.subscriptions]]
-  topics = [ "app/scopes_update" ]
-  uri = "/webhooks/app/scopes_update"
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+use_legacy_install_flow = true
 
 [auth]
 redirect_urls = [
@@ -28,4 +20,7 @@ redirect_urls = [
 ]
 
 [pos]
-embedded = true
+embedded = false
+
+[build]
+include_config_on_deploy = true
