@@ -31,7 +31,7 @@
     },
     theme_editor: {
       is_theme_editor: {{ request.design_mode | json }},
-      selected_products: {{ block.settings.selected_products | json }},
+      selected_collection: {{ block.settings.selected_collection | json }},
       button_color: "{{ block.settings.button_color }}"
     }
   };
@@ -40,11 +40,10 @@
   if (window.Shopify && window.Shopify.designMode) {
     (async function() {
       try {
-        // Get selected products from settings
-        const productIds = {{ block.settings.selected_products | json }};
-        if (productIds && productIds.length > 0) {
-          // Products will be fetched by the product IDs in the setupSampleDataForThemeEditor function
-          console.log('Theme editor: Using selected products', productIds);
+        // Get selected collection from settings
+        const collectionId = {{ block.settings.selected_collection | json }};
+        if (collectionId) {
+          console.log('Theme editor: Using products from collection', collectionId);
         }
       } catch (error) {
         console.error('Error initializing theme editor products:', error);
@@ -587,11 +586,10 @@
          "info": "Allow customers to deselect products"
        },
        {
-         "type": "product_list",
-         "id": "selected_products",
-         "label": "Products to Display",
-         "limit": 5,
-         "info": "Select products to display in the popup (maximum 5)"
+         "type": "collection",
+         "id": "selected_collection",
+         "label": "Products Collection",
+         "info": "Products from this collection will be displayed in the popup"
        },
        {
          "type": "header",

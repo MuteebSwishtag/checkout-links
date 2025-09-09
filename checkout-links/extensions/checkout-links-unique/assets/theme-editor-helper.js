@@ -5,38 +5,86 @@ async function setupSampleDataForThemeEditor() {
   // Set up sample data for theme editor preview
   window.checkoutConfig.link_id = window.checkoutConfig.link_id || 'sample-link-id';
 
-    // Check if there are selected products from the theme editor settings
-    if (window.checkoutConfig.theme_editor &&
-        window.checkoutConfig.theme_editor.selected_products &&
-        window.checkoutConfig.theme_editor.selected_products.length > 0) {
+    // Check if there is a selected collection from the theme editor settings
+    if (window.checkoutConfig.theme_editor && 
+      window.checkoutConfig.theme_editor.selected_collection) {
 
-        try {
-            // Attempt to fetch the selected products from the store
-            const selectedProductIds = window.checkoutConfig.theme_editor.selected_products;
-            let fetchedProducts = [];
+      try {
+        // For theme editor, we'll simulate products from a collection
+        const collectionId = window.checkoutConfig.theme_editor.selected_collection;
+        console.log('Using collection for theme editor preview:', collectionId);
 
-            // For theme editor, we'll simulate products based on the IDs
-            fetchedProducts = selectedProductIds.map((id, index) => {
-                return {
-                    id: id,
-                    title: `Selected Product ${index + 1}`,
-                    price: ((19.99 * (index + 1)).toFixed(2)).toString(),
-                    image: `https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-${index + 1}_large.png`,
-                    quantity: 1
-                };
-            });
+        // In a real implementation, you would fetch products from the collection
+        // Here we'll simulate some sample products as if they came from the collection
+        const sampleCollectionProducts = [
+            {
+                id: 'collection-product-1',
+                title: 'Collection Product 1',
+                price: '29.99',
+                image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png',
+                quantity: 1
+            },
+            {
+                id: 'collection-product-2',
+                title: 'Collection Product 2',
+                price: '49.99',
+                image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-2_large.png',
+                quantity: 1
+            },
+            {
+                id: 'collection-product-3',
+                title: 'Collection Product 3',
+                price: '79.99',
+                image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-3_large.png',
+                quantity: 1
+            }
+        ];
 
-            // Use the fetched products
-            window.checkoutConfig.products = fetchedProducts;
-            console.log('Using selected products from theme editor settings:', fetchedProducts);
-        } catch (error) {
-            console.error('Error fetching selected products:', error);
-            // Fall back to sample products
-            useSampleProducts();
+        // Use the simulated collection products
+        window.checkoutConfig.products = sampleCollectionProducts;
+        console.log('Using sample products from collection for theme editor preview:', sampleCollectionProducts);
+    } catch (error) {
+          console.error('Error setting up collection products:', error);
+          // Fall back to sample products
+          useSampleProducts();
+      }
+  } else {
+      // Use sample products if no collection is selected
+      useSampleProducts();
+  }
+
+    // Apply configuration settings from theme editor
+    if (window.checkoutConfig.theme_editor) {
+        // Set popup title and description
+        if (window.checkoutConfig.theme_editor.popup_title) {
+            window.checkoutConfig.popup_title = window.checkoutConfig.theme_editor.popup_title;
         }
-    } else {
-        // Use sample products if none are selected in the theme editor
-        useSampleProducts();
+
+        if (window.checkoutConfig.theme_editor.popup_description) {
+            window.checkoutConfig.popup_description = window.checkoutConfig.theme_editor.popup_description;
+        }
+
+        // Apply countdown timer settings
+        if (window.checkoutConfig.theme_editor.show_countdown === false ||
+            window.checkoutConfig.theme_editor.show_countdown === true) {
+            window.checkoutConfig.show_countdown = window.checkoutConfig.theme_editor.show_countdown;
+        }
+
+        if (window.checkoutConfig.theme_editor.countdown_time) {
+            window.checkoutConfig.countdown_time = parseInt(window.checkoutConfig.theme_editor.countdown_time, 10) || 15;
+        }
+
+        // Apply checkout button settings
+        if (window.checkoutConfig.theme_editor.checkout_button_text) {
+            window.checkoutConfig.checkout_button_text = window.checkoutConfig.theme_editor.checkout_button_text;
+        }
+
+        if (window.checkoutConfig.theme_editor.direct_checkout === false ||
+            window.checkoutConfig.theme_editor.direct_checkout === true) {
+            window.checkoutConfig.direct_checkout = window.checkoutConfig.theme_editor.direct_checkout;
+        }
+
+        console.log('Applied theme editor configuration settings:', window.checkoutConfig);
     }
 
     // Set up currency code
