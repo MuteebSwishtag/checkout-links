@@ -6,7 +6,9 @@ import {
     Page, RangeSlider, Text, TextField, Popover, ActionList,
     useBreakpoints, useIndexResourceState, useSetIndexFiltersMode, Grid,
     BlockStack,
-    Icon
+    Icon,
+    Link,
+    Banner
 } from '@shopify/polaris';
 import { useCallback, useEffect, useState } from 'react';
 import { router, usePage } from '@inertiajs/react';
@@ -173,23 +175,43 @@ export default function Dashboard() {
 
 
     return (
-        <Box paddingInline={'800'}>
+        <Box padding='500' >
+
+           
             <Page title=''
                 primaryAction={{
                     content: 'Create checkout link',
                     onAction: () => router.get(route('links.create', query)),
                 }}
-                secondaryActions={[
-                    {
-                        content: isRedirecting ? 'Opening Theme Editor...' : themeStatus === 0 ? 'Setup Theme Editor' : 'Open Theme Editor',
-                        loading: isRedirecting,
-                        disabled: isRedirecting,
-                        onAction: redirectToThemeEditor,
-                    },
-                ]}
             >
                 {/* Show features card if no links, otherwise show recent order links card */}
                 {/* Show skeleton loading state while data is being fetched */}
+
+                 <Box paddingBlockEnd="400">
+                <Banner
+                    tone="warning"
+                    title="Theme Setup Required"
+                >
+                    <InlineStack align="space-between" blockAlign="center">
+                        <Box>
+                            <Text as="p" variant="bodyMd">
+                                Please enable the app embed in your theme settings for the app to
+                                function correctly.
+                            </Text>
+                        </Box>
+
+                        <Button
+                            onClick={redirectToThemeEditor}
+                            primary
+                            loading={isRedirecting}
+                            disabled={isRedirecting}
+                        >
+                            {isRedirecting ? "Opening..." : "Open Theme Editor"}
+                        </Button>
+                    </InlineStack>
+                </Banner>
+            </Box>
+
                 {isLoading ? (
                     <Card>
                         <Box>
@@ -552,7 +574,7 @@ export default function Dashboard() {
                 </Box>
 
                 {/* Theme Setup Card - Always show */}
-                <Box paddingBlockStart="600">
+                {/* <Box paddingBlockStart="600">
                     <Card>
                         <BlockStack gap="400">
                             <InlineStack align="space-between" blockAlign="center">
@@ -573,7 +595,7 @@ export default function Dashboard() {
                             </Text>
                         </BlockStack>
                     </Card>
-                </Box>
+                </Box> */}
             </Page>
         </Box>
     )

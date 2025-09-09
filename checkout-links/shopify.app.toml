@@ -5,9 +5,11 @@ name = "CheckoutLinks"
 handle = "OneClickCheckoutLinks"
 application_url = "https://phpstack-1035961-5713949.cloudwaysapps.com/"
 embedded = true
+use_legacy_install_flow = true
 
 [build]
 include_config_on_deploy = true
+
 
 [webhooks]
 api_version = "2025-04"
