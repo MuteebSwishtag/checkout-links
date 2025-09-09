@@ -468,8 +468,19 @@ document.addEventListener('DOMContentLoaded', function () {
   function initializeCountdown(timerText) {
     const minutesMatch = timerText.match(/(\d+)\s*minute/i);
     if (!minutesMatch) return;
-    const minutes = parseInt(minutesMatch[1]) || 1;
+
+    // Check if we're in the Shopify theme editor
+    const isThemeEditor = window.Shopify && window.Shopify.designMode;
+
+    // Use a shorter countdown for theme editor preview
+    const minutes = isThemeEditor ? 2 : (parseInt(minutesMatch[1]) || 1);
     let secondsRemaining = minutes * 60;
+
+    // For theme editor, shorten the time to make the countdown more obvious
+    if (isThemeEditor) {
+      secondsRemaining = 60; // Just 1 minute for theme editor preview
+    }
+
     let countdownEl = document.querySelector('.countdown-timer');
     if (!countdownEl) {
       countdownEl = document.createElement('div');
@@ -992,6 +1003,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Attach event listeners
   function attachEventListeners() {
+    // Check if we're in the Shopify theme editor
+    const isThemeEditor = window.Shopify && window.Shopify.designMode;
+
     // Update total when checkboxes change
     document.querySelectorAll('.product-checkbox').forEach(checkbox => {
       checkbox.addEventListener('change', function (e) {
@@ -1014,6 +1028,12 @@ document.addEventListener('DOMContentLoaded', function () {
     const confirmBtn = document.querySelector('.confirm-btn');
     if (confirmBtn) {
       confirmBtn.addEventListener('click', async () => {
+        // Special handling for theme editor
+        if (isThemeEditor) {
+          alert('This button would add the selected items to cart. (Demo mode in theme editor)');
+          return;
+        }
+
         // Get only the checked products
         const selectedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked'))
           .map(checkbox => {
@@ -1075,6 +1095,13 @@ document.addEventListener('DOMContentLoaded', function () {
     const noThanksBtn = document.querySelector('.no-thanks');
     if (noThanksBtn) {
       noThanksBtn.addEventListener('click', function (e) {
+        // Special handling for theme editor
+        if (isThemeEditor) {
+          e.preventDefault();
+          alert('This button would close the popup. (Demo mode in theme editor)');
+          return false;
+        }
+
         // Don't prevent default behavior - allow the redirect to happen
         // First close the modal
         closeModal();
@@ -1342,11 +1369,105 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   });
 
+  // Function to set up sample data for theme editor preview
+  function setupSampleDataForThemeEditor() {
+    // Set up sample data for theme editor preview with multiple products
+    window.checkoutConfig.link_id = window.checkoutConfig.link_id || 'sample-link-id';
+    window.checkoutConfig.products = [
+      {
+        id: 'sample-product-1',
+        title: 'Premium T-Shirt',
+        price: '29.99',
+        image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png',
+        quantity: 1
+      },
+      {
+        id: 'sample-product-2',
+        title: 'Stylish Hoodie',
+        price: '49.99',
+        image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-2_large.png',
+        quantity: 2
+      },
+      {
+        id: 'sample-product-3',
+        title: 'Designer Jeans',
+        price: '79.99',
+        image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-3_large.png',
+        quantity: 1
+      }
+    ];
+
+    // Set up currency code
+    window.checkoutConfig.currency_code = 'USD';
+
+    // Ensure discount is set up
+    window.checkoutConfig.discount = {
+      code: 'SAMPLE20OFF',
+      value: 20,
+      freeShipping: true,
+      orderDiscount: true
+    };
+
+    // Set up popup message configuration
+    window.checkoutConfig.popupMessage = {
+      is_active: true,
+      heading_text: "Complete Your Order",
+      message_text: "Add these recommended products to your cart before checkout. Limited time offer!",
+      countdown_active: true,
+      timer_text: "10 minute",
+      copy_text: "This offer expires in:",
+      allow_deselect: true,
+      show_price: true,
+      show_order_total: true,
+      checkout_button_text: "Add to Cart",
+      close_button_text: "No Thanks",
+      close_button_link: "#"
+    };
+
+    // Initialize UI with the sample data
+    updateModalContent();
+
+    // Override button actions for theme editor preview
+    setTimeout(() => {
+      // Find confirm button and override its click event for theme editor
+      const confirmBtn = document.querySelector('.confirm-btn');
+      if (confirmBtn) {
+        // Remove existing event listeners (if any)
+        const confirmBtnClone = confirmBtn.cloneNode(true);
+        confirmBtn.parentNode.replaceChild(confirmBtnClone, confirmBtn);
+
+        // Add a demo-only click handler
+        confirmBtnClone.addEventListener('click', function (e) {
+          e.preventDefault();
+          alert('This button would add the selected items to cart. (Demo mode in theme editor)');
+          return false;
+        });
+      }
+
+      // Find no thanks button and override its click event for theme editor
+      const noThanksBtn = document.querySelector('.no-thanks');
+      if (noThanksBtn) {
+        // Remove existing event listeners (if any)
+        const noThanksBtnClone = noThanksBtn.cloneNode(true);
+        noThanksBtn.parentNode.replaceChild(noThanksBtnClone, noThanksBtn);
+
+        // Add a demo-only click handler
+        noThanksBtnClone.addEventListener('click', function (e) {
+          e.preventDefault();
+          alert('This button would close the popup. (Demo mode in theme editor)');
+          return false;
+        });
+      }
+    }, 1000); // Wait for the modal to be fully rendered
+  }
+
   // Initialize
   const { linkId, discountCode } = getParamsFromUrl();
   console.log('Init with link ID:', linkId, 'and discount code:', discountCode);
 
-  if (linkId) {
+  // Check if we're in the Shopify theme editor
+  const isThemeEditor = window.Shopify && window.Shopify.designMode;
+  console.log('Is in theme editor:', isThemeEditor); if (linkId) {
     fetchLinkData(linkId).then(() => {
       // After fetching data, ensure discount code from URL takes precedence
       if (discountCode) {
@@ -1386,11 +1507,30 @@ document.addEventListener('DOMContentLoaded', function () {
     }).catch((error) => {
       // Log detailed error
       console.error('Error fetching link data:', error);
-      // Don't show modal on error but ensure backdrop is removed
-      ensureModalAndBackdropRemoved();
+
+      if (isThemeEditor) {
+        // In theme editor, show sample data even on error
+        console.log('In theme editor - showing sample modal despite fetch error');
+        setupSampleDataForThemeEditor();
+        setTimeout(() => {
+          showModal();
+        }, 500);
+      } else {
+        // Don't show modal on error but ensure backdrop is removed
+        ensureModalAndBackdropRemoved();
+      }
     });
+  } else if (isThemeEditor) {
+    // In theme editor with no link ID, show sample data
+    console.log('In theme editor - showing modal with sample data');
+    setupSampleDataForThemeEditor();
+
+    // Show modal in theme editor
+    setTimeout(() => {
+      showModal();
+    }, 500);
   } else {
-    // If no link ID, don't show the modal and ensure backdrop is removed
+    // If no link ID and not in theme editor, don't show the modal
     console.log('No link ID found, modal will not be displayed');
     ensureModalAndBackdropRemoved();
 
