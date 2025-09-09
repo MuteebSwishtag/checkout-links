@@ -1175,7 +1175,25 @@ document.addEventListener('DOMContentLoaded', function () {
       confirmBtn.addEventListener('click', async () => {
         // Special handling for theme editor
         if (isThemeEditor) {
-          alert('This button would add the selected items to cart. (Demo mode in theme editor)');
+          // Get only the checked products
+          const checkedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked'));
+          const selectedProductCount = checkedProducts.length;
+          
+          if (selectedProductCount === 0) {
+            alert('Please select at least one product to continue.');
+            return;
+          }
+          
+          // Get product names for better feedback
+          const productNames = checkedProducts.map(checkbox => {
+            const productTitle = checkbox.closest('.order-item').querySelector('.product-title').textContent;
+            return productTitle;
+          }).join(', ');
+          
+          // Get direct checkout setting
+          const directCheckout = window.checkoutConfig.popupMessage?.direct_checkout;
+          
+          alert(`This would add ${selectedProductCount} product(s) to your cart: ${productNames}${directCheckout ? ' and proceed to checkout' : ''}. (Demo mode in theme editor)`);
           return;
         }
 
@@ -1522,12 +1540,17 @@ document.addEventListener('DOMContentLoaded', function () {
   // Function to set up sample data for theme editor preview
   function setupSampleDataForThemeEditor() {
     console.log('Setting up sample data for theme editor (internal function)');
-
+    
     // Only set link_id if it doesn't exist
     window.checkoutConfig.link_id = window.checkoutConfig.link_id || 'sample-link-id';
-
-    // Only set products if they don't exist
-    if (!window.checkoutConfig.products || !window.checkoutConfig.products.length) {
+    
+    // Check if products are already set from schema
+    const hasProductsFromSchema = window.checkoutConfig.products && window.checkoutConfig.products.length > 0;
+    console.log('Products from schema available:', hasProductsFromSchema);
+    
+    // Only set products if they don't exist and weren't set via schema
+    if (!hasProductsFromSchema) {
+      console.log('No products from schema, using sample products');
       window.checkoutConfig.products = [
         {
           id: 'sample-product-1',
@@ -1551,9 +1574,9 @@ document.addEventListener('DOMContentLoaded', function () {
           quantity: 1
         }
       ];
-    }
-
-    // Set up currency code if not already set
+    } else {
+      console.log('Using products from schema:', window.checkoutConfig.products);
+    }    // Set up currency code if not already set
     window.checkoutConfig.currency_code = window.checkoutConfig.currency_code || (window.Shopify ? (window.Shopify.currency?.active || 'USD') : 'USD');
 
     // Only set discount if it doesn't exist

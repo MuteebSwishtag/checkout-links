@@ -2,56 +2,67 @@
 async function setupSampleDataForThemeEditor() {
     console.log('Setting up sample data for theme editor');
 
-  // Set up sample data for theme editor preview
-  window.checkoutConfig.link_id = window.checkoutConfig.link_id || 'sample-link-id';
+    // Set up sample data for theme editor preview
+    window.checkoutConfig.link_id = window.checkoutConfig.link_id || 'sample-link-id';
 
-    // Check if there is a selected collection from the theme editor settings
-    if (window.checkoutConfig.theme_editor && 
-      window.checkoutConfig.theme_editor.selected_collection) {
+    // First check if there are products already set from selected_products in the schema
+    const hasSelectedProducts = window.checkoutConfig.products && window.checkoutConfig.products.length > 0;
+    
+    if (hasSelectedProducts) {
+        console.log('Using products selected in theme editor schema:', window.checkoutConfig.products);
+    }
+    // Otherwise check if there is a selected collection
+    else if (window.checkoutConfig.theme_editor && 
+        window.checkoutConfig.theme_editor.selected_collection) {
+        try {
+            // For theme editor, we'll simulate products from a collection
+            const collectionId = window.checkoutConfig.theme_editor.selected_collection;
+            console.log('Using collection for theme editor preview:', collectionId);
 
-      try {
-        // For theme editor, we'll simulate products from a collection
-        const collectionId = window.checkoutConfig.theme_editor.selected_collection;
-        console.log('Using collection for theme editor preview:', collectionId);
+            // In a real implementation, you would fetch products from the collection
+            // Here we'll simulate some sample products as if they came from the collection
+            const sampleCollectionProducts = [
+                {
+                    id: 'collection-product-1',
+                    title: 'Collection Product 1',
+                    price: '29.99',
+                    image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png',
+                    quantity: 1
+                },
+                {
+                    id: 'collection-product-2',
+                    title: 'Collection Product 2',
+                    price: '49.99',
+                    image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-2_large.png',
+                    quantity: 1
+                },
+                {
+                    id: 'collection-product-3',
+                    title: 'Collection Product 3',
+                    price: '79.99',
+                    image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-3_large.png',
+                    quantity: 1
+                }
+            ];
 
-        // In a real implementation, you would fetch products from the collection
-        // Here we'll simulate some sample products as if they came from the collection
-        const sampleCollectionProducts = [
-            {
-                id: 'collection-product-1',
-                title: 'Collection Product 1',
-                price: '29.99',
-                image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_large.png',
-                quantity: 1
-            },
-            {
-                id: 'collection-product-2',
-                title: 'Collection Product 2',
-                price: '49.99',
-                image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-2_large.png',
-                quantity: 1
-            },
-            {
-                id: 'collection-product-3',
-                title: 'Collection Product 3',
-                price: '79.99',
-                image: 'https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-3_large.png',
-                quantity: 1
+            // Use the simulated collection products only if no products are already set
+            if (!hasSelectedProducts) {
+                window.checkoutConfig.products = sampleCollectionProducts;
+                console.log('Using sample products from collection for theme editor preview:', sampleCollectionProducts);
             }
-        ];
-
-        // Use the simulated collection products
-        window.checkoutConfig.products = sampleCollectionProducts;
-        console.log('Using sample products from collection for theme editor preview:', sampleCollectionProducts);
-    } catch (error) {
-          console.error('Error setting up collection products:', error);
-          // Fall back to sample products
-          useSampleProducts();
-      }
-  } else {
-      // Use sample products if no collection is selected
-      useSampleProducts();
-  }
+        } catch (error) {
+            console.error('Error setting up collection products:', error);
+            // Fall back to sample products if there are no selected products
+            if (!hasSelectedProducts) {
+                useSampleProducts();
+            }
+        }
+    } else {
+        // Use sample products if no collection is selected and no products are selected
+        if (!hasSelectedProducts) {
+            useSampleProducts();
+        }
+    }
 
     // Apply configuration settings from theme editor
     if (window.checkoutConfig.theme_editor) {
@@ -187,14 +198,31 @@ function setupThemeEditorButtonActions() {
             confirmBtnClone.style.backgroundColor = window.checkoutConfig.theme_editor.button_color;
         }
 
-      // Add a demo-only click handler
-      confirmBtnClone.addEventListener('click', function (e) {
-          e.preventDefault();
-          const directCheckout = window.checkoutConfig.popupMessage?.direct_checkout;
-          alert(`This button would add the selected items to cart${directCheckout ? ' and proceed to checkout' : ''}. (Demo mode in theme editor)`);
-          return false;
-      });
-  }
+        // Add a demo-only click handler
+        confirmBtnClone.addEventListener('click', function (e) {
+            e.preventDefault();
+            
+            // Get all checked products
+            const checkedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked'));
+            const selectedProductCount = checkedProducts.length;
+            
+            // Get direct checkout setting
+            const directCheckout = window.checkoutConfig.popupMessage?.direct_checkout;
+            
+            if (selectedProductCount === 0) {
+                alert('Please select at least one product to continue.');
+                return false;
+            }
+            
+            const productNames = checkedProducts.map(checkbox => {
+                const productTitle = checkbox.closest('.order-item').querySelector('.product-title').textContent;
+                return productTitle;
+            }).join(', ');
+            
+            alert(`This would add ${selectedProductCount} product(s) to your cart: ${productNames}${directCheckout ? ' and proceed to checkout' : ''}. (Demo mode in theme editor)`);
+            return false;
+        });
+    }
   
     // Find no thanks button and override its click event for theme editor
     const noThanksBtn = document.querySelector('.no-thanks');
