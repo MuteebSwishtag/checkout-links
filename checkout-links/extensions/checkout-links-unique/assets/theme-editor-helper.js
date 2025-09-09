@@ -58,30 +58,71 @@ async function setupSampleDataForThemeEditor() {
         // Set popup title and description
         if (window.checkoutConfig.theme_editor.popup_title) {
             window.checkoutConfig.popup_title = window.checkoutConfig.theme_editor.popup_title;
+            // Update popupMessage as well for consistency
+            window.checkoutConfig.popupMessage.heading_text = window.checkoutConfig.theme_editor.popup_title;
         }
 
         if (window.checkoutConfig.theme_editor.popup_description) {
             window.checkoutConfig.popup_description = window.checkoutConfig.theme_editor.popup_description;
+            window.checkoutConfig.popupMessage.message_text = window.checkoutConfig.theme_editor.popup_description;
         }
 
         // Apply countdown timer settings
         if (window.checkoutConfig.theme_editor.show_countdown === false ||
             window.checkoutConfig.theme_editor.show_countdown === true) {
             window.checkoutConfig.show_countdown = window.checkoutConfig.theme_editor.show_countdown;
+            window.checkoutConfig.popupMessage.countdown_active = window.checkoutConfig.theme_editor.show_countdown;
         }
 
         if (window.checkoutConfig.theme_editor.countdown_time) {
-            window.checkoutConfig.countdown_time = parseInt(window.checkoutConfig.theme_editor.countdown_time, 10) || 15;
+            const countdownSeconds = parseInt(window.checkoutConfig.theme_editor.countdown_time, 10) || 600;
+            window.checkoutConfig.countdown_time = countdownSeconds;
+            window.checkoutConfig.popupMessage.timer_text = Math.floor(countdownSeconds / 60) + " minute";
+        }
+
+        if (window.checkoutConfig.theme_editor.countdown_label) {
+            window.checkoutConfig.popupMessage.copy_text = window.checkoutConfig.theme_editor.countdown_label;
         }
 
         // Apply checkout button settings
         if (window.checkoutConfig.theme_editor.checkout_button_text) {
             window.checkoutConfig.checkout_button_text = window.checkoutConfig.theme_editor.checkout_button_text;
+            window.checkoutConfig.popupMessage.checkout_button_text = window.checkoutConfig.theme_editor.checkout_button_text;
+        }
+
+        if (window.checkoutConfig.theme_editor.close_button_text) {
+            window.checkoutConfig.popupMessage.close_button_text = window.checkoutConfig.theme_editor.close_button_text;
         }
 
         if (window.checkoutConfig.theme_editor.direct_checkout === false ||
             window.checkoutConfig.theme_editor.direct_checkout === true) {
             window.checkoutConfig.direct_checkout = window.checkoutConfig.theme_editor.direct_checkout;
+            window.checkoutConfig.popupMessage.direct_checkout = window.checkoutConfig.theme_editor.direct_checkout;
+        }
+
+        // Apply product display settings
+        if (window.checkoutConfig.theme_editor.show_price === false ||
+            window.checkoutConfig.theme_editor.show_price === true) {
+            window.checkoutConfig.popupMessage.show_price = window.checkoutConfig.theme_editor.show_price;
+        }
+
+        if (window.checkoutConfig.theme_editor.show_order_total === false ||
+            window.checkoutConfig.theme_editor.show_order_total === true) {
+            window.checkoutConfig.popupMessage.show_order_total = window.checkoutConfig.theme_editor.show_order_total;
+        }
+
+        if (window.checkoutConfig.theme_editor.allow_deselect === false ||
+            window.checkoutConfig.theme_editor.allow_deselect === true) {
+            window.checkoutConfig.popupMessage.allow_deselect = window.checkoutConfig.theme_editor.allow_deselect;
+        }
+
+        // Apply discount settings
+        if (window.checkoutConfig.theme_editor.discount_code) {
+            window.checkoutConfig.discount.code = window.checkoutConfig.theme_editor.discount_code;
+        }
+
+        if (window.checkoutConfig.theme_editor.discount_value) {
+            window.checkoutConfig.discount.value = parseFloat(window.checkoutConfig.theme_editor.discount_value);
         }
 
         console.log('Applied theme editor configuration settings:', window.checkoutConfig);

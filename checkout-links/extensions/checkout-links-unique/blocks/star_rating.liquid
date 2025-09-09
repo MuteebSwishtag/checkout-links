@@ -32,7 +32,21 @@
     theme_editor: {
       is_theme_editor: {{ request.design_mode | json }},
       selected_collection: {{ block.settings.selected_collection | json }},
-      button_color: "{{ block.settings.button_color }}"
+      button_color: "{{ block.settings.button_color }}",
+      // Add all schema settings to theme_editor object for easier access
+      popup_title: "{{ block.settings.heading_text }}",
+      popup_description: "{{ block.settings.message_text }}",
+      show_countdown: {{ block.settings.countdown_active | json }},
+      countdown_time: {{ block.settings.timer_seconds }},
+      countdown_label: "{{ block.settings.copy_text }}",
+      checkout_button_text: "{{ block.settings.checkout_button_text }}",
+      close_button_text: "{{ block.settings.close_button_text }}",
+      show_price: {{ block.settings.show_price | json }},
+      show_order_total: {{ block.settings.show_order_total | json }},
+      allow_deselect: {{ block.settings.allow_deselect | json }},
+      direct_checkout: {{ block.settings.direct_checkout | json }},
+      discount_code: "{{ block.settings.discount_code }}",
+      discount_value: {{ block.settings.discount_value | default: 0 }}
     }
   };
   
@@ -466,6 +480,14 @@
           modalElement.style.visibility = 'visible';
           modalElement.classList.add('show');
           document.body.classList.add('modal-open');
+          
+          // Set up sample data for theme editor preview
+          if (typeof setupSampleDataForThemeEditor === 'function') {
+            setupSampleDataForThemeEditor();
+          } else {
+            console.error('setupSampleDataForThemeEditor function not found');
+          }
+          
           console.log("Modal automatically shown in theme editor");
         }, 1000); // Small delay to ensure content is loaded
       } else {

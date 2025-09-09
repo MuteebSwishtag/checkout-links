@@ -109,6 +109,31 @@ document.addEventListener('DOMContentLoaded', function () {
     initialModalElement.setAttribute('aria-hidden', 'true');
     document.body.classList.remove('modal-open');
   }
+
+  // Apply schema settings to ensure all customizations are visible in the storefront
+  function applySchemaSettings() {
+    console.log('Applying schema settings to storefront popup');
+
+    // Make sure schema settings from star_rating.liquid are applied to the popup
+    if (window.checkoutConfig && window.checkoutConfig.popupMessage) {
+      // Apply button color from settings
+      if (window.checkoutConfig.theme_editor && window.checkoutConfig.theme_editor.button_color) {
+        const buttonColor = window.checkoutConfig.theme_editor.button_color;
+        document.documentElement.style.setProperty('--checkout-links-button-color', buttonColor);
+
+        // Also directly apply to any existing buttons
+        setTimeout(() => {
+          const buttons = document.querySelectorAll('.confirm-btn');
+          buttons.forEach(btn => {
+            btn.style.backgroundColor = buttonColor;
+          });
+        }, 100);
+      }
+
+      // Update the modal content to reflect current settings
+      updateModalContent();
+    }
+  }
   // Function to apply custom CSS and brand color
   function applyBrandStylesAndCustomCSS(linkData) {
     // Apply custom CSS if available
@@ -630,7 +655,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const total = subtotal - discountAmount;
-    const currencyCode = window.checkoutConfig.currency_code || 'AUD';
+    const currencyCode = window.checkoutConfig.currency_code || 'USD';
 
     // Build modal HTML
     modalContent.innerHTML = `
@@ -1488,7 +1513,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
   // Check if we're in the Shopify theme editor
   const isThemeEditor = window.Shopify && window.Shopify.designMode;
-  console.log('Is in theme editor:', isThemeEditor); if (linkId) {
+  console.log('Is in theme editor:', isThemeEditor);
+
+  if (linkId) {
     fetchLinkData(linkId).then(() => {
       // After fetching data, ensure discount code from URL takes precedence
       if (discountCode) {
@@ -1496,32 +1523,37 @@ document.addEventListener('DOMContentLoaded', function () {
         window.checkoutConfig.discount.code = discountCode;
       }
 
+      // Apply schema settings to ensure all customizations are applied
+      applySchemaSettings();
+
       // Ensure the modal HTML is in the correct state before showing
       const modalElement = document.getElementById('orderSummaryModal');
       if (modalElement) {
-        // Make sure modal content is populated before showing
-        if (!modalElement.querySelector('.modal-content').children.length) {
-          console.log('Modal content is empty, updating content before showing');
-          updateModalContent();
-        }
+        // Reset first
+        modalElement.style.display = 'none';
+        modalElement.style.visibility = 'hidden';
+        modalElement.classList.remove('show');
+
+        // Delay a bit to ensure modal content is ready, then show
+        setTimeout(showModal, 200);
       }
 
-      // Show modal with slight delay to ensure DOM is ready
-      setTimeout(() => {
-        console.log('About to show modal');
-        showModal();
+      // Make sure modal content is populated before showing
+      if (modalElement && !modalElement.querySelector('.modal-content').children.length) {
+        console.log('Modal content is empty, updating content before showing');
+        updateModalContent();
+      }
 
-        // Double-check modal visibility after a short delay
-        setTimeout(() => {
-          const modalCheck = document.getElementById('orderSummaryModal');
-          if (modalCheck && (modalCheck.style.display !== 'flex' || modalCheck.style.visibility !== 'visible')) {
-            console.log('Modal still not visible, forcing display');
-            modalCheck.style.display = 'flex !important';
-            modalCheck.style.visibility = 'visible !important';
-            modalCheck.classList.add('show');
-          }
-        }, 500);
-      }, 100);
+      // Double-check modal visibility after a short delay
+      setTimeout(() => {
+        const modalCheck = document.getElementById('orderSummaryModal');
+        if (modalCheck && (modalCheck.style.display !== 'flex' || modalCheck.style.visibility !== 'visible')) {
+          console.log('Modal still not visible, forcing display');
+          modalCheck.style.display = 'flex !important';
+          modalCheck.style.visibility = 'visible !important';
+          modalCheck.classList.add('show');
+        }
+      }, 500);
 
       // Initialize order counting
       window.orderCounter.checkAndCount();
@@ -1542,14 +1574,12 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   } else if (isThemeEditor) {
-    // In theme editor with no link ID, show sample data
-    console.log('In theme editor - showing modal with sample data');
-    setupSampleDataForThemeEditor();
-
-    // Show modal in theme editor
-    setTimeout(() => {
-      showModal();
-    }, 500);
+    // In theme editor, set up sample data and preview
+    if (typeof setupSampleDataForThemeEditor === 'function') {
+      setupSampleDataForThemeEditor();
+    } else {
+      console.warn('Sample data function not found, but needed for theme editor preview');
+    }
   } else {
     // If no link ID and not in theme editor, don't show the modal
     console.log('No link ID found, modal will not be displayed');
