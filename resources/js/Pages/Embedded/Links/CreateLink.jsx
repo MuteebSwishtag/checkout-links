@@ -218,7 +218,7 @@ export default function CreateLink() {
     const [fullUrl, setFullUrl] = useState(''); // Store the full URL with shop name
     const [productsOpen, setProductsOpen] = useState(true);
     const [discountsOpen, setDiscountsOpen] = useState(false);
-    const [popupMessageOpen, setPopupMessageOpen] = useState(true);
+    const [popupMessageOpen, setPopupMessageOpen] = useState(false);
     const [selectedProducts, setSelectedProducts] = useState(0);
     const [isProductModalOpen, setIsProductModalOpen] = useState(false);
     const [productSearchValue, setProductSearchValue] = useState('');
@@ -2536,15 +2536,34 @@ export default function CreateLink() {
                                                         )}
                                                         {/* Action Buttons */}
                                                         <BlockStack gap="300">
-                                                            <Button variant="primary" size="large" fullWidth>
+                                                            <button
+                                                                style={{
+                                                                    width: "100%",
+                                                                    padding: "12px 16px",
+                                                                    backgroundColor: "#008060", // Shopify green
+                                                                    color: "#fff",
+                                                                    fontSize: "16px",
+                                                                    border: "none",
+                                                                    borderRadius: "4px",
+                                                                    cursor: "pointer",
+                                                                }}
+                                                            >
                                                                 {popupMessageData.checkoutButtonText}
-                                                            </Button>
+                                                            </button>
+
                                                             <InlineStack align="center">
-                                                                <Button variant='plain'>
-                                                                    <Text tone='subdued'>
-                                                                        {popupMessageData.closeButtonText}
-                                                                    </Text>
-                                                                </Button>
+                                                                <button
+                                                                    style={{
+                                                                        background: "none",
+                                                                        border: "none",
+                                                                        color: "#6d7175", // subdued text tone
+                                                                        cursor: "pointer",
+                                                                        fontSize: "14px",
+                                                                        textDecoration: "underline",
+                                                                    }}
+                                                                >
+                                                                    {popupMessageData.closeButtonText}
+                                                                </button>
                                                             </InlineStack>
                                                         </BlockStack>
                                                     </BlockStack>
@@ -2874,8 +2893,6 @@ export default function CreateLink() {
                                             </div>
                                         );
                                     })}
-
-
                                         {(currentPage > 1 || currentPage < totalPages) && (
                                             <Box
                                                 paddingBlockStart="200"
@@ -2898,7 +2915,6 @@ export default function CreateLink() {
                                 </>
                             )}
                         </div>
-
                     </BlockStack>
                 </Modal.Section>
             </Modal>

@@ -345,7 +345,7 @@ const LinksIndex = () => {
                     onAction: () => router.get(route('links.create', query))
                 }}
             >
-                <Card>
+                <Box background="bg-surface" border="100" borderRadius="200" padding="0">
                     <IndexFilters
                         queryValue={queryValue}
                         queryPlaceholder="Search Links"
@@ -370,7 +370,6 @@ const LinksIndex = () => {
                         headings={[
                             { title: 'Link Name' },
                             { title: 'URL Link' },
-                            // { title: 'Status' },
                             { title: 'Clicks' },
                             { title: 'Placed Order' },
                             { title: 'Actions' },
@@ -379,6 +378,7 @@ const LinksIndex = () => {
                     >
                         {rowMarkup}
                     </IndexTable>
+
                     {(currentPage > 1 || currentPage < totalPages) && (
                         <Box
                             paddingBlockStart="200"
@@ -397,7 +397,8 @@ const LinksIndex = () => {
                             />
                         </Box>
                     )}
-                </Card>
+                </Box>
+
             </Page>
         </div>
     );

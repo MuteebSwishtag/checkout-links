@@ -50,9 +50,13 @@ export default function Dashboard() {
     const fetchLinks = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(route('links.get'));
+            const response = await fetch(route('links.get',query));
+
+            console.log("Fetch links response:", response);
             const data = await response.json();
-            setLinks(data);
+            console.log("Fetched links data:", data);
+            // Extract just the links array from the response
+            setLinks(data.links || []);
         } catch (error) {
             console.error("Error fetching links:", error);
         } finally {
@@ -391,18 +395,140 @@ export default function Dashboard() {
                                 </Box>
                             </Card>
                         </Grid.Cell>
+                        <Grid.Cell columnSpan={{ xs: 12, sm: 6, md: 6, lg: 4, xl: 6 }}>
+                            <Card sectioned>
+                                <Box width='100%' minWidth='486px'>
+                                    <Text variant="headingMd" as="h3">
+                                        Need a hand? We're here to help
+                                    </Text>
+                                    <Box paddingBlockStart="300">
+                                        <Box paddingBlockEnd="200">
+                                            <Button variant="plain" textAlign="left" fullWidth>
+                                                💬 Start a live chat
+                                            </Button>
+                                        </Box>
+                                        <Box paddingBlockEnd="200">
+                                            <Button variant="plain" textAlign="left" fullWidth>
+                                                ✉️ Send us an email
+                                            </Button>
+                                        </Box>
+                                        <Box>
+                                            <Button variant="plain" textAlign="left" fullWidth>
+                                                ❓ See our FAQs
+                                            </Button>
+                                        </Box>
+                                    </Box>
+                                </Box>
+                            </Card>
+                        </Grid.Cell>
                     </Grid>
+
                 </Box>
+
+
+
                 <Box paddingBlockStart="400">
-                    <Box paddingBlockStart="600">
-                        <Text variant="bodyMd" tone="subdued" alignment='center'>
-                            Need any help or best practices? Just{' '}
-                            <Button variant="plain" textDecorationLine="underline">
-                                reach out
-                            </Button>
-                            {' '}and we're happy to help.
-                        </Text>
-                    </Box>
+                    <Card sectioned>
+                        <Box>
+                            <InlineStack align="space-between" blockAlign="start">
+                                <Text variant="headingLg" as="h2">
+                                    Level up your store in 3 simple steps
+                                </Text>
+                                <Button variant="plain" icon="X" accessibilityLabel="Close">
+                                </Button>
+                            </InlineStack>
+
+                            <Box paddingBlockStart="600">
+                                <Grid>
+                                    {appsData.map((app, index) => (
+                                        <Grid.Cell key={index} columnSpan={{ xs: 12, sm: 6, md: 4, lg: 4, xl: 4 }}>
+                                            <Card>
+                                                <Box padding="400" minHeight={app.minHeight} style={{ display: 'flex', flexDirection: 'column' }}>
+                                                    <Box textAlign="center" paddingBlockEnd="400">
+                                                        <div style={{
+                                                            width: '64px',
+                                                            height: '64px',
+                                                            backgroundColor: app.img ? 'transparent' : app.backgroundColor,
+                                                            borderRadius: '12px',
+                                                            margin: '0 auto',
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            justifyContent: 'center'
+                                                        }}>
+                                                            {app.img ? (
+                                                                <img
+                                                                    src={app.img}
+                                                                    alt={app.name}
+                                                                    style={{
+                                                                        width: '64px',
+                                                                        height: '64px',
+                                                                        borderRadius: '12px',
+                                                                        objectFit: 'cover'
+                                                                    }}
+                                                                />
+                                                            ) : app.icon ? (
+                                                                <Text variant="headingMd" tone="text-inverse">
+                                                                    {app.icon}
+                                                                </Text>
+                                                            ) : null}
+                                                        </div>
+                                                    </Box>
+
+                                                    <Box style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                                                        <BlockStack gap="200" align="center">
+                                                            <Text variant="headingMd" as="h3" alignment="center">
+                                                                {app.name}
+                                                            </Text>
+                                                            <Text variant="bodyMd" tone="subdued" alignment="center">
+                                                                {app.description}
+                                                            </Text>
+                                                            <BlockStack gap="100" align="center">
+                                                                {app.price ? (
+                                                                    <Text variant="headingMd" as="h4" alignment="center">
+                                                                        {app.price}
+                                                                    </Text>
+                                                                ) : (
+                                                                    <Box minHeight="24px" /> // Placeholder space
+                                                                )}
+                                                                {app.trial ? (
+                                                                    <Text variant="bodyMd" tone="subdued" alignment="center">
+                                                                        {app.trial}
+                                                                    </Text>
+                                                                ) : (
+                                                                    <Box minHeight="20px" /> // Placeholder space
+                                                                )}
+                                                            </BlockStack>
+                                                        </BlockStack>
+
+                                                        <Box width="100%" paddingBlockStart="400">
+                                                            <Button
+                                                                variant={app.buttonVariant}
+                                                                fullWidth
+                                                                disabled={app.isDisabled}
+                                                            >
+                                                                {app.buttonText}
+                                                            </Button>
+                                                        </Box>
+                                                    </Box>
+                                                </Box>
+                                            </Card>
+                                        </Grid.Cell>
+                                    ))}
+                                </Grid>
+                            </Box>
+                            <Box paddingBlockStart="400">
+                                <Box paddingBlockStart="600">
+                                    <Text variant="bodyMd" tone="subdued" alignment='center'>
+                                        Need any help or best practices? Just{' '}
+                                        <Button variant="plain" textDecorationLine="underline">
+                                            reach out
+                                        </Button>
+                                        {' '}and we're happy to help.
+                                    </Text>
+                                </Box>
+                            </Box>
+                        </Box>
+                    </Card>
                 </Box>
 
                 {/* Theme Setup Card - Always show */}

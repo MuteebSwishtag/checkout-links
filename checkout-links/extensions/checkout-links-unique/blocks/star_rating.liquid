@@ -31,7 +31,7 @@
     },
     theme_editor: {
       is_theme_editor: {{ request.design_mode | json }},
-      selected_collection: {{ block.settings.selected_collection | json }},
+      selected_products: {{ block.settings.selected_products | json }},
       button_color: "{{ block.settings.button_color }}",
       // Add all schema settings to theme_editor object for easier access
       popup_title: "{{ block.settings.heading_text }}",
@@ -54,6 +54,16 @@
   if (window.Shopify && window.Shopify.designMode) {
     (async function() {
       try {
+        // Check if selected products are defined in settings
+        const hasSelectedProducts = Boolean({{ block.settings.selected_products | json }});
+        const hasSelectedCollection = Boolean({{ block.settings.selected_collection | json }});
+        
+        // If no products are selected, mark that explicitly
+        if (!hasSelectedProducts && !hasSelectedCollection) {
+          console.log('Theme editor: No products or collections selected');
+          window.checkoutConfig.theme_editor.no_products = true;
+        }
+        
         // Get selected collection from settings
         const collectionId = {{ block.settings.selected_collection | json }};
         if (collectionId) {
@@ -88,11 +98,24 @@
     justify-content: center;
     background: rgba(0,0,0,0.5);
     visibility: hidden; /* Initially hidden */
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
   }
   #orderSummaryModal.show {
     display: flex !important;
     visibility: visible;
+    opacity: 1;
   }
+  {% comment %} .popup-info-banner {
+    background: #f4f6f8;
+    border-left: 4px solid #5c6ac4; /* Shopify Indigo */
+    color: #202223;
+    padding: 10px 15px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+  } {% endcomment %}
   .modal-dialog {
   max-width: 400px; /* 80% of the viewport width */
   width: 100%;
@@ -100,29 +123,43 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  transform: scale(0.95);
+  transition: transform 0.3s ease;
+}
+
+#orderSummaryModal.show .modal-dialog {
+  transform: scale(1);
 }
 /* Modal close button */
 .close-button {
   position: absolute;
   top: 10px;
   right: 15px;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   cursor: pointer;
-  color: #888;
+  color: #777;
   z-index: 10;
-  transition: color 0.2s ease;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background-color: #f0f0f0;
+  background-color: #f2f2f2;
   box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+  border: 1px solid #e0e0e0;
 }
 
 .close-button:hover {
   color: #333;
   background-color: #e0e0e0;
+  transform: scale(1.05);
+}
+
+.close-button:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+  color: #333;
 }
 
 .close-button::before,
@@ -133,26 +170,39 @@
   height: 2px;
   background-color: currentColor;
   border-radius: 1px;
+  left: 50%;
+  top: 50%;
+  transform-origin: center;
+  transition: transform 0.2s ease, background-color 0.2s ease, width 0.2s ease;
 }
 
 .close-button::before {
-  transform: rotate(45deg);
+  transform: translate(-50%, -50%) rotate(45deg);
 }
 
 .close-button::after {
-  transform: rotate(-45deg);
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+.close-button:hover::before,
+.close-button:hover::after {
+  width: 16px;
+  background-color: #444;
 }
 
 /* Modal content positioning */
 .modal-content {
   position: relative;
-  padding-top: 10px;
-
+  padding-top: 15px;
+  padding-right: 15px;
+  border: none !important;
+  box-shadow: 0 5px 25px rgba(0, 0, 0, 0.15) !important;
 }
 
 /* Make sure the modal body has proper spacing from the close button */
 .modal-body {
-  padding-top: 15px;
+  padding-top: 10px;
+  position: relative;
 }
 
   .modal-content {
@@ -178,7 +228,7 @@
     margin-bottom: 15px;
     line-height: 1.4;
     padding:13px;
-    background-color:#e7e7e7 ;
+    background-color:#efefef;
     border-radius: 8px;
   }
   .order-items {
@@ -201,14 +251,14 @@
   }
   .item-img-wrap {
     position: relative;
-    width: 40px;
-    height: 40px;
+    width: 50px;
+    height: 50px;
     margin-right: 10px;
     flex-shrink: 0;
   }
   .item-img-wrap img {
-    width: 40px;
-    height: 40px;
+    width: 50px;
+    height: 50px;
     border-radius: 4px;
     object-fit: cover;
     border: 1px solid #eee;
@@ -354,7 +404,6 @@
     cursor: pointer;
   }
   .no-thanks:hover {
-   
     text-decoration: underline;
   }
   /* Countdown timer styles */
@@ -362,7 +411,6 @@
     text-align: center;
     margin-bottom: 15px;
     padding: 8px 15px;
-    background-color: #f1f1f1;
     font-size: 1.2rem;
     display: flex;
     justify-content: center;
@@ -412,12 +460,25 @@
     font-weight: 600;
     color: #28a745;
   }
+  /* Theme editor disclaimer */
+  .theme-editor-disclaimer {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+    border-radius: 4px;
+    padding: 10px;
+    margin-bottom: 15px;
+    font-size: 1.2rem;
+    text-align: center;
+    font-weight: 500;
+    margin-top:20px;
+  }
   /* Product title and price */
   .product-title {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 160px;
+    max-width: 300px;
   }
   .product-price {
     font-size: 1.5rem;
@@ -476,6 +537,24 @@
       if (isThemeEditor) {
         // Always show modal in theme editor for preview
         setTimeout(() => {
+          // Add theme editor disclaimer at the top of the modal
+          const modalContent = modalElement.querySelector('.modal-content');
+          if (modalContent) {
+            // Check if disclaimer already exists
+            const existingDisclaimer = modalContent.querySelector('.theme-editor-disclaimer');
+            
+            if (!existingDisclaimer) {
+              const disclaimer = document.createElement('div');
+              disclaimer.className = 'theme-editor-disclaimer';
+              disclaimer.textContent = 'This is only a preview. The popup is not functional here please use the app to test full functionality.';
+              // Insert at the top of modal content
+              if (modalContent.firstChild) {
+                modalContent.insertBefore(disclaimer, modalContent.firstChild);
+              } else {
+                modalContent.appendChild(disclaimer);
+              }
+            }
+          }
           modalElement.style.display = 'flex';
           modalElement.style.visibility = 'visible';
           modalElement.classList.add('show');
@@ -529,31 +608,44 @@
   "name": "Checkout Links Popup",
   "target": "body",
   "settings": [
-    { "type": "header", "content": "Popup Configuration" },
+          
+      {
+        "type": "header",
+        "content": "Popup Configuration"
+      },
+      {
+        "type": "paragraph",
+        "content": "💡 Select the products below to view the popup."
+      },
+    { "type": "product_list", "id": "selected_products", "label": "Select Products" },
     { "type": "checkbox", "id": "enable_popup", "label": "Enable Popup", "default": true },
     { "type": "text", "id": "heading_text", "label": "Popup Heading", "default": "Complete Your Order" },
     { "type": "textarea", "id": "message_text", "label": "Popup Message", "default": "Add these recommended products to your cart before checkout. Limited time offer!" },
+
     { "type": "header", "content": "Countdown Timer" },
     { "type": "checkbox", "id": "countdown_active", "label": "Enable Countdown", "default": true },
     { "type": "text", "id": "copy_text", "label": "Timer Label", "default": "This offer expires in:" },
     { "type": "range", "id": "timer_seconds", "min": 60, "max": 3600, "step": 60, "default": 600, "label": "Countdown Time (seconds)" },
+
     { "type": "header", "content": "Product Display" },
     { "type": "checkbox", "id": "show_price", "label": "Show Product Prices", "default": true },
     { "type": "checkbox", "id": "show_order_total", "label": "Show Order Total", "default": true },
     { "type": "checkbox", "id": "allow_deselect", "label": "Allow Product Deselection", "default": true },
-    { "type": "collection", "id": "selected_collection", "label": "Products Collection" },
-    { "type": "header", "content": "Discount Settings" },
+    
+
+    { "type": "header", "content": "Discount & Button Settings" },
     { "type": "text", "id": "discount_code", "label": "Discount Code" },
     { "type": "number", "id": "discount_value", "label": "Discount Value", "default": 10 },
     { "type": "checkbox", "id": "free_shipping", "label": "Include Free Shipping", "default": false },
-    { "type": "header", "content": "Button Settings" },
     { "type": "text", "id": "checkout_button_text", "label": "Confirm Button Text", "default": "Add to Cart & Checkout" },
     { "type": "color", "id": "button_color", "label": "Button Color", "default": "#000000" },
     { "type": "text", "id": "close_button_text", "label": "Close Button Text", "default": "No thanks" },
     { "type": "url", "id": "close_button_link", "label": "Close Button Link" },
+
     { "type": "header", "content": "Advanced Settings" },
     { "type": "text", "id": "link_id", "label": "Link ID" },
     { "type": "checkbox", "id": "direct_checkout", "label": "Direct to Checkout", "default": true }
-  ],
+  ]
 }
 {% endschema %}
+

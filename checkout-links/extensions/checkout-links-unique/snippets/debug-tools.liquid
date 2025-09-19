@@ -1,0 +1,8 @@
+{% comment %}
+  Debug Tools for Checkout Links App in Theme Editor
+  This snippet loads debugging tools only when in the theme editor
+{% endcomment %}
+
+{% if request.design_mode %}
+  <script src="{{ 'theme-editor-debug.js' | asset_url }}" defer="defer"></script>
+{% endif %}
