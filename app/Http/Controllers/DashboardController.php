@@ -338,4 +338,61 @@ class DashboardController extends Controller
             'data' => $data
         ]);
     }
+
+//     public function enableAppBlock(Request $request)
+//     {
+//         $user = auth()->user();
+//         $data = $user->api()->rest('GET', '/admin/api/2023-10/themes.json', [
+//             'role' => 'main'
+//         ]);
+//         if ($data['status'] != 200) {
+//             return response()->json([
+//                 'success' => false,
+//                 'message' => 'An error occured!',
+//                 'data' => null
+//             ]);
+//         }
+//         $theme_id = $data['body']['themes'][0]['id'];
+//         $data = $user->api()->rest('GET', '/admin/api/2023-10/themes/' . $theme_id . '/assets.json', [
+//             'asset[key]' => 'config/settings_data.json'
+//         ]);
+//         $theme_data = json_decode($data['body']['asset']['value']);
+//         $theme_blocks = collect(isset($theme_data->current->blocks) ? $theme_data->current->blocks : []);
+//         if (is_string($theme_data->current)) {
+//             $theme_data->current = (object) [];
+//         }
+//         if ($theme_blocks->count() < 1) {
+//             $theme_data->current->blocks = (object) $theme_blocks->toArray();
+//         }
+//         $found = false;
+//         $theme_blocks->transform(function ($value) use (&$found) {
+//             if (str_contains($value->type, '4489d1cd-317b-4027-87df-fe1eadea6828')) {
+//                 $value->disabled = false;
+//                 $found = true;
+//             }
+//             return $value;
+//         });
+//         if (!$found) {
+//             $theme_blocks = $theme_blocks->toArray();
+//             $theme_blocks['924562145678'] = [
+//                 'type' => 'shopify://apps/tag-analytics-app-von-hund/blocks/app-embedded/4489d1cd-317b-4027-87df-fe1eadea6828',
+//                 'disabled' => false,
+//                 'settings' => (object) [],
+//             ];
+//         }
+//         $theme_data->current->blocks = (object) $theme_blocks;
+//         $theme_json = json_encode($theme_data, JSON_PRETTY_PRINT);
+
+//         $data = $user->api()->rest('PUT', '/admin/api/themes/' . $theme_id . '/assets.json', [
+//             'asset' => [
+//                 'key' => 'config/settings_data.json',
+//                 'value' => $theme_json
+//             ]
+//         ]);
+//         return response()->json([
+//             'success' => true,
+//             'message' => 'App block enabled successfully!',
+//             'data' => $data
+//         ]);
+//     }
 }
