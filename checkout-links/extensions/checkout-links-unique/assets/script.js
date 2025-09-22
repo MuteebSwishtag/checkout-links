@@ -732,6 +732,8 @@ document.addEventListener('DOMContentLoaded', function () {
       console.log('Fetched link data from API:', data);
 
       if (data.success && data.link) {
+        console.log('Valid link data received:', data.link);
+
         updateCheckoutConfig(data.link);
         initializeUI();
         return;
@@ -880,6 +882,24 @@ document.addEventListener('DOMContentLoaded', function () {
     // Update popup message
     if (linkData.popup_message) {
       window.checkoutConfig.popupMessage = linkData.popup_message;
+
+      // Convert database numeric values to proper booleans
+      if (typeof linkData.popup_message.allow_deselect !== 'undefined') {
+        window.checkoutConfig.popupMessage.allow_deselect = !!linkData.popup_message.allow_deselect;
+        console.log('Converted allow_deselect from', linkData.popup_message.allow_deselect, 'to', window.checkoutConfig.popupMessage.allow_deselect);
+      }
+      if (typeof linkData.popup_message.countdown_active !== 'undefined') {
+        window.checkoutConfig.popupMessage.countdown_active = !!linkData.popup_message.countdown_active;
+      }
+      if (typeof linkData.popup_message.show_price !== 'undefined') {
+        window.checkoutConfig.popupMessage.show_price = !!linkData.popup_message.show_price;
+      }
+      if (typeof linkData.popup_message.show_order_total !== 'undefined') {
+        window.checkoutConfig.popupMessage.show_order_total = !!linkData.popup_message.show_order_total;
+      }
+      if (typeof linkData.popup_message.is_active !== 'undefined') {
+        window.checkoutConfig.popupMessage.is_active = !!linkData.popup_message.is_active;
+      }
 
       // Store countdown settings
       if (linkData.popup_message.countdown_active) {
@@ -1197,16 +1217,17 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="product-title">${product.title}</div>
                 ${window.checkoutConfig.popupMessage?.show_price ? `<div class="product-price">$${(parseFloat(product.price) || 0).toFixed(2)}</div>` : ''}
               </div>
+              ${window.checkoutConfig.popupMessage?.allow_deselect === false ? '' : `
               <div class="item-check">
                 <label class="checkbox-label">
-                  <input type="checkbox" ${window.checkoutConfig.popupMessage?.allow_deselect === false ? 'disabled' : ''} class="product-checkbox" data-price="${product.price}" data-quantity="${product.quantity || 1}">
+                  <input type="checkbox" checked class="product-checkbox" data-price="${product.price}" data-quantity="${product.quantity || 1}">
                   <div class="custom-checkbox">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white">
                       <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/>
                     </svg>
                   </div>
                 </label>
-              </div>
+              </div>`}
             </div>
           `).join('')}
         </div>
@@ -1462,15 +1483,23 @@ document.addEventListener('DOMContentLoaded', function () {
     const confirmBtn = document.querySelector('.confirm-btn');
     if (confirmBtn) {
       confirmBtn.addEventListener('click', async () => {
-        const selectedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked'))
-          .map(checkbox => {
-            const productEl = checkbox.closest('.order-item');
-            return window.checkoutConfig.products.find(p => 
-              (p.id === productEl.dataset.productId) ||
-              (productEl.dataset.linkVariantId && p.linkVariantId === parseInt(productEl.dataset.linkVariantId))
-            );
-          })
-          .filter(Boolean);
+        let selectedProducts;
+
+        // If allow_deselect is false, select all products automatically
+        if (window.checkoutConfig.popupMessage?.allow_deselect === false) {
+          selectedProducts = window.checkoutConfig.products || [];
+        } else {
+          // Otherwise, get only checked products
+          selectedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked'))
+            .map(checkbox => {
+              const productEl = checkbox.closest('.order-item');
+              return window.checkoutConfig.products.find(p =>
+                (p.id === productEl.dataset.productId) ||
+                (productEl.dataset.linkVariantId && p.linkVariantId === parseInt(productEl.dataset.linkVariantId))
+              );
+            })
+            .filter(Boolean);
+        }
 
         if (selectedProducts.length === 0) {
           alert('Please select at least one product to continue');
@@ -1527,15 +1556,26 @@ document.addEventListener('DOMContentLoaded', function () {
     const totalValueEl = document.querySelector('.total-value');
     if (!totalValueEl) return;
 
-    // Calculate subtotal from checked products
     let subtotal = 0;
-    const checkedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked'));
+    let checkedProducts = [];
 
-    checkedProducts.forEach(checkbox => {
-      const price = parseFloat(checkbox.dataset.price) || 0;
-      const quantity = parseInt(checkbox.dataset.quantity) || 1;
-      subtotal += price * quantity;
-    });
+    // If allow_deselect is false, calculate total for all products
+    if (window.checkoutConfig.popupMessage?.allow_deselect === false) {
+      subtotal = (window.checkoutConfig.products || []).reduce((sum, product) => {
+        const price = parseFloat(product.price) || 0;
+        const quantity = parseInt(product.quantity) || 1;
+        return sum + (price * quantity);
+      }, 0);
+      checkedProducts = window.checkoutConfig.products || [];
+    } else {
+      // Calculate subtotal from checked products
+      checkedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked'));
+      checkedProducts.forEach(checkbox => {
+        const price = parseFloat(checkbox.dataset.price) || 0;
+        const quantity = parseInt(checkbox.dataset.quantity) || 1;
+        subtotal += price * quantity;
+      });
+    }
 
     // Calculate discount if applicable
     let discount = 0;
@@ -1567,7 +1607,16 @@ document.addEventListener('DOMContentLoaded', function () {
     // Update confirm button state
     const confirmBtn = document.querySelector('.confirm-btn');
     if (confirmBtn) {
-      const hasCheckedProducts = checkedProducts.length > 0;
+      let hasCheckedProducts;
+
+      if (window.checkoutConfig.popupMessage?.allow_deselect === false) {
+        // When allow_deselect is false, always consider products as selected
+        hasCheckedProducts = (window.checkoutConfig.products || []).length > 0;
+      } else {
+        // For normal behavior, check if any checkboxes are checked
+        hasCheckedProducts = checkedProducts.length > 0;
+      }
+
       confirmBtn.disabled = !hasCheckedProducts;
       confirmBtn.style.opacity = hasCheckedProducts ? '1' : '0.6';
     }
@@ -1786,7 +1835,10 @@ document.addEventListener('DOMContentLoaded', function () {
     window.checkoutConfig.popupMessage.countdown_active = window.checkoutConfig.popupMessage.countdown_active ?? true;
     window.checkoutConfig.popupMessage.timer_text = window.checkoutConfig.popupMessage.timer_text || "10 minute";
     window.checkoutConfig.popupMessage.copy_text = window.checkoutConfig.popupMessage.copy_text || "This offer expires in:";
-    window.checkoutConfig.popupMessage.allow_deselect = window.checkoutConfig.popupMessage.allow_deselect ?? true;
+    // Only set allow_deselect to true if it's null or undefined (not if it's false)
+    if (typeof window.checkoutConfig.popupMessage.allow_deselect === 'undefined' || window.checkoutConfig.popupMessage.allow_deselect === null) {
+      window.checkoutConfig.popupMessage.allow_deselect = true;
+    }
     window.checkoutConfig.popupMessage.show_price = window.checkoutConfig.popupMessage.show_price ?? true;
     window.checkoutConfig.popupMessage.show_order_total = window.checkoutConfig.popupMessage.show_order_total ?? true;
     window.checkoutConfig.popupMessage.checkout_button_text = window.checkoutConfig.popupMessage.checkout_button_text || "Add to Cart";
@@ -1803,6 +1855,7 @@ document.addEventListener('DOMContentLoaded', function () {
   // Initialize application
   const { linkId } = getParamsFromUrl();
   console.log('Starting initialization with linkId:', linkId);
+  console.log('Current checkoutConfig:', window.checkoutConfig.popupMessage.allow_deselect);
 
   // Check if we're in the Shopify theme editor
   const isThemeEditor = window.Shopify && window.Shopify.designMode;

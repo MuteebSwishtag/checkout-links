@@ -18,6 +18,7 @@ import progressify from '@/Pages/Images/Progressify.png'
 import '@/Components/style.css';
 import { useAppBridge } from '@shopify/app-bridge-react';
 import { Redirect as AppBridgeRedirect } from '@shopify/app-bridge/actions';
+import checkout from '@/Pages/Images/image12.png';
 
 export default function Dashboard() {
     const [reload, setReload] = useState(true);
@@ -120,6 +121,7 @@ export default function Dashboard() {
     const appsData = [
         {
             name: 'Checkout Links',
+            img: checkout, // No image for the first card
             description: 'One-click checkout links for every campaign or ticket',
             icon: '',
             backgroundColor: '#E0E0E0',
@@ -518,6 +520,12 @@ export default function Dashboard() {
                                                                 variant={app.buttonVariant}
                                                                 fullWidth
                                                                 disabled={app.isDisabled}
+                                                                onClick={() => {
+                                                                    if (app.link) {
+                                                                        // Open external app links in a new tab
+                                                                        window.open(app.link, '_blank');
+                                                                    }
+                                                                }}
                                                             >
                                                                 {app.buttonText}
                                                             </Button>
