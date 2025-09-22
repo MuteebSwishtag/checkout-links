@@ -400,6 +400,7 @@ export default function CreateLink() {
 
         // Define the allData variable by calling collectAllPageData
         const allData = collectAllPageData();
+        console.log("Collected Data for Saving:", allData);
 
         try {
             const response = await fetch(url, {
@@ -471,7 +472,7 @@ export default function CreateLink() {
                 app.toast.show('An unexpected error occurred. Please try again.', { isError: true, duration: 3000 });
             }
         }
-    }, [selectedProductItems, linkName, linkId, selectedProducts, discountData, popupMessageData, selectedVariantIds, localLink, query]);
+    }, [selectedProductItems, linkName, linkId, selectedProducts, discountData, popupMessageData, selectedVariantIds, localLink, query, additionalSettingsData]);
 
     // -- Debounced page change handlers
     const handleNext = useCallback(() => {
