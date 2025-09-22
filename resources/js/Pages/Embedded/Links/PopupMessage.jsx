@@ -152,7 +152,7 @@ export default function PopupMessage({
                                                 <p className='text-black font-bold'>Product settings</p>
                                             </Text>
                                         </Box> 
-                                                <div style={{ display: "none" }}>
+                                                
                                                     <InlineStack align="space-between" blockAlign="start">
                                                         <Box>
                                                         <Text variant="bodyMd" fontWeight="medium">
@@ -164,7 +164,7 @@ export default function PopupMessage({
                                                         onClick={handleAllowDeselectToggle}
                                                         />
                                                     </InlineStack>
-                                                    </div>
+                                                    
                                         <InlineStack align="space-between" blockAlign="start">
                                             <Box>
                                                 <Text variant="bodyMd" fontWeight="medium">
