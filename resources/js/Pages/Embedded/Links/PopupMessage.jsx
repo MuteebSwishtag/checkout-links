@@ -151,18 +151,20 @@ export default function PopupMessage({
                                             <Text variant="headingMd" as="h3" fontWeight="medium">
                                                 <p className='text-black font-bold'>Product settings</p>
                                             </Text>
-                                        </Box>
-                                        <InlineStack align="space-between" blockAlign="start">
-                                            <Box>
-                                                <Text variant="bodyMd" fontWeight="medium">
-                                                    <p className='text-black font-normal'>Allow users to deselect products</p>
-                                                </Text>
-                                            </Box>
-                                            <Toggle
-                                                toggled={popupMessageData.allowDeselect}
-                                                onClick={handleAllowDeselectToggle}
-                                            />
-                                        </InlineStack>
+                                        </Box> 
+                                                <div style={{ display: "none" }}>
+                                                    <InlineStack align="space-between" blockAlign="start">
+                                                        <Box>
+                                                        <Text variant="bodyMd" fontWeight="medium">
+                                                            <p className='text-black font-normal'>Allow users to deselect products</p>
+                                                        </Text>
+                                                        </Box>
+                                                        <Toggle
+                                                        toggled={popupMessageData.allowDeselect}
+                                                        onClick={handleAllowDeselectToggle}
+                                                        />
+                                                    </InlineStack>
+                                                    </div>
                                         <InlineStack align="space-between" blockAlign="start">
                                             <Box>
                                                 <Text variant="bodyMd" fontWeight="medium">

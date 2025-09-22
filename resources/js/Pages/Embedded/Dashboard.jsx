@@ -16,6 +16,8 @@ import { CartIcon, LogoMetaIcon, SandboxIcon, ChevronRightIcon, ChartFunnelIcon,
 import bundle from '@/Pages/Images/Bundlo.png';
 import progressify from '@/Pages/Images/Progressify.png'
 import '@/Components/style.css';
+import { useAppBridge } from '@shopify/app-bridge-react';
+import { Redirect as AppBridgeRedirect } from '@shopify/app-bridge/actions';
 
 export default function Dashboard() {
     const [reload, setReload] = useState(true);
@@ -28,6 +30,7 @@ export default function Dashboard() {
     const [themeStatus, setThemeStatus] = useState(null);
     const page = usePage().props;
     const query = page.ziggy.query;
+    const appBridge = useAppBridge();
 
     const featuresData = [
         {
@@ -85,12 +88,22 @@ export default function Dashboard() {
     const redirectToThemeEditor = async () => {
         try {
             setIsRedirecting(true);
+            
+            // Get the redirect URL from your backend
             const response = await fetch(route('theme.status', { shop: query.shop }));
-
+            
             if (response.status === 201) {
                 const editorUrl = await response.json();
-                // Open the theme editor URL in a new tab
-                window.open(editorUrl, '_blank');
+                
+                // Create a form to submit that will break out of the iframe
+                // This approach works reliably in Safari and other browsers
+                const form = document.createElement('form');
+                form.setAttribute('method', 'GET');
+                form.setAttribute('action', editorUrl);
+                form.setAttribute('target', '_blank');
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
             } else {
                 const errorData = await response.json();
                 console.error("Theme editor redirection failed:", errorData);
