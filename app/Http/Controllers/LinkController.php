@@ -12,6 +12,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Exists;
 
 class LinkController extends Controller
@@ -22,16 +23,24 @@ class LinkController extends Controller
         $user = auth()->user();
         $data = $request->all();
         Log::info('Data received for saving link:', ['data' => $data]);
+        Log::info('Additional Settings Data received:', ['additionalSettingsData' => $data['additionalSettingsData'] ?? 'NOT_FOUND']);
 
-        // Validate the request
+        // Use the Link model's validation rules with per-user uniqueness
         $validator = Validator::make($data, [
-            'linkName' => 'required|string|max:255|unique:links,link_name',
+            'linkName' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('links', 'link_name')
+                    ->where('user_id', $user->id)
+            ],
             'linkId' => 'required|string',
             'selectedProductItems' => 'required|array|min:1',
             'selectedProductItems.*.productId' => 'required',
         ], [
             'linkName.required' => 'The link name is required',
-            'linkName.unique' => 'This link name already exists. Please choose another one.',
+            'linkName.unique' => 'You already have a link with this name. Please choose a different name.',
+            'linkName.max' => 'The link name may not be greater than 255 characters.',
             'linkId.required' => 'The link ID is required',
             'selectedProductItems.required' => 'At least one product must be selected',
             'selectedProductItems.min' => 'At least one product must be selected',
@@ -81,6 +90,7 @@ class LinkController extends Controller
                 'discount_value' => $data['discountData']['discountValue'] ?? null,
                 'free_shipping' => $data['discountData']['freeShipping'] ?? null,
                 'order_discount' => $data['discountData']['orderDiscount'] ?? null,
+                'single_order' => $data['additionalSettingsData']['allowOnlyOneOrder'] ?? false,
             ]);
 
             // 2. Save Popup Message
@@ -229,15 +239,25 @@ public function update(Request $request, $id)
     $user = auth()->user();
     $data = $request->all();
         Log::info('Data received for updating link:', ['data' => $data, 'link_id' => $id]);
+        Log::info('Additional Settings Data received for update:', ['additionalSettingsData' => $data['additionalSettingsData'] ?? 'NOT_FOUND']);
 
-        // Validate the request
-        $validator = \Validator::make($data, [
-            'linkName' => 'required|string|max:255',
+        // Validate the request with per-user uniqueness (ignore current link)
+        $validator = Validator::make($data, [
+            'linkName' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('links', 'link_name')
+                    ->where('user_id', $user->id)
+                    ->ignore($id) // Ignore the current link when editing
+            ],
             'linkId' => 'required|string',
             'selectedProductItems' => 'required|array|min:1',
             'selectedProductItems.*.productId' => 'required',
         ], [
             'linkName.required' => 'The link name is required',
+            'linkName.unique' => 'You already have a link with this name. Please choose a different name.',
+            'linkName.max' => 'The link name may not be greater than 255 characters.',
             'linkId.required' => 'The link ID is required',
             'selectedProductItems.required' => 'At least one product must be selected',
             'selectedProductItems.min' => 'At least one product must be selected',
@@ -293,6 +313,7 @@ public function update(Request $request, $id)
                 'discount_value' => $data['discountData']['discountValue'] ?? null,
                 'free_shipping' => $data['discountData']['freeShipping'] ?? null,
                 'order_discount' => $data['discountData']['orderDiscount'] ?? null,
+                'single_order' => $data['additionalSettingsData']['allowOnlyOneOrder'] ?? false,
             ]);
 
         // 2. Update or create Popup Message
@@ -476,6 +497,11 @@ public function update(Request $request, $id)
             return $this->showLinkNotFoundPage();
         }
 
+        // Check if single_order is enabled and if order has already been placed
+        if ($link->single_order && $link->placed_order > 0) {
+            return $this->showSingleOrderLimitReached();
+        }
+
         $user = User::where('id', $link->user_id)->first();
         $shopUrl = "https://" . urlencode($user ? $user->name : 'Guest');
 
@@ -627,6 +653,103 @@ public function update(Request $request, $id)
         </html>';
 
         return response($html, 404)->header('Content-Type', 'text/html');
+    }
+
+    /**
+     * Show a user-friendly error page when single order limit is reached
+     *
+     * @return \Illuminate\Http\Response
+     */
+    private function showSingleOrderLimitReached()
+    {
+        $html = '
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Order Limit Reached</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    margin: 0;
+                    padding: 0;
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .container {
+                    background: white;
+                    border-radius: 20px;
+                    padding: 40px;
+                    text-align: center;
+                    box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                    max-width: 500px;
+                    margin: 20px;
+                }
+                .icon {
+                    font-size: 80px;
+                    margin-bottom: 20px;
+                    color: #ff9800;
+                }
+                h1 {
+                    color: #333;
+                    margin-bottom: 15px;
+                    font-size: 28px;
+                }
+                p {
+                    color: #666;
+                    line-height: 1.6;
+                    margin-bottom: 30px;
+                    font-size: 16px;
+                }
+                .btn {
+                    display: inline-block;
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                    padding: 15px 30px;
+                    text-decoration: none;
+                    border-radius: 50px;
+                    font-weight: bold;
+                    transition: transform 0.3s ease;
+                }
+                .btn:hover {
+                    transform: translateY(-2px);
+                }
+                .error-code {
+                    margin-top: 30px;
+                    font-size: 12px;
+                    color: #999;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="icon">⚠️</div>
+                <h1>Order Limit Reached</h1>
+                <p>
+                    This checkout link has already been used and only allows one order to be placed.
+                    <br><br>
+                    If you believe this is an error, please contact the person who shared this link with you.
+                </p>
+                <a href="javascript:history.back()" class="btn">Go Back</a>
+                <div class="error-code">Single Order Limit Enforced</div>
+            </div>
+            
+            <script>
+                // Auto-close after 10 seconds if opened in a popup
+                if (window.opener) {
+                    setTimeout(() => {
+                        window.close();
+                    }, 10000);
+                }
+            </script>
+        </body>
+        </html>';
+
+        return response($html, 403)->header('Content-Type', 'text/html');
     }
 
 

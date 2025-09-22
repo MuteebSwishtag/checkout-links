@@ -21,6 +21,7 @@ import {
     LegacyCard,
     EmptyState,
 } from '@shopify/polaris';
+
 import {
     ChevronDownIcon,
     ChevronUpIcon,
@@ -45,6 +46,8 @@ import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import Discount from './Discount';
 import PopupMessage from './PopupMessage';
 import '@/Components/style.css';
+// Add this import with the other imports at the top
+import AdditionalSettings from './AdditionalSettings';
 import '../../../../css/links.css';
 import truncate from 'lodash/truncate';
 // import { useAppBridge } from '@shopify/app-bridge-react';
@@ -151,6 +154,13 @@ export default function CreateLink() {
                 }
             }
 
+            if (localLink && localLink.single_order !== undefined) {
+                setAdditionalSettingsData({
+                    allowOnlyOneOrder: !!localLink.single_order
+                });
+            }
+
+
             if (Array.isArray(localLink.linked_variants)) {
                 const selected = localLink.linked_variants.map(v => {
                     const product = v.variant?.product || {};
@@ -238,6 +248,21 @@ export default function CreateLink() {
         discountCode: false,
         discountCodeValue: ''
     });
+    const [additionalSettingsData, setAdditionalSettingsData] = useState({
+        allowOnlyOneOrder: false
+    });
+
+    // Add handler for additional settings
+    const handleAdditionalSettingsToggle = useCallback((setting, value) => {
+        console.log('Additional Settings Toggle:', setting, value);
+        setAdditionalSettingsData(prev => {
+            const newState = { ...prev, [setting]: value };
+            console.log('New Additional Settings State:', newState);
+            return newState;
+        });
+    }, []);
+    const [additionalSettingsOpen, setAdditionalSettingsOpen] = useState(false);
+    const handleAdditionalSettingsSectionToggle = useCallback(() => setAdditionalSettingsOpen(!additionalSettingsOpen), [additionalSettingsOpen]);
 
     // Validation state
     const [errors, setErrors] = useState({
@@ -358,6 +383,7 @@ export default function CreateLink() {
             discountData,
             popupMessageData: formattedPopupMessageData,
             selectedVariantIds: actualVariantIds,
+            additionalSettingsData, // Add this line
         };
     };
 
@@ -2026,6 +2052,38 @@ export default function CreateLink() {
                                         </Box>
                                     </Collapsible>
                                 </BlockStack>
+                                {/* Additional Settings Card */}
+                                <BlockStack gap="400">
+                                    <Box background='bg' padding={'300'}>
+                                        <InlineStack align="space-between" padding="400">
+                                            <InlineStack align="center" gap='150'>
+                                                <Box>
+                                                    <Icon source={SettingsIcon} tone="base" />
+                                                </Box>
+                                                <Text variant="bodyLg" fontWeight='bold'>
+                                                    <p className='text-black font-bold'>Additional settings</p>
+                                                </Text>
+                                            </InlineStack>
+                                            <Button
+                                                onClick={handleAdditionalSettingsSectionToggle}
+                                                ariaExpanded={additionalSettingsOpen}
+                                                ariaControls="additional-settings-content"
+                                                variant='plain'
+                                                tone='base'
+                                                icon={additionalSettingsOpen ? ChevronUpIcon : ChevronDownIcon}
+                                            />
+                                        </InlineStack>
+                                    </Box>
+                                    <Collapsible open={additionalSettingsOpen} id="additional-settings-content">
+                                        <Box padding={'300'}>
+                                            <AdditionalSettings
+                                                additionalSettingsData={additionalSettingsData}
+                                                onSettingToggle={handleAdditionalSettingsToggle}
+                                            />
+                                        </Box>
+                                    </Collapsible>
+                                </BlockStack>
+
                             </Card>
                         </BlockStack>
                     </div>
