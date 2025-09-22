@@ -38,6 +38,8 @@ Route::group(['middleware' => ['verify.embedded', 'verify.shopify']], function (
 
     // Route to fetch settings for the current user
     Route::get('/settings/get', [ProductController::class, 'settingsGet'])->name('settings.get');
+    Route::get('/settings/app-block/get', [DashboardController::class, 'getAppBlock'])->name('settings.app-block.get');
+    Route::post('/settings/app-block/enable', [DashboardController::class, 'enableAppBlock'])->name('settings.app-block.enable');
 });
 
 // Public debug routes for testing - no authentication required

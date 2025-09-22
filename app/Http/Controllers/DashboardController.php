@@ -67,7 +67,7 @@ class DashboardController extends Controller
         Log::info('Theme Status: ' . $shop->theme_status);
         Log::info('Response Body: ' . print_r($response['body'], true));
 
-            if (isset($response['body']['data']['themes']['edges']) && !empty($response['body']['data']['themes']['edges'])) {
+        if (isset($response['body']['data']['themes']['edges']) && !empty($response['body']['data']['themes']['edges'])) {
             // Update theme status if it was 0
             if ($shop->theme_status == 0) {
                 $previousStatus = $shop->theme_status;
@@ -125,6 +125,217 @@ class DashboardController extends Controller
         $filters['financial_status'] = $request->financial_status;
         $filters['fulfillment_status'] = $request->fulfillment_status;
 
-        return $this->OrderRepository->SearchFilter( $filters);
+        return $this->OrderRepository->SearchFilter($filters);
+    }
+
+    private function randomKey20Digits()
+    {
+        $key = '';
+        for ($i = 0; $i < 20; $i++) {
+            $key .= random_int(0, 9);
+        }
+        return $key;
+    }
+
+    public function getAppBlock(Request $request)
+    {
+        $user = auth()->user();
+
+        // Get the main theme ID using GraphQL
+        $query = <<<GRAPHQL
+        {
+          themes(first: 1, query: "role:main") {
+            edges {
+              node {
+                id
+              }
+            }
+          }
+        }
+        GRAPHQL;
+
+        $data = $user->api()->graph($query);
+        if (isset($data['errors']) || empty($data['body']['data']['themes']['edges'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while fetching themes!',
+                'data' => null
+            ]);
+        }
+        $theme_id = $data['body']['data']['themes']['edges'][0]['node']['id'];
+
+        // Get the settings_data.json file content
+        $query = <<<GRAPHQL
+        {
+          onlineStoreTheme(id: "$theme_id") {
+            files(first: 1, query: "filename:config/settings_data.json") {
+              edges {
+                node {
+                  filename
+                  body
+                }
+              }
+            }
+          }
+        }
+        GRAPHQL;
+
+        $data = $user->api()->graph($query);
+        if (isset($data['errors']) || empty($data['body']['data']['onlineStoreTheme']['files']['edges'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while fetching theme file!',
+                'data' => null
+            ]);
+        }
+        $theme_json = $data['body']['data']['onlineStoreTheme']['files']['edges'][0]['node']['body'];
+        $theme_data = json_decode($theme_json, true);
+        $theme_blocks = collect(isset($theme_data['current']['blocks']) ? $theme_data['current']['blocks'] : []);
+        $theme_blocks = $theme_blocks->filter(function ($value) {
+            return str_contains($value['type'], '75f1063a-3e3e-43ad-aaf4-91098c20048c');
+        });
+
+        if ($theme_blocks->count() < 1) {
+            $randomKey = $this->randomKey20Digits();
+            return response()->json([
+                'success' => true,
+                'message' => 'Theme app blocks not found!',
+                'data' => json_decode('{
+                    "' . $randomKey . '": {
+                        "type": "shopify://apps/checkoutlinks/blocks/star_rating/75f1063a-3e3e-43ad-aaf4-91098c20048c",
+                        "disabled": true,
+                        "settings": {
+                        }
+                      }
+                }')
+            ]);
+        }
+        return response()->json([
+            'success' => true,
+            'message' => 'Theme app blocks retrieved successfully!',
+            'data' => $theme_blocks
+        ]);
+    }
+
+    public function enableAppBlock(Request $request)
+    {
+        $user = auth()->user();
+
+        // Get the main theme ID using GraphQL
+        $query = <<<GRAPHQL
+        {
+          themes(first: 1, query: "role:main") {
+            edges {
+              node {
+                id
+              }
+            }
+          }
+        }
+        GRAPHQL;
+
+        $data = $user->api()->graph($query);
+        if (isset($data['errors']) || empty($data['body']['data']['themes']['edges'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while fetching themes!',
+                'data' => null
+            ]);
+        }
+        $theme_id = $data['body']['data']['themes']['edges'][0]['node']['id'];
+
+        // Get the settings_data.json file content
+        $query = <<<GRAPHQL
+        {
+          onlineStoreTheme(id: "$theme_id") {
+            files(first: 1, query: "filename:config/settings_data.json") {
+              edges {
+                node {
+                  filename
+                  body
+                }
+              }
+            }
+          }
+        }
+        GRAPHQL;
+
+        $data = $user->api()->graph($query);
+        if (isset($data['errors']) || empty($data['body']['data']['onlineStoreTheme']['files']['edges'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while fetching theme file!',
+                'data' => null
+            ]);
+        }
+        $theme_json = $data['body']['data']['onlineStoreTheme']['files']['edges'][0]['node']['body'];
+        $theme_data = json_decode($theme_json);
+
+        $theme_blocks = collect(isset($theme_data->current->blocks) ? $theme_data->current->blocks : []);
+        if (is_string($theme_data->current)) {
+            $theme_data->current = (object) [];
+        }
+        if ($theme_blocks->count() < 1) {
+            $theme_data->current->blocks = (object) $theme_blocks->toArray();
+        }
+        $found = false;
+        $theme_blocks->transform(function ($value) use (&$found) {
+            if (str_contains($value->type, '75f1063a-3e3e-43ad-aaf4-91098c20048c')) {
+                $value->disabled = false;
+                $found = true;
+            }
+            return $value;
+        });
+        if (!$found) {
+            $theme_blocks = $theme_blocks->toArray();
+            $randomKey = $this->randomKey20Digits();
+            $theme_blocks[$randomKey] = [
+                'type' => 'shopify://apps/checkoutlinks/blocks/star_rating/75f1063a-3e3e-43ad-aaf4-91098c20048c',
+                'disabled' => false,
+                'settings' => (object) [],
+            ];
+        }
+        $theme_data->current->blocks = (object) $theme_blocks;
+        $new_theme_json = json_encode($theme_data, JSON_PRETTY_PRINT);
+
+        // Update the theme file using GraphQL mutation
+        $mutation = <<<GRAPHQL
+        mutation themeFilesUpsert(\$files: [OnlineStoreThemeFileInput!]!, \$id: ID!) {
+          onlineStoreThemeFilesUpsert(files: \$files, themeId: \$id) {
+            upsertedThemeFiles {
+              filename
+            }
+            userErrors {
+              field
+              message
+            }
+          }
+        }
+        GRAPHQL;
+
+        $variables = [
+            'id' => $theme_id,
+            'files' => [
+                [
+                    'filename' => 'config/settings_data.json',
+                    'body' => $new_theme_json
+                ]
+            ]
+        ];
+
+        $data = $user->api()->graph($mutation, $variables);
+        if (isset($data['errors']) || !empty($data['body']['data']['onlineStoreThemeFilesUpsert']['userErrors'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'An error occurred while updating theme file!',
+                'data' => $data['body']['data']['onlineStoreThemeFilesUpsert']['userErrors'] ?? null
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'App block enabled successfully!',
+            'data' => $data
+        ]);
     }
 }
