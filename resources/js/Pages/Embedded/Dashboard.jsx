@@ -54,13 +54,14 @@ export default function Dashboard() {
     const fetchLinks = async () => {
         try {
             setIsLoading(true);
-            const response = await fetch(route('links.get',query));
+            const response = await fetch(route('links.get', query));
 
             console.log("Fetch links response:", response);
             const data = await response.json();
             console.log("Fetched links data:", data);
-            // Extract just the links array from the response
-            setLinks(data.links || []);
+
+            // Extract only the first 2 links
+            setLinks((data.links || []).slice(0, 2));
         } catch (error) {
             console.error("Error fetching links:", error);
         } finally {
