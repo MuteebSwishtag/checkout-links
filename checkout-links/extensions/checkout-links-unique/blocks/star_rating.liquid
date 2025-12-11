@@ -533,9 +533,11 @@
     if (modalElement) {
       // Check if we're in the Shopify theme editor
       const isThemeEditor = window.Shopify && window.Shopify.designMode;
+      // Get the popup enabled setting
+      const isPopupEnabled = {% if block.settings.enable_popup %}true{% else %}false{% endif %};
       
-      if (isThemeEditor) {
-        // Always show modal in theme editor for preview
+      if (isThemeEditor && isPopupEnabled) {
+        // Only show modal in theme editor for preview when enabled
         setTimeout(() => {
           // Add theme editor disclaimer at the top of the modal
           const modalContent = modalElement.querySelector('.modal-content');
@@ -560,14 +562,14 @@
           modalElement.classList.add('show');
           document.body.classList.add('modal-open');
           
-          // Set up sample data for theme editor preview
+          // Set up sample data for theme editor preview only if popup is enabled
           if (typeof setupSampleDataForThemeEditor === 'function') {
             setupSampleDataForThemeEditor();
           } else {
             console.error('setupSampleDataForThemeEditor function not found');
           }
           
-          console.log("Modal automatically shown in theme editor");
+          console.log("Modal automatically shown in theme editor with enable_popup: {% if block.settings.enable_popup %}true{% else %}false{% endif %}");
         }, 1000); // Small delay to ensure content is loaded
       } else {
         // Reset modal to initial state to avoid any CSS issues
@@ -589,7 +591,10 @@
       
       window.showModalManually = function() {
         const modal = document.getElementById('orderSummaryModal');
-        if (modal) {
+        const isPopupEnabled = {% if block.settings.enable_popup %}true{% else %}false{% endif %};
+        const isThemeEditor = window.Shopify && window.Shopify.designMode;
+        
+        if (modal && (isPopupEnabled || !isThemeEditor)) {
           modal.style.display = 'flex';
           modal.style.visibility = 'visible';
           modal.classList.add('show');
@@ -598,6 +603,29 @@
           return true;
         }
         return false;
+      };
+    }
+  });
+</script>
+
+<script>
+  // Override the forceShowModal function to check if popup is enabled in theme settings
+  document.addEventListener('DOMContentLoaded', function() {
+    if (window.forceShowModal) {
+      const originalForceShowModal = window.forceShowModal;
+      window.forceShowModal = function() {
+        // Check if we're in the theme editor and if the popup is enabled
+        const isThemeEditor = window.Shopify && window.Shopify.designMode;
+        const isPopupEnabled = {% if block.settings.enable_popup %}true{% else %}false{% endif %};
+        
+        // In theme editor, only show if enabled in settings
+        if (isThemeEditor && !isPopupEnabled) {
+          console.log('Popup is disabled in theme settings. Not showing popup.');
+          return;
+        }
+        
+        // Call the original function
+        originalForceShowModal();
       };
     }
   });
@@ -612,7 +640,16 @@ It defines all the settings that will be available in the Shopify theme editor.
 {
   "name": "Checkout Links Popup",
   "target": "body",
-  "settings": []
+  "settings": [
+     {
+        "type": "header",
+        "content": "Enable Popup"
+      },
+      {
+        "type": "paragraph",
+        "content": "💡Enable this popup for preview"
+      },
+    { "type": "checkbox", "id": "enable_popup", "label": "Enable Popup", "default": false },
+  ]
 }
 {% endschema %}
-

@@ -565,28 +565,180 @@ document.addEventListener('DOMContentLoaded', function () {
    * Applies custom CSS and brand colors
    */
   function applyBrandStylesAndCustomCSS(linkData) {
-    // Apply custom CSS if available
+    // Extract settings from different possible locations
+    let customCss = null;
+    let brandColor = null;
+
+    // Check in linkData.user.settings (based on the actual data structure from logs)
     if (linkData.user?.settings) {
-      const customCss = (Array.isArray(linkData.user.settings)
-        ? linkData.user.settings.find(s => s.key === 'custom_css')?.value
-        : linkData.user.settings.custom_css);
+      // Properly handle the settings array structure we've seen in the logs
+      if (Array.isArray(linkData.user.settings)) {
+        const cssEntry = linkData.user.settings.find(s => s.key === 'custom_css');
+        if (cssEntry && cssEntry.value) {
+          customCss = cssEntry.value;
+        }
+
+        const colorEntry = linkData.user.settings.find(s => s.key === 'brand_color_hex');
+        if (colorEntry && colorEntry.value) {
+          brandColor = colorEntry.value;
+        }
+      } else if (typeof linkData.user.settings === 'object') {
+        // Fallback for object format
+        customCss = linkData.user.settings.custom_css;
+        brandColor = linkData.user.settings.brand_color_hex;
+      }
+    }
+
+    // Check in linkData.settings if not found
+    if (!customCss && linkData.settings) {
+      if (Array.isArray(linkData.settings)) {
+        const cssEntry = linkData.settings.find(s => s.key === 'custom_css');
+        if (cssEntry && cssEntry.value) {
+          customCss = cssEntry.value;
+        }
+      } else if (typeof linkData.settings === 'object') {
+        customCss = linkData.settings.custom_css;
+      }
+    }
+
+    // Check in popup_message if not found
+    if (!customCss && linkData.popup_message?.custom_css) {
+      customCss = linkData.popup_message.custom_css;
+    }
+
+    console.log('Custom CSS found:', customCss ? 'Yes' : 'No');
+
+    // Apply custom CSS if available
+    if (customCss) {
+      // console.log('Applying custom CSS to modal', customCss);
 
       if (customCss) {
+        // console.log('Applying custom CSS to modal - length:', customCss.length);
+        // console.log('First 100 chars of CSS:', customCss.substring(0, 100));
+      // Create a style element
         const styleElement = document.createElement('style');
-        styleElement.textContent = customCss;
+
+        // Make sure the modal has our identifier class
+        const modalElement = document.getElementById('orderSummaryModal');
+        if (modalElement && !modalElement.classList.contains('checkout-links-popup')) {
+          modalElement.classList.add('checkout-links-popup');
+        }
+
+        // List of all our modal-specific class prefixes and IDs for better targeting
+        const modalSpecificSelectors = [
+          '#orderSummaryModal',
+          '.modal-',
+          '.order-',
+          '.item-',
+          '.product-',
+          '.confirm-btn',
+          '.no-thanks',
+          '.countdown-',
+          '.discount-',
+          '.total-',
+          '.checkbox-',
+          '.custom-checkbox',
+          '.theme-editor-disclaimer',
+          '.checkout-links-'
+        ];
+
+        // Process the CSS to scope it properly
+        let scopedCss = '';
+        try {
+          // Split CSS into rules
+          const cssRules = customCss.split('}');
+
+          for (let i = 0; i < cssRules.length; i++) {
+            const rule = cssRules[i].trim();
+            if (!rule) continue;
+
+            // Split into selector and declaration parts
+            const ruleMatch = rule.split('{');
+            if (ruleMatch.length !== 2) continue;
+
+            const selectors = ruleMatch[0].split(',');
+            const declarations = ruleMatch[1].trim();
+
+            // Process each selector
+            const scopedSelectors = selectors.map(selector => {
+              selector = selector.trim();
+
+              // If this is targeting the body or html, we need special handling
+              if (selector === 'body' || selector === 'html') {
+                return `#orderSummaryModal ${selector}`;
+              }
+
+              // Check if this selector is already specific to our modal elements
+              const isModalSpecific = modalSpecificSelectors.some(prefix =>
+                selector === prefix || selector.startsWith(prefix) || selector.includes(prefix)
+              );
+
+              // For selectors already targeting our modal elements, don't add additional scoping
+              if (isModalSpecific) {
+                return selector;
+              }
+
+              // If selector has :root, replace it with our modal ID
+              if (selector.includes(':root')) {
+                return selector.replace(':root', '#orderSummaryModal');
+              }
+
+              // For all other selectors, scope them to our modal
+              return `#orderSummaryModal ${selector}`;
+            });
+
+            // Rebuild the rule with properly scoped selectors
+            scopedCss += scopedSelectors.join(', ') + ' {' + declarations + '}\n';
+          }
+        } catch (error) {
+          console.error('Error processing custom CSS:', error);
+          // If parsing fails, use the original CSS
+          scopedCss = customCss;
+        }
+
+        // Apply the scoped CSS
+        styleElement.textContent = scopedCss;
         document.head.appendChild(styleElement);
+
+        // Log for debugging
+        // console.log('Applied custom CSS to modal');
+        // console.log('First 100 chars of processed CSS:', scopedCss.substring(0, 100));
       }
     }
 
     // Set confirm button background color
-    const brandColor = (Array.isArray(linkData.user?.settings)
-      ? linkData.user.settings.find(s => s.key === 'brand_color_hex')?.value
-      : linkData.user?.settings?.brand_color_hex);
+    // Try to get brand color if not already found
+    if (!brandColor) {
+      // Check in linkData.settings - using the same array structure we saw in logs
+      if (linkData.settings) {
+        if (Array.isArray(linkData.settings)) {
+          const colorEntry = linkData.settings.find(s => s.key === 'brand_color_hex');
+          if (colorEntry && colorEntry.value) {
+            brandColor = colorEntry.value;
+          }
+        } else if (typeof linkData.settings === 'object') {
+          brandColor = linkData.settings.brand_color_hex;
+        }
+      }
+
+      // Check in popup_message
+      if (!brandColor && linkData.popup_message?.brand_color_hex) {
+        brandColor = linkData.popup_message.brand_color_hex;
+      }
+
+      // Fallback to theme color
+      if (!brandColor && window.checkoutConfig?.theme_editor?.button_color) {
+        brandColor = window.checkoutConfig.theme_editor.button_color;
+      }
+    }
+
+    // console.log('Brand color found:', brandColor || 'No');
 
     if (brandColor) {
       setTimeout(() => {
         const confirmBtn = document.querySelector('.confirm-btn');
         if (confirmBtn) {
+          // console.log('Applying brand color to confirm button:', brandColor);
           confirmBtn.style.backgroundColor = brandColor;
         }
       }, 200);
@@ -597,27 +749,27 @@ document.addEventListener('DOMContentLoaded', function () {
    * Gets URL parameters and updates configuration
    */
   function getParamsFromUrl() {
-    console.log('Checking URL parameters');
+    // console.log('Checking URL parameters');
     const urlParams = new URLSearchParams(window.location.search);
     let linkId = urlParams.get('link_id');
     let backendUrl = urlParams.get('backend_url');
     let discountCode = urlParams.get('discount_code');
 
-    console.log('URL params:', { linkId, backendUrl, discountCode });
+    // console.log('URL params:', { linkId, backendUrl, discountCode });
 
     // Use fallbacks if available from hardcoded config or data attributes
     if (!linkId) {
       const dataLinkElement = document.querySelector('[data-link-id]');
       linkId = dataLinkElement?.dataset.linkId || '';
-      console.log('Using data-link-id fallback:', linkId, 'from element:', dataLinkElement);
+      // console.log('Using data-link-id fallback:', linkId, 'from element:', dataLinkElement);
     }
     if (!backendUrl) {
       backendUrl = document.querySelector('[data-backend-url]')?.dataset.backendUrl || '';
-      console.log('Using data-backend-url fallback:', backendUrl);
+      // console.log('Using data-backend-url fallback:', backendUrl);
     }
     if (!discountCode) {
       discountCode = document.querySelector('[data-discount-code]')?.dataset.discountCode || '';
-      console.log('Using data-discount-code fallback:', discountCode);
+      // console.log('Using data-discount-code fallback:', discountCode);
     }
 
     if (backendUrl) {
@@ -625,7 +777,7 @@ document.addEventListener('DOMContentLoaded', function () {
         // Normalize backend URL
         const url = new URL(backendUrl);
         backendUrl = url.toString().replace(/\/+$/, '');
-        console.log('Normalized backend URL:', backendUrl);
+        // console.log('Normalized backend URL:', backendUrl);
       } catch (e) {
         console.log('Invalid backend URL, using as-is:', backendUrl);
       }
@@ -634,11 +786,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (window.checkoutConfig) {
       if (linkId) {
         window.checkoutConfig.link_id = linkId;
-        console.log('Updated checkoutConfig.link_id:', linkId);
+        // console.log('Updated checkoutConfig.link_id:', linkId);
       }
       if (backendUrl) {
         window.checkoutConfig.backendUrl = backendUrl;
-        console.log('Updated checkoutConfig.backendUrl:', backendUrl);
+        // console.log('Updated checkoutConfig.backendUrl:', backendUrl);
       }
 
       // Make sure we properly handle the discount code
@@ -819,6 +971,12 @@ document.addEventListener('DOMContentLoaded', function () {
     window.checkoutConfig.link = linkData;
     console.log('Fetched link data:', linkData);
 
+    // Try to apply custom CSS as early as possible if link data has user settings
+    if (linkData.user?.settings) {
+      console.log('Link data has user settings, attempting early CSS application');
+      setTimeout(() => applyBrandStylesAndCustomCSS(linkData), 0);
+    }
+
     // Get variants
     const variants = linkData.linked_variants || linkData.linkedVariants || [];
     const allVariants = [];
@@ -954,6 +1112,11 @@ document.addEventListener('DOMContentLoaded', function () {
       window.checkoutConfig.products = [];
     }
 
+    // Apply brand styles and custom CSS if link data exists
+    if (window.checkoutConfig.link) {
+      applyBrandStylesAndCustomCSS(window.checkoutConfig.link);
+    }
+
     window.updateModalContent();
 
     // Show the modal - this is needed for the popup to appear
@@ -967,6 +1130,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // Save original link countdown time before updateModalContent potentially changes it
     const originalCountdownTime = window.checkoutConfig.countdown_time;
     const originalCountdownActive = window.checkoutConfig.countdown_active;
+
+    // Apply brand styles and custom CSS before updating modal content
+    if (window.checkoutConfig.link) {
+      applyBrandStylesAndCustomCSS(window.checkoutConfig.link);
+    }
 
     // Update the modal content
     window.updateModalContent();
@@ -1711,14 +1879,37 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     }
 
-    // Show the modal
-    modalElement.classList.add('show');
-    modalElement.style.display = 'flex';
-    modalElement.style.visibility = 'visible';
-    modalElement.style.opacity = '1';
-    modalElement.style.zIndex = '1050';
-    modalElement.setAttribute('aria-hidden', 'false');
-    document.body.classList.add('modal-open');
+    // Make sure styles are applied BEFORE showing the modal
+    if (window.checkoutConfig?.link && !modalElement.hasAttribute('data-styles-applied')) {
+      console.log('Applying styles from showModal function');
+      applyBrandStylesAndCustomCSS(window.checkoutConfig.link);
+      modalElement.setAttribute('data-styles-applied', 'true');
+
+      // Small delay to ensure styles are processed before showing
+      setTimeout(() => {
+        // Now show the modal
+        modalElement.classList.add('show');
+        modalElement.classList.add('checkout-links-popup'); // Add scoping class for custom CSS
+        modalElement.style.display = 'flex';
+        modalElement.style.visibility = 'visible';
+        modalElement.style.opacity = '1';
+        modalElement.style.zIndex = '1050';
+        modalElement.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('modal-open');
+        console.log('Modal displayed with styles applied');
+      }, 10);
+    } else {
+      // Show the modal directly if styles already applied
+      modalElement.classList.add('show');
+      modalElement.classList.add('checkout-links-popup'); // Add scoping class for custom CSS
+      modalElement.style.display = 'flex';
+      modalElement.style.visibility = 'visible';
+      modalElement.style.opacity = '1';
+      modalElement.style.zIndex = '1050';
+      modalElement.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+      console.log('Modal displayed successfully');
+    }
     
     // Add backdrop click event listener
     modalElement.addEventListener('click', function(e) {
