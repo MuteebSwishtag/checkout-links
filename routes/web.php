@@ -5,6 +5,11 @@ use App\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DashboardController;
 use Inertia\Inertia;
+use Osiset\ShopifyApp\Contracts\Queries\Shop;
+use Osiset\ShopifyApp\Messaging\Jobs\WebhookInstaller;
+use Osiset\ShopifyApp\Objects\Values\ShopDomain;
+use Osiset\ShopifyApp\Util;
+use App\Models\User;
 
 Route::group(['middleware' => ['verify.embedded', 'verify.shopify']], function () {
 
@@ -26,6 +31,7 @@ Route::group(['middleware' => ['verify.embedded', 'verify.shopify']], function (
     Route::get('/theme-status', [DashboardController::class, 'theme_setting_status'])->name('theme.status');
     Route::get('/api/theme-status-check', [DashboardController::class, 'checkThemeStatus'])->name('theme.status.check');
     Route::get('/allProducts', [ProductController::class, 'getProducts'])->name('products.all');
+    Route::post('/products/sync', [ProductController::class, 'syncProducts'])->name('products.sync');
     Route::post('/links/save', [LinkController::class, 'saveLink'])->name('products.save');
     Route::get('/links/get', [LinkController::class, 'getLinks'])->name('links.get');
     Route::get('/links/generate-unique-id', [LinkController::class, 'generateUniqueId'])->name('links.generateUniqueId');
@@ -52,5 +58,33 @@ Route::get('/debug/test', function () {
 //     Log::info('Checkout route accessed');
 // })->name('checkout');
 Route::get('/checkout/{id}', [LinkController::class, 'openCheckout'])->name('checkout.handle');
+
+// Reinstall webhooks for all users (excludes role_id filtering)
+Route::get('/jobs-result2', function (Shop $query) {
+    $users = User::whereNotNull('password')->get();
+    $processed = 0;
+    $errors = [];
+    
+    foreach ($users as $user) {
+        try {
+            $shopName = ShopDomain::fromNative($user->name);
+            $shop = $query->getByDomain($shopName);
+            
+            if ($shop) {
+                $shopId = $shop->getId();
+                WebhookInstaller::dispatch($shopId, Util::getShopifyConfig('webhooks'));
+                $processed++;
+            }
+        } catch (\Exception $e) {
+            $errors[] = "User {$user->id} ({$user->name}): " . $e->getMessage();
+        }
+    }
+    
+    return response()->json([
+        'success' => true,
+        'message' => "Webhook reinstall dispatched for {$processed} users",
+        'errors' => $errors
+    ]);
+});
 
 require __DIR__ . '/auth.php';

@@ -11,3 +11,7 @@ Route::get('/user', function (Request $request) {
 // Public endpoint to get link data by ID for the extension
 Route::get('/links/{id}', [LinkController::class, 'getLinkData'])->name('links.getLinkData');
 Route::post('/order-count', [LinkController::class, 'count']);
+Route::get('/zakeke/products', function () {
+    logger()->info('Zakeke Webhook Called');
+    return response()->json(['status' => 'success']);
+});

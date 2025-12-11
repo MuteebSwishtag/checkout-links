@@ -110,14 +110,14 @@ class ProductsUpdateJob implements ShouldQueue
     private function fetchInventoryItemFromShopify($inventoryItemId, User $user)
     {
         $query = <<<GQL
-    query {
-        inventoryItem(id: "gid://shopify/InventoryItem/{$inventoryItemId}") {
-            id
-            tracked
-            sku
-        }
-    }
-    GQL;
+                query {
+                    inventoryItem(id: "gid://shopify/InventoryItem/{$inventoryItemId}") {
+                        id
+                        tracked
+                        sku
+                    }
+                }
+                GQL;
 
         $result = $this->arrayToObject($user->api()->graph($query));
         Log::info("Fetched inventory item for ID {$inventoryItemId}: " . json_encode($result));
@@ -128,3 +128,4 @@ class ProductsUpdateJob implements ShouldQueue
         return null;
     }
 }
+  

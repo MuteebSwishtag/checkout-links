@@ -317,7 +317,7 @@ export default function CreateLink() {
                 );
                 const data = await response.json();
                 if (data && Array.isArray(data.data)) {
-                    setProducts(data.data);
+                    setProducts(data.data); 
                     setCurrentPage(data.pagination.current_page);
                     setTotalPages(data.pagination.last_page);
                     setShop(data.pagination.shop || '');
@@ -495,6 +495,7 @@ export default function CreateLink() {
         const policy = (v.inventory_policy || '').toLowerCase();
         const quantity = parseInt(v.inventory_quantity ?? v.available ?? 0);
         const tracked = !!v.inventory_tracked;
+        console.log("Checking availability for variant:", v.id, "Policy:", policy, "Quantity:", quantity, "Tracked:", tracked);
 
         if (policy === 'continue') return true;
         if (!tracked) return true;
@@ -1840,7 +1841,14 @@ export default function CreateLink() {
                                                                                                 </div>
 
                                                                                                 {/* Inventory */}
-                                                                                                <div style={{ textAlign: 'center', color: '#888' }}> {variantUnavailable ? "Sold Out" : `${variant.available && variant.available > 0 ? variant.available : "Unlimited"} available`} </div>
+                                                                                                <div style={{ textAlign: 'center', color: '#888' }}>
+                                                                                                    {variantUnavailable 
+                                                                                                        ? "Sold Out" 
+                                                                                                        : !variant.inventory_tracked 
+                                                                                                            ? "Unlimited" 
+                                                                                                            : `${variant.inventory_quantity ?? 0} available`
+                                                                                                    }
+                                                                                                </div>
 
                                                                                                 {/* Price */}
                                                                                                 <div style={{ textAlign: 'right' }}>
@@ -2937,7 +2945,14 @@ export default function CreateLink() {
                                                                         </div>
 
                                                                         {/* Inventory */}
-                                                                        <div style={{ textAlign: 'center', color: '#888' }}> {variantUnavailable ? "Sold Out" : `${variant.available && variant.available > 0 ? variant.available : "Unlimited"} available`} </div>
+                                                                        <div style={{ textAlign: 'center', color: '#888' }}>
+                                                                            {variantUnavailable 
+                                                                                ? "Sold Out" 
+                                                                                : !variant.inventory_tracked 
+                                                                                    ? "Unlimited" 
+                                                                                    : `${variant.inventory_quantity ?? 0} available`
+                                                                            }
+                                                                        </div>
 
                                                                         {/* Price */}
                                                                         <div style={{ textAlign: 'right' }}>

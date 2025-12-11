@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Jobs\ProductSyncJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -97,5 +98,32 @@ class ProductController extends Controller
             ['value' => $data['custom_css'] ?? null]
         );
         return response()->json(['status' => 'success']);
+    }
+
+    /**
+     * Sync products from Shopify
+     */
+    public function syncProducts(Request $request)
+    {
+        $user = Auth::user();
+        
+        try {
+            // Dispatch the ProductSyncJob
+            ProductSyncJob::dispatch($user->id);
+            
+            Log::info('Product sync job dispatched for user ID: ' . $user->id);
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Product sync started. This may take a few moments.'
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Failed to dispatch product sync job: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to start product sync. Please try again.'
+            ], 500);
+        }
     }
 }

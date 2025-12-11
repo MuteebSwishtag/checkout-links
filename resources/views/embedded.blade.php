@@ -17,37 +17,36 @@
     <ui-nav-menu>
         <a href="/" rel="home">Dashboard</a>
         <a href="/links">Links</a>
-        <a href="/how-it-works">How its Works</a>
+        <a href="/how-it-works">How it Works</a>
         <a href="/settings">Settings</a>
           <!-- <a href="/">FAQs</a> -->
 
     </ui-nav-menu>
 
     <script>
-        const {
+const { fetch: originalFetch } = window;
 
-            fetch: originalFetch
-        } = window;
+window.fetch = async (...args) => {
+    let [resource, config] = args;
 
-        window.fetch = async (...args) => {
-            let [resource, config] = args;
+    // Check if the request is to Crisp Chat
+    if (typeof resource === 'string' && resource.startsWith('https://client.crisp.chat')) {
+        // Just forward the request unmodified
+        return originalFetch(resource, config);
+    }
 
-            // request interceptor here
-            let token = await shopify.idToken();
-
-            config = {
-                ...config,
-                headers: {
-                    ...config?.headers,
-                    'Accept': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            }
-            const response = await originalFetch(resource, config);
-            // response interceptor here
-            return response;
-        };
-    </script>
-    <script
-        type="text/javascript">window.$crisp = []; window.CRISP_WEBSITE_ID = "d5fcbb84-156f-480d-8c66-e3a1f15cc3d8"; (function () { d = document; s = d.createElement("script"); s.src = "https://client.crisp.chat/l.js"; s.async = 1; d.getElementsByTagName("head")[0].appendChild(s); })();</script>
-@endsection
+    // Otherwise, add Authorization header
+    let token = await shopify.idToken();
+    config = {
+        ...config,
+        headers: {
+            ...config?.headers,
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`
+        }
+    };
+    return originalFetch(resource, config);
+};
+</script>
+<script type="text/javascript">window.$crisp=[];window.CRISP_WEBSITE_ID="d5fcbb84-156f-480d-8c66-e3a1f15cc3d8";(function(){d=document;s=d.createElement("script");s.src="https://client.crisp.chat/l.js";s.async=1;d.getElementsByTagName("head")[0].appendChild(s);})();</script>
+ @endsection

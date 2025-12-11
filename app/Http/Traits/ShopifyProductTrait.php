@@ -63,9 +63,10 @@ trait ShopifyProductTrait
     }
     public function shopifyGraphqlProductQuery($user, $cursor)
     {
+        // Fetch ALL products (active, draft, archived) to properly sync status changes
         $query = <<<QUERY
             query {
-                products(first: 250, after: $cursor,query: "published_status:published") {
+                products(first: 250, after: $cursor) {
                     edges {
                         node {
                             id
@@ -200,53 +201,95 @@ QUERY;
     }
     public function transformShopifyProductData($data): array
     {
-        // dd($data);
-        $node = $data->node;
+        // Handle both object and array formats
+        $node = is_object($data) ? ($data->node ?? $data) : (object)($data['node'] ?? $data);
+        
         $productVariants = [];
-        if (!empty($node->variants->edges)) {
-            foreach ($node->variants->edges as $edge) {
-                $variant = $edge->node;
+        
+        // Handle variants - check multiple possible structures
+        $variantEdges = null;
+        if (isset($node->variants->edges)) {
+            $variantEdges = $node->variants->edges;
+        } elseif (isset($node->variants) && is_array($node->variants)) {
+            $variantEdges = $node->variants;
+        }
+        
+        if ($variantEdges) {
+            foreach ($variantEdges as $edge) {
+                // Handle both edge->node format and direct variant format
+                $variant = isset($edge->node) ? $edge->node : (is_object($edge) ? $edge : (object)$edge);
+                
+                // Get inventory item - handle nested structure
+                $inventoryItem = $variant->inventoryItem ?? $variant->inventory_item ?? null;
+                $inventoryItemId = null;
+                $inventoryTracked = true;
+                
+                if ($inventoryItem) {
+                    $inventoryItemId = $inventoryItem->id ?? null;
+                    $inventoryTracked = $inventoryItem->tracked ?? true;
+                }
+                
                 $productVariants[] = [
-                    'compare_at_price' => $variant->compareAtPrice ?? null,
-                    'id' => $this->extractId($variant->id),
+                    'compare_at_price' => $variant->compareAtPrice ?? $variant->compare_at_price ?? null,
+                    'id' => $this->extractId($variant->id ?? ''),
                     'price' => $variant->price ?? null,
                     'sku' => $variant->sku ?? null,
                     'title' => $variant->title ?? null,
-                    'inventory_item_id' => $this->extractId($variant->inventoryItem->id ?? null),
-                    'inventory_quantity' => $variant->inventoryQuantity ?? 0,
-                    'inventory_policy' => $variant->inventoryPolicy ?? 'deny',
-                    'inventory_tracked' => $variant->inventoryItem->tracked ?? true,
+                    'inventory_item_id' => $this->extractId($inventoryItemId ?? ''),
+                    'inventory_quantity' => $variant->inventoryQuantity ?? $variant->inventory_quantity ?? 0,
+                    'inventory_policy' => $variant->inventoryPolicy ?? $variant->inventory_policy ?? 'DENY',
+                    'inventory_tracked' => $inventoryTracked,
                 ];
             }
         }
+        
+        Log::info("Transformed variants count: " . count($productVariants));
+        
         $productMedia = [];
-        if (!empty($node->media->edges)) {
-            foreach ($node->media->edges as $index => $edge) {
-                $media = $edge->node;
+        
+        // Handle media - check multiple possible structures
+        $mediaEdges = null;
+        if (isset($node->media->edges)) {
+            $mediaEdges = $node->media->edges;
+        } elseif (isset($node->media) && is_array($node->media)) {
+            $mediaEdges = $node->media;
+        }
+        
+        if ($mediaEdges) {
+            foreach ($mediaEdges as $index => $edge) {
+                $media = isset($edge->node) ? $edge->node : (is_object($edge) ? $edge : (object)$edge);
                 if ($media) {
+                    $imageUrl = null;
+                    if (isset($media->image->url)) {
+                        $imageUrl = $media->image->url;
+                    } elseif (isset($media->preview_image->src)) {
+                        $imageUrl = $media->preview_image->src;
+                    } elseif (isset($media->src)) {
+                        $imageUrl = $media->src;
+                    }
+                    
                     $productMedia[] = [
-                        'id' => $this->extractId($media->id),
-                        // 'position' => $index + 1,
+                        'id' => $this->extractId($media->id ?? ''),
                         'preview_image' => [
-                            'src' => $media->image->url ?? null,
+                            'src' => $imageUrl,
                         ],
                     ];
                 }
             }
         }
+        
         $product = [
-            // 'body_html' => $node->descriptionHtml,
-            // 'handle' => $node->handle,
-            'id' => $this->extractId($node->id),
-            // 'product_type' => $node->productType,
-            'title' => $node->title,
-            'vendor' => $node->vendor,
-            'published_at' => $node->publishedAt ?? null,
-            'status' => strtolower($node->status),
-            // 'tags' => $this->arrayToString($node->tags),
+            'id' => $this->extractId($node->id ?? ''),
+            'title' => $node->title ?? '',
+            'vendor' => $node->vendor ?? '',
+            'published_at' => $node->publishedAt ?? $node->published_at ?? null,
+            'status' => strtolower($node->status ?? 'active'),
             'variants' => $productVariants,
             'media' => $productMedia,
         ];
+        
+        Log::info("Transformed product: " . $product['title'] . " with " . count($productVariants) . " variants");
+        
         return $product;
     }
     public function arrayToObject($data)

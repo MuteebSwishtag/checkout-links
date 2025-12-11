@@ -154,25 +154,62 @@ class LinkController extends Controller
 public function getLinks(Request $request)
 {
     $user = Auth::user();
-        Log::info('Link listing request:', $request->all());
-        $baseUrl = config('app.url') . '/checkout/';
+    Log::info('Link listing request:', $request->all());
+    $baseUrl = config('app.url') . '/checkout/';
+
+    // Helper to clean link_url
+    $cleanLinkUrl = function ($url) {
+        $url = str_replace([
+            'bidding-local-haseeb.myshopify.com',
+            '.myshopify.com',
+            'bidding-local-haseeb'
+        ], '', $url);
+        $url = trim($url, "-/");
+        return $url;
+    };
+
+    // Helper to convert to sentence case and remove dashes
+    $sentenceCase = function ($str) {
+        $str = str_replace('-', ' ', $str);
+        $str = strtolower($str);
+        return ucfirst($str);
+    };
+
+    // Helper to clean user name
+    $cleanUserName = function ($name) {
+        $name = str_replace([
+            'bidding-local-haseeb.myshopify.com',
+            '.myshopify.com',
+            'bidding-local-haseeb'
+        ], '', $name);
+        $name = str_replace(['-', '.'], ' ', $name); // replace dashes and dots with spaces
+        $name = trim($name); // remove extra spaces
+        $name = strtolower($name); // all lowercase
+        $name = ucfirst($name); // sentence case
+        return $name;
+    };
+
+    $cleanName = $cleanUserName($user->name);
 
     // Handle "last=X" case — recent links only
     if ($request->has('last')) {
         $links = Link::where('user_id', $user->id)
             ->latest()
             ->take($request->input('last'))
-                ->get(['id', 'link_name', 'link_url']);
+            ->get(['id', 'link_name', 'link_url']);
 
-            // Add full_url to each link
-            $links->transform(function ($link) use ($baseUrl) {
-                $link->full_url = $baseUrl . $link->link_url;
-                return $link;
-            });
+        $links->transform(function ($link) use ($baseUrl, $cleanLinkUrl, $sentenceCase) {
+            $link->original_url = $link->link_url;
+            $link->link_url = $cleanLinkUrl($link->link_url);
+            $link->full_url = $baseUrl . $link->link_url;
+            $link->link_name = $sentenceCase($link->link_name);
+            return $link;
+        });
 
         return response()->json([
             'success' => true,
-            'links' => $links
+            'links' => $links,
+            'user' => $cleanName, // <<< cleaned name here
         ], 200);
     }
 
@@ -189,7 +226,7 @@ public function getLinks(Request $request)
         });
     }
 
-        $links = $query->latest()->paginate($perPage, [
+    $links = $query->latest()->paginate($perPage, [
         'id',
         'link_name',
         'link_url',
@@ -199,13 +236,15 @@ public function getLinks(Request $request)
         'updated_at'
     ]);
 
-        // Append full URL to each link
-        $links->getCollection()->transform(function ($link) use ($baseUrl) {
-            $link->full_url = $baseUrl . $link->link_url;
-            return $link;
-        });
+    $links->getCollection()->transform(function ($link) use ($baseUrl, $cleanLinkUrl, $sentenceCase) {
+        $link->original_url = $link->link_url;
+        $link->link_url = $cleanLinkUrl($link->link_url);
+        $link->full_url = $baseUrl . $link->link_url;
+        $link->link_name = $sentenceCase($link->link_name);
+        return $link;
+    });
 
-        return response()->json([
+    return response()->json([
         'success' => true,
         'links' => $links->items(),
         'pagination' => [
@@ -213,8 +252,9 @@ public function getLinks(Request $request)
             'last_page' => $links->lastPage(),
             'per_page' => $links->perPage(),
             'total' => $links->total(),
-        ]
-        ], 200);
+        ],
+        'user' => $cleanName, // <<< cleaned name here
+    ], 200);
 }
 
 
