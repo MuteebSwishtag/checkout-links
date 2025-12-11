@@ -46,13 +46,48 @@ class ProductRepository implements ProductRepositoryInterface
         $medias = $data['media'];
         unset($data['media']);
 
-        $product = $this->model->updateOrCreate($data);
+        // Separate unique identifiers from update fields
+        $uniqueKeys = [
+            'shopify_product_id' => $data['shopify_product_id'],
+            'user_id' => $data['user_id'],
+        ];
+        
+        // Fields to update
+        $updateFields = [
+            'title' => $data['title'],
+            'vendor' => $data['vendor'],
+            'status' => $data['status'],
+            'published' => $data['published'],
+        ];
+
+        $product = $this->model->updateOrCreate($uniqueKeys, $updateFields);
+
+        // Get existing variant IDs for this product
+        $existingVariantIds = $this->productVarient->getByProductId($product->id)->pluck('shopify_product_varient_id')->toArray();
+        $newVariantIds = array_column($varients, 'shopify_product_varient_id');
 
         foreach ($varients as $varient) {
-            // Log::info('Product Varient Data: ' . json_encode($varient, JSON_PRETTY_PRINT));
             $varient['product_id'] = $product->id;
             $this->productVarient->updateOrCreate($varient);
         }
+
+        // Delete variants that no longer exist in Shopify
+        $variantsToDelete = array_diff($existingVariantIds, $newVariantIds);
+        foreach ($variantsToDelete as $variantId) {
+            $variant = $this->productVarient->getByShopifyId($variantId);
+            if ($variant) {
+                // Also delete linked product variants
+                LinkProductVarient::where('variant_id', $variantId)->delete();
+                $this->productVarient->delete($variant->id);
+            }
+        }
+
+        // Delete all existing media and recreate (since media can change completely)
+        $existingMedias = $this->productMedia->getByProductId($product->id);
+        foreach ($existingMedias as $existingMedia) {
+            $this->productMedia->delete($existingMedia->id);
+        }
+
         foreach ($medias as $media) {
             $media['product_id'] = $product->id;
             $this->productMedia->updateOrCreate($media);

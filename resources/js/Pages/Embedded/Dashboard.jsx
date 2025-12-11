@@ -28,10 +28,38 @@ export default function Dashboard() {
     const [links, setLinks] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRedirecting, setIsRedirecting] = useState(false);
+    const [isSyncing, setIsSyncing] = useState(false);
     const [themeStatus, setThemeStatus] = useState(null);
     const page = usePage().props;
     const query = page.ziggy.query;
     const appBridge = useAppBridge();
+    const [user, setUser] = useState('');
+
+    // Function to sync products from Shopify
+    const handleSyncProducts = async () => {
+        try {
+            setIsSyncing(true);
+            const response = await fetch(route('products.sync', query), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+                },
+            });
+            const data = await response.json();
+            
+            if (data.success) {
+                appBridge.toast.show('Product sync started. This may take a few moments.', { duration: 5000 });
+            } else {
+                appBridge.toast.show('Failed to sync products. Please try again.', { isError: true });
+            }
+        } catch (error) {
+            console.error("Error syncing products:", error);
+            appBridge.toast.show('Failed to sync products. Please try again.', { isError: true });
+        } finally {
+            setIsSyncing(false);
+        }
+    };
 
     const featuresData = [
         {
@@ -62,6 +90,8 @@ export default function Dashboard() {
 
             // Extract only the first 2 links
             setLinks((data.links || []).slice(0, 2));
+            // setLinks([]);
+            setUser(data.user || '');
         } catch (error) {
             console.error("Error fetching links:", error);
         } finally {
@@ -85,7 +115,7 @@ export default function Dashboard() {
         fetchLinks();
         checkThemeStatus();
     }, []);
-
+  
     // Function to redirect to theme editor
     const redirectToThemeEditor = async () => {
         try {
@@ -118,6 +148,14 @@ export default function Dashboard() {
             setIsRedirecting(false);
         }
     };
+     const handleChatClick = () => {
+    const target = document.querySelector(".cc-18ov6");
+    if (target) {
+      target.click(); // trigger the click
+    } else {
+      console.warn("Element with class cc-18ov6 not found");
+    }
+  };
 
     const appsData = [
         {
@@ -171,7 +209,17 @@ export default function Dashboard() {
                 primaryAction={{
                     content: 'Create checkout link',
                     onAction: () => router.get(route('links.create', query)),
-                }}
+                }
+                }
+                 secondaryActions={[
+                    {
+                        content: isSyncing ? 'Syncing...' : 'Sync Products',
+                        onAction: handleSyncProducts,
+                        loading: isSyncing,
+                        disabled: isSyncing,
+                        helpText: 'If recently updated products are missing from the system, sync them here.',
+                    },
+                    ]}
             >
                 {/* Show features card if no links, otherwise show recent order links card */}
                 {/* Show skeleton loading state while data is being fetched */}
@@ -304,7 +352,7 @@ export default function Dashboard() {
                     <Card >
                         <Box>
                             <Text variant="headingLg" as="h2" >
-                                <p className='text-black font-bold'>Welcome James 👋
+                                <p className='text-black font-bold'>Welcome {user} 👋
                                 </p>                             </Text>
                             <Box paddingBlockStart="200">
                                 <Text variant="bodyMd" >
@@ -419,19 +467,30 @@ export default function Dashboard() {
                                     </Text>
                                     <Box paddingBlockStart="300">
                                         <Box paddingBlockEnd="200">
-                                            <Button variant="plain" textAlign="left" fullWidth>
+                                                <Button
+                                                variant="plain"
+                                                textAlign="left"
+                                                fullWidth
+                                                onClick={handleChatClick}
+                                                >
                                                 💬 Start a live chat
-                                            </Button>
-                                        </Box>
+                                                </Button>
+                                            </Box>
                                         <Box paddingBlockEnd="200">
-                                            <Button variant="plain" textAlign="left" fullWidth>
-                                                ✉️ Send us an email
-                                            </Button>
-                                        </Box>
+                                        <Text>
+                                                        <Link
+                                                        url="mailto:markeriapps@gmail.com"
+                                                        external
+                                                        removeUnderline={true}
+                                                        >
+                                                        ✉️ Send us an email
+                                                        </Link>
+                                                    </Text>
+                                                    </Box>
                                         <Box>
-                                            <Button variant="plain" textAlign="left" fullWidth>
-                                                ❓ See our FAQs
-                                            </Button>
+                                            <Button variant="plain" onClick={() => router.get(route('how-it-works', query))} textAlign="left" fullWidth>
+                                             ❓Learn more
+                                        </Button>
                                         </Box>
                                     </Box>
                                 </Box>

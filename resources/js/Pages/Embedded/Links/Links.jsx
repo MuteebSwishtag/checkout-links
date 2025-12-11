@@ -269,9 +269,9 @@ const LinksIndex = () => {
                                 {urlCode.length > 30 ? `${urlCode.slice(0, 30)}...` : urlCode}
                             </a>
                     </IndexTable.Cell>
-                    {/* <IndexTable.Cell>
+                    <IndexTable.Cell>
                         <Badge tone="success">{status}</Badge>
-                    </IndexTable.Cell> */}
+                    </IndexTable.Cell>
                     <IndexTable.Cell>{clicks}</IndexTable.Cell>
                     <IndexTable.Cell>{placedOrder}</IndexTable.Cell>
                     <IndexTable.Cell>
@@ -370,6 +370,7 @@ const LinksIndex = () => {
                         headings={[
                             { title: 'Link Name' },
                             { title: 'URL Link' },
+                            { title: 'Status' },
                             { title: 'Clicks' },
                             { title: 'Placed Order' },
                             { title: 'Actions' },

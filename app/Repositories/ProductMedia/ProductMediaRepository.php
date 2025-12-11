@@ -34,7 +34,18 @@ class ProductMediaRepository implements ProductMediaRepositoryInterface
     }
     public function updateOrCreate(array $data)
     {
-        $media = $this->model->updateOrCreate($data);
+        // Separate unique identifier from update fields
+        $uniqueKeys = [
+            'shopify_product_media_id' => $data['shopify_product_media_id'],
+            'product_id' => $data['product_id'],
+        ];
+        
+        // Fields to update
+        $updateFields = [
+            'src' => $data['src'] ?? null,
+        ];
+
+        $media = $this->model->updateOrCreate($uniqueKeys, $updateFields);
         return $media;
     }
     public function delete(int $id)

@@ -39,13 +39,26 @@ class ProductVarientRepository implements ProductVarientRepositoryInterface
                 'variant_id' => $data['shopify_product_varient_id'] ?? 'unknown',
                 'inventory_quantity' => $data['inventory_quantity']
             ]);
-
-            // Database now supports negative values after our migration
-            // But if you have issues, you can uncomment this line:
-            // $data['inventory_quantity'] = 0;
         }
 
-        $productVarient = $this->model->updateOrCreate($data);
+        // Separate unique identifier from update fields
+        $uniqueKeys = [
+            'shopify_product_varient_id' => $data['shopify_product_varient_id'],
+        ];
+        
+        // Fields to update
+        $updateFields = [
+            'product_id' => $data['product_id'],
+            'shopify_inventory_item_id' => $data['shopify_inventory_item_id'] ?? null,
+            'title' => $data['title'],
+            'price' => $data['price'],
+            'compare_at_price' => $data['compare_at_price'] ?? null,
+            'inventory_quantity' => $data['inventory_quantity'] ?? 0,
+            'inventory_policy' => strtoupper($data['inventory_policy'] ?? 'DENY'),
+            'inventory_tracked' => $data['inventory_tracked'] ?? true,
+        ];
+
+        $productVarient = $this->model->updateOrCreate($uniqueKeys, $updateFields);
         return $productVarient;
     }
     public function delete(int $id)
