@@ -14,6 +14,13 @@ class ProductSyncJob implements ShouldQueue
     use Queueable, ShopifyProductTrait, ResponseTrait;
 
     /**
+     * The number of seconds the job can run before timing out.
+     *
+     * @var int
+     */
+    public $timeout = 600; // 10 minutes
+
+    /**
      * Create a new job instance.
      */
 

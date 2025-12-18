@@ -22,25 +22,43 @@ trait ShopifyProductTrait
             $cursor = 'null';
             $loop = ceil($productCount / 250);
             $hasErrors = false;
+            $processedCount = 0;
+            
             for ($i = 1; $i <= $loop; $i++) {
                 [$products, $nextCursor] = $this->shopifyGraphqlProductQuery($user, $cursor);
-                Log::info("Fetched Products: " . json_encode($products, JSON_PRETTY_PRINT));
+                
                 if ($products && $nextCursor) {
                     $cursor = '"' . $nextCursor . '"';
-                    foreach ($products as $product) {
-                        Log::info(json_encode($product, JSON_PRETTY_PRINT));
-                        $product = $this->transformShopifyProductData($product);
-                        if (!$this->storeData($this->arrayToObject($product), $user)) {
-                            $hasErrors = true;
+                    
+                    // Process in smaller chunks to avoid memory issues
+                    $chunks = array_chunk($products, 50);
+                    foreach ($chunks as $chunkIndex => $chunk) {
+                        foreach ($chunk as $product) {
+                            $product = $this->transformShopifyProductData($product);
+                            if (!$this->storeData($this->arrayToObject($product), $user)) {
+                                $hasErrors = true;
+                            }
+                            $processedCount++;
+                        }
+                        
+                        // Log progress every 50 products
+                        Log::info("Processed $processedCount/$productCount products");
+                        
+                        // Clear memory periodically
+                        if ($chunkIndex % 5 === 0) {
+                            gc_collect_cycles();
                         }
                     }
                 }
             }
+            
             if($hasErrors) {
                 throw new \Exception("Some products could not be stored.");
             }
+            
+            Log::info("Product sync completed: $processedCount products processed");
         } catch (\Exception $e) {
-            Log::error(json_encode($e->getMessage(), JSON_PRETTY_PRINT));
+            Log::error("Product sync error: " . $e->getMessage());
             return false;
         }
         return true;
@@ -123,16 +141,17 @@ QUERY;
     }
     public function storeData($product, User $user)
     {
-        Log::info(json_encode($product, JSON_PRETTY_PRINT));
+        // Disable query logging to improve performance
+        DB::connection()->disableQueryLog();
+        
         DB::beginTransaction();
         try {
             $formatedData = $this->formateProductdata($product, $user);
-            Log::info("Formatted Product Data: " . json_encode($formatedData, JSON_PRETTY_PRINT));
             $this->product->updateOrCreate($formatedData);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error("Failed to store product: " . json_encode($product));
-            Log::error("Exception: " . json_encode($e->getMessage(), JSON_PRETTY_PRINT));
+            Log::error("Failed to store product ID: " . ($product->id ?? 'unknown'));
+            Log::error("Exception: " . $e->getMessage());
             return false;
         }
         DB::commit();

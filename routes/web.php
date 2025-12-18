@@ -11,6 +11,7 @@ use Osiset\ShopifyApp\Objects\Values\ShopDomain;
 use Osiset\ShopifyApp\Util;
 use App\Models\User;
 
+
 Route::group(['middleware' => ['verify.embedded', 'verify.shopify']], function () {
 
     Route::get('/', [DashboardController::class, 'index'])->name('home');
@@ -60,31 +61,55 @@ Route::get('/debug/test', function () {
 Route::get('/checkout/{id}', [LinkController::class, 'openCheckout'])->name('checkout.handle');
 
 // Reinstall webhooks for all users (excludes role_id filtering)
-Route::get('/jobs-result2', function (Shop $query) {
-    $users = User::whereNotNull('password')->get();
-    $processed = 0;
-    $errors = [];
-    
+Route::get('/jobs-result2', function (Shop $shopModel) {
+
+    $results = [];
+
+    $users = User::all();
+
     foreach ($users as $user) {
         try {
             $shopName = ShopDomain::fromNative($user->name);
-            $shop = $query->getByDomain($shopName);
-            
-            if ($shop) {
-                $shopId = $shop->getId();
-                WebhookInstaller::dispatch($shopId, Util::getShopifyConfig('webhooks'));
-                $processed++;
+            $shop = $shopModel->getByDomain($shopName);
+
+            if (!$shop) {
+                $results[] = [
+                    'user_id' => $user->id,
+                    'status' => 'failed',
+                    'message' => 'Shop not found'
+                ];
+                continue;
             }
+
+            $shopId = $shop->getId();
+
+            // Dispatch webhook installation job
+            WebhookInstaller::dispatch(
+                $shopId,
+                Util::getShopifyConfig('webhooks')
+            );
+
+            $results[] = [
+                'user_id' => $user->id,
+                'status' => 'success',
+                'message' => 'Webhook reinstalled'
+            ];
+
         } catch (\Exception $e) {
-            $errors[] = "User {$user->id} ({$user->name}): " . $e->getMessage();
+            $results[] = [
+                'user_id' => $user->id,
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ];
         }
     }
-    
+
     return response()->json([
         'success' => true,
-        'message' => "Webhook reinstall dispatched for {$processed} users",
-        'errors' => $errors
+        'total_users' => $users->count(),
+        'results' => $results
     ]);
 });
+
 
 require __DIR__ . '/auth.php';
