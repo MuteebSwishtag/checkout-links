@@ -28,9 +28,20 @@ class OrderCustomerRepository implements OrderCustomerRepositoryInterface
     }
     public function updateOrCreate(array $data)
     {
-        $customer = $this->model->updateOrCreate([
+        // Separate unique identifier from update fields
+        $uniqueKeys = [
             'shopify_customer_id' => $data['shopify_customer_id']
-        ], $data);
+        ];
+
+        // Fields to update
+        $updateFields = [
+            'first_name' => $data['first_name'] ?? null,
+            'last_name' => $data['last_name'] ?? null,
+            'email' => $data['email'] ?? null,
+            'phone' => $data['phone'] ?? null,
+        ];
+
+        $customer = $this->model->updateOrCreate($uniqueKeys, $updateFields);
         return $customer;
     }
     public function delete(int $id)

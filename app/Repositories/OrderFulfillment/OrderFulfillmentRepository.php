@@ -33,12 +33,26 @@ class OrderFulfillmentRepository implements OrderFulfillmentRepositoryInterface
     }
     public function updateOrCreate(array $data)
     {
-        $fulfillment = $this->model->updateOrCreate([
+        // Separate unique identifiers from update fields
+        $uniqueKeys = [
             'shopify_order_fulfillment_id' => $data['shopify_order_fulfillment_id'],
             'order_id' => $data['order_id'],
-        ], $data);
-        return $fulfillment;
+        ];
 
+        // Fields to update
+        $updateFields = [
+            'shopify_location_id' => $data['shopify_location_id'] ?? null,
+            'name' => $data['name'] ?? null,
+            'status' => $data['status'] ?? null,
+            'display_status' => $data['display_status'] ?? null,
+            'service_type' => $data['service_type'] ?? null,
+            'tracking_company' => $data['tracking_company'] ?? null,
+            'tracking_number' => $data['tracking_number'] ?? null,
+            'tracking_url' => $data['tracking_url'] ?? null,
+        ];
+
+        $fulfillment = $this->model->updateOrCreate($uniqueKeys, $updateFields);
+        return $fulfillment;
     }
     public function delete(int $id)
     {

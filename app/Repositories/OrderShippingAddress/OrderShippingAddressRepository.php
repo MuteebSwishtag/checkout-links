@@ -29,9 +29,28 @@ class OrderShippingAddressRepository implements OrderShippingAddressRepositoryIn
     }
     public function updateOrCreate(array $data)
     {
-        $shippingAddress = $this->model->updateOrCreate([
+        // Separate unique identifier from update fields
+        $uniqueKeys = [
             'order_id' => $data['order_id'],
-        ], $data);
+        ];
+
+        // Fields to update
+        $updateFields = [
+            'first_name' => $data['first_name'] ?? null,
+            'last_name' => $data['last_name'] ?? null,
+            'address1' => $data['address1'] ?? null,
+            'address2' => $data['address2'] ?? null,
+            'city' => $data['city'] ?? null,
+            'province' => $data['province'] ?? null,
+            'province_code' => $data['province_code'] ?? null,
+            'country' => $data['country'] ?? null,
+            'country_code' => $data['country_code'] ?? null,
+            'zip' => $data['zip'] ?? null,
+            'phone' => $data['phone'] ?? null,
+            'company' => $data['company'] ?? null,
+        ];
+
+        $shippingAddress = $this->model->updateOrCreate($uniqueKeys, $updateFields);
         return $shippingAddress;
     }
     public function delete(int $id)

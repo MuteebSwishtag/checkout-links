@@ -80,6 +80,9 @@ class LinkController extends Controller
                 return response()->json(['success' => false, 'error' => 'Link URL already exists. Please try again.'], 422);
             }
 
+            // Generate the redirect URL (the URL users will visit)
+
+
             // 1. Save Link
             $link = Link::create([
                 'user_id' => $user->id,
@@ -143,8 +146,27 @@ class LinkController extends Controller
                 }
             }
 
+            // Commit the transaction first so the link exists when openCheckout queries it
             \DB::commit();
-            return response()->json(['success' => true, 'link_id' => $link->id]);
+
+            // Generate the redirect URL by calling openCheckout and extracting the URL from the response
+            $response = $this->openCheckout($linkUrl, true);
+            $responseData = json_decode($response->getContent(), true);
+            $redirectUrl = $responseData['redirect_url'] ?? null;
+            Log::info('Generated redirect URL for new link:', ['redirect_url' => $redirectUrl]);
+
+            // Update the link with the redirect_url    
+            if ($redirectUrl) {
+                $link->update([
+                    'redirect_url' => $redirectUrl,
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'link_id' => $link->id,
+                'redirect_url' => $link->redirect_url
+            ]);
         } catch (\Exception $e) {
             \DB::rollBack();
             return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
@@ -196,12 +218,12 @@ public function getLinks(Request $request)
         $links = Link::where('user_id', $user->id)
             ->latest()
             ->take($request->input('last'))
-            ->get(['id', 'link_name', 'link_url']);
+                ->get(['id', 'link_name', 'link_url', 'redirect_url']);
 
         $links->transform(function ($link) use ($baseUrl, $cleanLinkUrl, $sentenceCase) {
             $link->original_url = $link->link_url;
             $link->link_url = $cleanLinkUrl($link->link_url);
-            $link->full_url = $baseUrl . $link->link_url;
+                $link->full_url = $link->redirect_url;
             $link->link_name = $sentenceCase($link->link_name);
             return $link;
         });
@@ -233,13 +255,14 @@ public function getLinks(Request $request)
         'clicks',
         'placed_order',
         'created_at',
-        'updated_at'
+            'updated_at',
+            'redirect_url'
     ]);
 
     $links->getCollection()->transform(function ($link) use ($baseUrl, $cleanLinkUrl, $sentenceCase) {
         $link->original_url = $link->link_url;
         $link->link_url = $cleanLinkUrl($link->link_url);
-        $link->full_url = $baseUrl . $link->link_url;
+            $link->full_url = $link->redirect_url;
         $link->link_name = $sentenceCase($link->link_name);
         return $link;
     });
@@ -345,6 +368,8 @@ public function update(Request $request, $id)
                 return response()->json(['success' => false, 'error' => 'Link URL already exists. Please try again.'], 422);
             }
 
+            // Generate the redirect URL (the URL users will visit);
+
             $link->update([
                 'link_name' => $data['linkName'] ?? null,
                 'link_url' => $linkUrl,
@@ -412,8 +437,28 @@ public function update(Request $request, $id)
                     }
                 }
             }
-        \DB::commit();
-        return response()->json(['success' => true, 'link_id' => $link->id]);
+
+            // Commit the transaction first so the link exists when openCheckout queries it
+            \DB::commit();
+
+            // Generate the redirect URL by calling openCheckout and extracting the URL from the response
+            $response = $this->openCheckout($linkUrl, true);
+            $responseData = json_decode($response->getContent(), true);
+            $redirectUrl = $responseData['redirect_url'] ?? null;
+            Log::info('Generated redirect URL for updated link:', ['redirect_url' => $redirectUrl]);
+
+            // Update the link with the redirect_url    
+            if ($redirectUrl) {
+                $link->update([
+                    'redirect_url' => $redirectUrl,
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'link_id' => $link->id,
+                'redirect_url' => $link->redirect_url
+            ]);
     } catch (\Exception $e) {
         \DB::rollBack();
         return response()->json(['success' => false, 'error' => $e->getMessage()], 500);
@@ -442,7 +487,17 @@ public function update(Request $request, $id)
             // $link = Link::where('user_id', $id)->firstOrFail();
             // Find the link by ID - this is a public endpoint so no auth required
             $link = Link::findOrFail($id);
-            
+            $link->increment('clicks');
+
+            // Check if single_order is enabled and if order has already been placed
+            if ($link->single_order && $link->placed_order > 0) {
+                Log::info('Single order limit reached for link ID: ' . $id);
+                return response()->json([
+                    'success' => false,
+                    'error_type' => 'single_order_limit_reached',
+                    'message' => 'This checkout link has already been used and only allows one order to be placed.'
+                ], 403);
+            }
 
             // Load the link relationships with eager loading to avoid N+1 queries
             $link->load([
@@ -480,6 +535,7 @@ public function update(Request $request, $id)
 
             return response()->json([
                 'success' => false,
+                'error_type' => 'link_not_found',
                 'message' => 'Link not found or error fetching link data: ' . $e->getMessage()
             ], 404);
         }
@@ -522,31 +578,35 @@ public function update(Request $request, $id)
      */
   
     /**
-     * Public endpoint to decrypt a link ID
+     * Public endpoint to decrypt a link  
      *
      * @param string $encryptedId The encrypted ID from URL
      * @return \Illuminate\Http\JsonResponse
      */
-    public function openCheckout($uniqueId): JsonResponse|RedirectResponse|Response
+    public function openCheckout($uniqueId, bool $returnJsonOnError = false): JsonResponse|RedirectResponse|Response
     {
         $link = Link::with('popupMessage', 'linkedVariants.variant.product')
             ->where('link_url', $uniqueId)
             ->first();
 
         if (!$link) {
+            // Return JSON error for internal/API calls, HTML page for browser requests
+            if ($returnJsonOnError || request()->expectsJson() || request()->is('api/*')) {
+                return response()->json(['success' => false, 'error' => 'Link not found'], 404);
+            }
             return $this->showLinkNotFoundPage();
         }
 
         // Check if single_order is enabled and if order has already been placed
-        if ($link->single_order && $link->placed_order > 0) {
-            return $this->showSingleOrderLimitReached();
-        }
+        // if ($link->single_order && $link->placed_order > 0) {
+        //     return $this->showSingleOrderLimitReached();
+        // }
 
         $user = User::where('id', $link->user_id)->first();
         $shopUrl = "https://" . urlencode($user ? $user->name : 'Guest');
 
         // Increment clicks counter
-        $link->increment('clicks');
+        
 
         // Check if popup message is active
         $popupMessageActive = $link->popupMessage && $link->popupMessage->is_active;
@@ -556,7 +616,7 @@ public function update(Request $request, $id)
             $draftOrderResult = $this->createDraftOrder($link->id);
             if ($draftOrderResult && isset($draftOrderResult['invoice_url'])) {
                 Log::info('Redirecting to draft order invoice: ' . $draftOrderResult['invoice_url']);
-                return redirect()->to($draftOrderResult['invoice_url']);
+                return response()->json(['redirect_url' => $draftOrderResult['invoice_url']]);
             }
         }
 
@@ -591,7 +651,8 @@ public function update(Request $request, $id)
             $redirectUrl .= '&discount_code=' . urlencode($discountCode);
         }
         Log::info('Redirecting to: ' . $redirectUrl);
-        return redirect()->to($redirectUrl);
+        // dd('Redirecting to: ' . $redirectUrl);
+        return response()->json(['redirect_url' => $redirectUrl]);
     }
     /**
      * Show a user-friendly error page when link is not found
@@ -803,7 +864,7 @@ public function update(Request $request, $id)
         ]);
         // Log the incoming request data
         Log::info('Order count request received:', $data);
-        // Process the order count logic here
+        // Process the order count logic heres
         // For example, increment the order count for the link
         $link = Link::findOrFail($data['link_id']);
         $link->increment('placed_order');

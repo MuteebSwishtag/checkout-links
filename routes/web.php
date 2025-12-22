@@ -40,8 +40,7 @@ Route::group(['middleware' => ['verify.embedded', 'verify.shopify']], function (
     Route::get('/links/{id}/edit', [LinkController::class, 'edit'])->name('links.edit');
     Route::put('/links/{id}/update', [LinkController::class, 'update'])->name('links.update');
     Route::delete('/links/{id}/delete', [LinkController::class, 'destroy'])->name('links.delete');
-    Route::post('/settings/save', [ProductController::class, 'save'])
-        ->name('settings.save');
+    Route::post('/settings/save', [ProductController::class, 'save'])->name('settings.save');
 
     // Route to fetch settings for the current user
     Route::get('/settings/get', [ProductController::class, 'settingsGet'])->name('settings.get');
@@ -54,6 +53,7 @@ Route::get('/debug/link/{id}', [LinkController::class, 'getLinkData']);
 Route::get('/debug/test', function () {
     return response()->json(['success' => true, 'message' => 'Debug route is working']);
 });
+Route::get('/batchSyncAllUsers', [ProductController::class, 'batchSyncAllUsers'])->name('batch.sync.all.users');
 
 // Route::get('/checkout', function () {
 //     Log::info('Checkout route accessed');

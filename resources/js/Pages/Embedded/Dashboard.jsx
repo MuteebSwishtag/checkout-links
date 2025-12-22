@@ -126,7 +126,6 @@ export default function Dashboard() {
             
             if (response.status === 201) {
                 const editorUrl = await response.json();
-                
                 // Create a form to submit that will break out of the iframe
                 // This approach works reliably in Safari and other browsers
                 const form = document.createElement('form');
@@ -497,11 +496,7 @@ export default function Dashboard() {
                             </Card>
                         </Grid.Cell>
                     </Grid>
-
                 </Box>
-
-
-
                 <Box paddingBlockStart="400">
                     <Card sectioned>
                         <Box>
@@ -512,7 +507,6 @@ export default function Dashboard() {
                                 <Button variant="plain" icon="X" accessibilityLabel="Close">
                                 </Button>
                             </InlineStack>
-
                             <Box paddingBlockStart="600">
                                 <Grid>
                                     {appsData.map((app, index) => (

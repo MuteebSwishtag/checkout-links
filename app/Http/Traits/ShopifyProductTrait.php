@@ -13,45 +13,57 @@ trait ShopifyProductTrait
     {
         $this->product = $product;
     }
-    public function getProductsFromShopify(User $user)
+    public function getProductsFromShopify(User $user, $minutes = null)
     {
-        Log::info('Fetching products from Shopify for user ID: ' . $user->id);
+        $syncType = $minutes ? "incremental (last {$minutes} minutes)" : "full";
+        Log::info("Starting {$syncType} product sync for user ID: " . $user->id);
+
         try {
-            $productCount = $this->getProductsCountFromShopify($user);
-            Log::info('Total Products Count: ' . $productCount);
             $cursor = 'null';
-            $loop = ceil($productCount / 250);
             $hasErrors = false;
             $processedCount = 0;
-            
+
+            // For incremental sync, we don't need product count - just fetch updated products
+            if (!$minutes) {
+                $productCount = $this->getProductsCountFromShopify($user);
+                Log::info('Total Products Count: ' . $productCount);
+                $loop = ceil($productCount / 250);
+            } else {
+                // For incremental sync, loop until no more pages
+                $loop = PHP_INT_MAX;
+            }
+
             for ($i = 1; $i <= $loop; $i++) {
-                [$products, $nextCursor] = $this->shopifyGraphqlProductQuery($user, $cursor);
-                
-                if ($products && $nextCursor) {
+                [$products, $nextCursor] = $this->shopifyGraphqlProductQuery($user, $cursor, $minutes);
+
+                // Break if no products returned
+                if (!$products || count($products) === 0) {
+                    Log::info('No more products to sync');
+                    break;
+                }
+
+                Log::info("Processing batch {$i}: " . count($products) . " products");
+
+                if ($products && $nextCursor !== null) {
                     $cursor = '"' . $nextCursor . '"';
-                    
-                    // Process in smaller chunks to avoid memory issues
-                    $chunks = array_chunk($products, 50);
-                    foreach ($chunks as $chunkIndex => $chunk) {
-                        foreach ($chunk as $product) {
-                            $product = $this->transformShopifyProductData($product);
-                            if (!$this->storeData($this->arrayToObject($product), $user)) {
-                                $hasErrors = true;
-                            }
+                    foreach ($products as $product) {
+                        $product = $this->transformShopifyProductData($product);
+                        if (!$this->storeData($this->arrayToObject($product), $user)) {
+                            $hasErrors = true;
+                        } else {
                             $processedCount++;
-                        }
-                        
-                        // Log progress every 50 products
-                        Log::info("Processed $processedCount/$productCount products");
-                        
-                        // Clear memory periodically
-                        if ($chunkIndex % 5 === 0) {
-                            gc_collect_cycles();
                         }
                     }
                 }
+
+                // For incremental sync, check if there's a next page
+                if ($minutes && !$nextCursor) {
+                    break;
+                }
             }
-            
+
+            Log::info("Completed {$syncType} sync. Processed {$processedCount} products");
+
             if($hasErrors) {
                 throw new \Exception("Some products could not be stored.");
             }
@@ -79,12 +91,20 @@ trait ShopifyProductTrait
             return $result->body->data->productsCount->count;
         }
     }
-    public function shopifyGraphqlProductQuery($user, $cursor)
+    public function shopifyGraphqlProductQuery($user, $cursor, $minutes = null)
     {
+        // Build query filter for incremental sync
+        $queryFilter = '';
+        if ($minutes) {
+            $timestamp = \Carbon\Carbon::now()->subMinutes($minutes)->toIso8601ZuluString();
+            $queryFilter = ', query: "updated_at:>\'' . $timestamp . '\'"';
+            Log::info('Incremental sync query filter: ' . $queryFilter);
+        }
+
         // Fetch ALL products (active, draft, archived) to properly sync status changes
         $query = <<<QUERY
             query {
-                products(first: 250, after: $cursor) {
+                products(first: 250, after: $cursor{$queryFilter}) {
                     edges {
                         node {
                             id
@@ -92,6 +112,7 @@ trait ShopifyProductTrait
                             vendor
                             status
                             publishedAt
+                            updatedAt
                             variants(first: 250) {
                                 edges {
                                     node {

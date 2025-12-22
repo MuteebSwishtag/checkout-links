@@ -78,7 +78,6 @@ export default function CreateLink() {
     const [variantsModal, setVariantsModal] = useState(false);
     const [variantQuantity, setVariantQuantity] = useState(1);
     const [currentEditingVariant, setCurrentEditingVariant] = useState(null);
-
     const normalizeLinkedVariants = (link) => {
         if (!link || !link.linked_variants) return link;
         return {
@@ -121,6 +120,13 @@ export default function CreateLink() {
             // console.log("Editing existing link:", localLink);
             setLinkName(localLink.link_name || '');
             setLinkId(localLink.link_url || '');
+
+            // Set saved redirect URL and mark as saved when editing
+            if (localLink.redirect_url) {
+                setSavedRedirectUrl(localLink.redirect_url);
+                setIsLinkSaved(true);
+            }
+
             setDiscountData({
                 freeShipping: !!localLink.free_shipping,
                 orderDiscount: !!localLink.order_discount,
@@ -226,6 +232,8 @@ export default function CreateLink() {
     const [linkName, setLinkName] = useState('');
     const [linkId, setLinkId] = useState('');
     const [fullUrl, setFullUrl] = useState(''); // Store the full URL with shop name
+    const [savedRedirectUrl, setSavedRedirectUrl] = useState(''); // Store the redirect URL after saving
+    const [isLinkSaved, setIsLinkSaved] = useState(false); // Track if link has been saved
     const [productsOpen, setProductsOpen] = useState(true);
     const [discountsOpen, setDiscountsOpen] = useState(false);
     const [popupMessageOpen, setPopupMessageOpen] = useState(false);
@@ -301,6 +309,7 @@ export default function CreateLink() {
     const [perPage] = useState(10);
     const [totalPages, setTotalPages] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
 
     // -- Debounced search values (for performance)
     const debouncedMainProductSearch = useDebouncedValue(mainProductSearch, 300);
@@ -388,6 +397,9 @@ export default function CreateLink() {
     };
 
     const saveLinkData = useCallback(async () => {
+        // Set saving state to true
+        setIsSaving(true);
+
         // Clear any existing toast notifications before starting the request
         if (app && app.toast && app.toast.dismiss) {
             app.toast.dismiss();
@@ -461,6 +473,12 @@ export default function CreateLink() {
                     app.toast.show('Link saved successfully!', { duration: 3000 });
                 }
 
+                // Capture the redirect_url from the response
+                if (data.redirect_url) {
+                    setSavedRedirectUrl(data.redirect_url);
+                    setIsLinkSaved(true);
+                }
+
                 // Redirect to the links page after successful save
                 setTimeout(() => {
                     router.visit(route('links', query));
@@ -471,6 +489,9 @@ export default function CreateLink() {
             if (app && app.toast) {
                 app.toast.show('An unexpected error occurred. Please try again.', { isError: true, duration: 3000 });
             }
+        } finally {
+            // Reset saving state
+            setIsSaving(false);
         }
     }, [selectedProductItems, linkName, linkId, selectedProducts, discountData, popupMessageData, selectedVariantIds, localLink, query, additionalSettingsData]);
 
@@ -495,7 +516,7 @@ export default function CreateLink() {
         const policy = (v.inventory_policy || '').toLowerCase();
         const quantity = parseInt(v.inventory_quantity ?? v.available ?? 0);
         const tracked = !!v.inventory_tracked;
-        console.log("Checking availability for variant:", v.id, "Policy:", policy, "Quantity:", quantity, "Tracked:", tracked);
+        // console.log("Checking availability for variant:", v.id, "Policy:", policy, "Quantity:", quantity, "Tracked:", tracked);
 
         if (policy === 'continue') return true;
         if (!tracked) return true;
@@ -1433,13 +1454,12 @@ export default function CreateLink() {
         if (app && app.toast && app.toast.dismiss) {
             app.toast.dismiss(); // Clear any existing toasts
         }
-        // Get the text value from the link-url-field TextField
-        const linkUrlField = document.getElementById('link-url-field');
-        const linkUrl = linkUrlField ? linkUrlField.value : (fullUrl || (linkId ? `${shop}/checkout/${linkId}` : ""));
+        // Use savedRedirectUrl if available, otherwise fallback
+        const linkUrl = savedRedirectUrl || fullUrl || (linkId ? `${shop}/checkout/${linkId}` : "");
 
         if (!linkUrl) {
             if (app && app.toast) {
-                app.toast.show('No link available to copy', {
+                app.toast.show('No link available to copy. Please save the link first.', {
                     isError: true,
                     duration: 3000
                 });
@@ -1485,15 +1505,15 @@ export default function CreateLink() {
                 }
             }
         }
-    }, [fullUrl, linkId, app]);
+    }, [savedRedirectUrl, fullUrl, linkId, app]);
 
     // Test link handler
     const handleTestLink = useCallback(() => {
-        const linkUrl = fullUrl || (linkId ? `${shop}/checkout/${linkId}` : "");
+        const linkUrl = savedRedirectUrl || fullUrl || (linkId ? `${shop}/checkout/${linkId}` : "");
 
         if (!linkUrl) {
             if (app && app.toast) {
-                app.toast.show('No link available to test', {
+                app.toast.show('No link available to test. Please save the link first.', {
                     isError: true,
                     duration: 3000
                 });
@@ -1503,7 +1523,7 @@ export default function CreateLink() {
 
         // Open the link in a new window
         window.open(linkUrl, '_blank');
-    }, [fullUrl, linkId, shop, app]);
+    }, [savedRedirectUrl, fullUrl, linkId, shop, app]);
 
     // Function to normalize URLs
     const normalizeUrl = (url) => {
@@ -1614,7 +1634,8 @@ export default function CreateLink() {
                         }
                     }
                 },
-                disabled: false // Remove the disabled state to allow validation messages to show
+                disabled: isSaving,
+                loading: isSaving
             }}
         >
             <div className='scroll-wrapper'>
@@ -1783,7 +1804,7 @@ export default function CreateLink() {
 
                                                                             <div style={{ flex: 1 }}>
                                                                                 <Text fontWeight="medium" as="span">
-                                                                                    {truncate(product.title, { length: 20 })}
+                                                                                    {truncate(product.title, { length: 40 })}
                                                                                 </Text>
                                                                             </div>
                                                                         </div>
@@ -1837,7 +1858,7 @@ export default function CreateLink() {
                                                                                             >
                                                                                                 {/* Variant title */}
                                                                                                 <div style={{ textAlign: 'left' }}>
-                                                                                                    <strong>{truncate(variant.title, { length: 7 })}</strong>
+                                                                                                    <strong>{truncate(variant.title, { length: 15 })}</strong>
                                                                                                 </div>
 
                                                                                                 {/* Inventory */}
@@ -2159,19 +2180,30 @@ export default function CreateLink() {
                                                 </Box>
                                             </InlineStack>
                                         }
-                                        <InlineStack gap="300" justifyContent>
-                                            <TextField
-                                                id="link-url-field"
-                                                value={fullUrl || (linkId ? `${shop}/checkout/${linkId}` : "")}
-                                                autoComplete="off"
-                                                labelHidden
+                                        {isLinkSaved && savedRedirectUrl ? (
+                                            <InlineStack gap="300" justifyContent>
+                                                <TextField
+                                                    id="link-url-field"
+                                                    value={savedRedirectUrl}
+                                                    autoComplete="off"
+                                                    labelHidden
 
-                                                prefix={<Icon source={LinkIcon} tone="critical" />}
-                                            />
-                                            <Button icon={ClipboardIcon} onClick={handleCopyLink}>
-                                                Copy
-                                            </Button>
-                                        </InlineStack>
+                                                    prefix={<Icon source={LinkIcon} tone="critical" />}
+                                                />
+                                                <Button icon={ClipboardIcon} onClick={handleCopyLink}>
+                                                    Copy
+                                                </Button>
+                                            </InlineStack>
+                                        ) : (
+                                            <InlineStack gap="200" align="start">
+                                                <div style={{ marginTop: "2px" }}>
+                                                    <Icon source={LinkIcon} tone='subdued' />
+                                                </div>
+                                                <Text as="span" tone="subdued">
+                                                    <p className='text-black font-normal'>Save the link first to view the link URL</p>
+                                                </Text>
+                                            </InlineStack>
+                                        )}
                                     </BlockStack>
                                 </Box>
                             </BlockStack>
@@ -2887,7 +2919,7 @@ export default function CreateLink() {
 
                                                     <div style={{ flex: 1 }}>
                                                         <Text fontWeight="medium" as="span">
-                                                            {truncate(product.title, { length: 20 })}
+                                                            {truncate(product.title, { length: 40 })}
                                                         </Text>
                                                     </div>
                                                 </div>
@@ -2941,7 +2973,7 @@ export default function CreateLink() {
                                                                     >
                                                                         {/* Variant title */}
                                                                         <div style={{ textAlign: 'left' }}>
-                                                                            <strong>{truncate(variant.title, { length: 7 })}</strong>
+                                                                            <strong>{truncate(variant.title, { length: 15 })}</strong>
                                                                         </div>
 
                                                                         {/* Inventory */}

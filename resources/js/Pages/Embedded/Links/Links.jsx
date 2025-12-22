@@ -66,6 +66,7 @@ const LinksIndex = () => {
             const data = await response.json();
 
             if (data.success) {
+                console.log('Fetched links data:', data);
                 const mappedLinks = data.links.map(link => ({
                     id: link.id,
                     linkName: link.link_name || 'Unnamed',

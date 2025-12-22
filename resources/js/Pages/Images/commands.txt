@@ -1,0 +1,5 @@
+1. nslookup redis-16839.c14.us-east-1-3.ec2.cloud.redislabs.com
+2. ping redis-16839.c14.us-east-1-3.ec2.cloud.redislabs.com
+3. telnet redis-16839.c14.us-east-1-3.ec2.cloud.redislabs.com 16839
+
+
