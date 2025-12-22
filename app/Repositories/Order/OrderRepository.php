@@ -63,10 +63,18 @@ class OrderRepository implements OrderRepositoryInterface
         $fulfillments = $data["fulfillments"];
         unset($data["fulfillments"]);
 
-        $order = $this->model->updateOrCreate([
+        // Separate unique identifiers from update fields
+        $uniqueKeys = [
             'shopify_order_id' => $data['shopify_order_id'],
-            'user_id' => $data['user_id']
-        ], $data);
+            'user_id' => $data['user_id'],
+        ];
+
+        // Remove unique keys from data to get update fields
+        $updateFields = $data;
+        unset($updateFields['shopify_order_id']);
+        unset($updateFields['user_id']);
+
+        $order = $this->model->updateOrCreate($uniqueKeys, $updateFields);
 
         if ($customer) {
             $customer = $this->orderCustomer->updateOrCreate($customer);
@@ -79,13 +87,40 @@ class OrderRepository implements OrderRepositoryInterface
             $this->orderShippingAddress->updateOrCreate($shipping_address);
         }
 
+        // Get existing line item IDs for this order
+        $existingLineItemIds = $this->orderLineItems->getByOrderId($order->id)->pluck('shopify_order_lineitem_id')->toArray();
+        $newLineItemIds = array_column($lineitems, 'shopify_order_lineitem_id');
+
         foreach ($lineitems as $item) {
             $item["order_id"] = $order->id;
             $this->orderLineItems->updateOrCreate($item);
         }
+
+        // Delete line items that no longer exist in Shopify
+        $lineItemsToDelete = array_diff($existingLineItemIds, $newLineItemIds);
+        foreach ($lineItemsToDelete as $lineItemId) {
+            $lineItem = $this->orderLineItems->getByShopifyId($lineItemId);
+            if ($lineItem) {
+                $this->orderLineItems->delete($lineItem->id);
+            }
+        }
+
+        // Get existing fulfillment IDs for this order
+        $existingFulfillmentIds = $this->orderFulfillments->getByOrderId($order->id)->pluck('shopify_order_fulfillment_id')->toArray();
+        $newFulfillmentIds = array_column($fulfillments, 'shopify_order_fulfillment_id');
+
         foreach ($fulfillments as $fulfillment) {
             $fulfillment["order_id"] = $order->id;
             $this->orderFulfillments->updateOrCreate($fulfillment);
+        }
+
+        // Delete fulfillments that no longer exist in Shopify
+        $fulfillmentsToDelete = array_diff($existingFulfillmentIds, $newFulfillmentIds);
+        foreach ($fulfillmentsToDelete as $fulfillmentId) {
+            $fulfillment = $this->orderFulfillments->getByShopifyId($fulfillmentId);
+            if ($fulfillment) {
+                $this->orderFulfillments->delete($fulfillment->id);
+            }
         }
 
         return $order;

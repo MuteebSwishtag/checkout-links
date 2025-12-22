@@ -2,7 +2,7 @@
 
 client_id = "293f810a998b598dc1cbcc650ba1ca82"
 name = "Checkout Links"
-application_url = "https://abdulrahman.xoarhigh.info/"
+application_url = "https://phpstack-1035961-5713949.cloudwaysapps.com/"
 embedded = true
 handle = "oneclickcheckoutlinks"
 
@@ -28,7 +28,7 @@ use_legacy_install_flow = true
 
 [auth]
 redirect_urls = [
-  "https://abdulrahman.xoarhigh.info/authenticate"
+  "https://phpstack-1035961-5713949.cloudwaysapps.com/authenticate"
 ]
 
 [pos]

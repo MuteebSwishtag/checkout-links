@@ -9,7 +9,7 @@ use Illuminate\Validation\Rule;
 class Link extends Model {
     use HasFactory;
 
-    protected $fillable = ['user_id', 'link_name', 'link_url', 'discount_code', 'discount_code_value', 'discount_value', 'free_shipping', 'order_discount', 'single_order', 'clicks', 'placed_order'];
+    protected $fillable = ['user_id', 'link_name', 'link_url', 'redirect_url', 'discount_code', 'discount_code_value', 'discount_value', 'free_shipping', 'order_discount', 'single_order', 'clicks', 'placed_order'];
 
     protected $casts = [
         'discount_code' => 'boolean',

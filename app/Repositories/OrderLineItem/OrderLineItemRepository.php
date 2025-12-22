@@ -33,10 +33,23 @@ class OrderLineItemRepository implements OrderLineItemRepositoryInterface
     }
     public function updateOrCreate(array $data)
     {
-        $lineItem = $this->model->updateOrCreate([
+        // Separate unique identifiers from update fields
+        $uniqueKeys = [
             'shopify_order_lineitem_id' => $data['shopify_order_lineitem_id'],
             'order_id' => $data['order_id'],
-        ], $data);
+        ];
+
+        // Fields to update
+        $updateFields = [
+            'shopify_product_varient_id' => $data['shopify_product_varient_id'] ?? null,
+            'title' => $data['title'] ?? null,
+            'quantity' => $data['quantity'] ?? 0,
+            'price' => $data['price'] ?? null,
+            'sku' => $data['sku'] ?? null,
+            'total_discount' => $data['total_discount'] ?? null,
+        ];
+
+        $lineItem = $this->model->updateOrCreate($uniqueKeys, $updateFields);
         return $lineItem;
     }
     public function delete(int $id)

@@ -19,26 +19,58 @@ trait ShopifyOrderTrait
     {
         $this->order = $order;
     }
-    public function getOrdersFromShopify(User $user)
+    public function getOrdersFromShopify(User $user, $minutes = null)
     {
+        $syncType = $minutes ? "incremental (last {$minutes} minutes)" : "full";
+        Log::info("Starting {$syncType} order sync for user ID: " . $user->id);
+
         try {
-            $orderCount = $this->getOrdersCountFromShopify($user);
             $cursor = 'null';
-            $loop = ceil($orderCount / 250);
             $hasErrors = false;
+            $processedCount = 0;
+
+            // For incremental sync, we don't need order count - just fetch updated orders
+            if (!$minutes) {
+                $orderCount = $this->getOrdersCountFromShopify($user);
+                Log::info('Total Orders Count: ' . $orderCount);
+                $loop = ceil($orderCount / 250);
+            } else {
+                // For incremental sync, loop until no more pages
+                $loop = PHP_INT_MAX;
+            }
+
             for ($i = 1; $i <= $loop; $i++) {
-                [$orders, $nextCursor] = $this->shopifyGraphqlOrderQuery($user, $cursor);
-                if ($orders && $nextCursor) {
+                [$orders, $nextCursor] = $this->shopifyGraphqlOrderQuery($user, $cursor, $minutes);
+
+                // Break if no orders returned
+                if (!$orders || count($orders) === 0) {
+                    Log::info('No more orders to sync');
+                    break;
+                }
+
+                Log::info("Processing batch {$i}: " . count($orders) . " orders");
+
+                if ($orders && $nextCursor !== null) {
                     $cursor = '"' . $nextCursor . '"';
                     foreach ($orders as $order) {
                         $order = $this->transformShopifyOrderData($order);
                         Log::info("Order Data: " . json_encode($order, JSON_PRETTY_PRINT));
                         if (!$this->storeData($this->arrayToObject($order), $user)) {
                             $hasErrors = true;
+                        } else {
+                            $processedCount++;
                         }
                     }
                 }
+
+                // For incremental sync, check if there's a next page
+                if ($minutes && !$nextCursor) {
+                    break;
+                }
             }
+
+            Log::info("Completed {$syncType} sync. Processed {$processedCount} orders");
+
             if ($hasErrors) {
                 throw new \Exception("Some Orders could not be stored.");
             }
@@ -66,11 +98,19 @@ trait ShopifyOrderTrait
             return $result->body->data->ordersCount->count;
         }
     }
-    public function shopifyGraphqlOrderQuery($user, $cursor)
+    public function shopifyGraphqlOrderQuery($user, $cursor, $minutes = null)
     {
+        // Build query filter for incremental sync
+        $queryFilter = '';
+        if ($minutes) {
+            $timestamp = \Carbon\Carbon::now()->subMinutes($minutes)->toIso8601ZuluString();
+            $queryFilter = ', query: "updated_at:>\'' . $timestamp . '\'"';
+            Log::info('Incremental order sync query filter: ' . $queryFilter);
+        }
+
         $query = <<<QUERY
             query {
-                orders(first: 250, after: $cursor) {
+                orders(first: 250, after: $cursor{$queryFilter}) {
                     edges {
                         node {
                             id
@@ -80,6 +120,7 @@ trait ShopifyOrderTrait
                             name
                             note
                             phone
+                            updatedAt
                             subtotalPriceSet{
                                 shopMoney {
                                     amount
@@ -185,7 +226,7 @@ trait ShopifyOrderTrait
                     }
                 }
             }
-        QUERY;
+QUERY;
         $result = $this->arrayToObject($user->api()->graph($query));
         if ($result->errors) {
             return [null, null];
@@ -800,7 +841,10 @@ GRAPHQL;
     GRAPHQL;
 
         $startsAt = Carbon::now()->utc()->format('Y-m-d\TH:i:s\Z');
-        $endsAt = Carbon::now()->addHour()->utc()->format('Y-m-d\TH:i:s\Z'); // Set expiration to 1 hour
+        $endsAt = Carbon::now()
+            ->add(CarbonInterval::fromString($link->popupMessage->timer_text))
+            ->utc()
+            ->format('Y-m-d\TH:i:s\Z');
 
         // Generate a unique code for free shipping
         $code = "FREESHIP" . $link->id . strtoupper(substr(md5(mt_rand()), 0, 4));

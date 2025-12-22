@@ -227,6 +227,110 @@ window.checkoutConfig = window.checkoutConfig || {
   document.head.appendChild(style);
 })();
 
+/**
+ * Show error page when single order limit is reached
+ */
+function showSingleOrderLimitPage(message) {
+  const html = `
+    <div style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      font-family: Arial, sans-serif;
+    ">
+      <div style="
+        background: white;
+        border-radius: 20px;
+        padding: 40px;
+        text-align: center;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        max-width: 500px;
+        margin: 20px;
+      ">
+        <div style="font-size: 80px; margin-bottom: 20px; color: #ff9800;">⚠️</div>
+        <h1 style="color: #333; margin-bottom: 15px; font-size: 28px;">Order Limit Reached</h1>
+        <p style="color: #666; line-height: 1.6; margin-bottom: 30px; font-size: 16px;">
+          ${message || 'This checkout link has already been used and only allows one order to be placed.'}
+          <br><br>
+          If you believe this is an error, please contact the person who shared this link with you.
+        </p>
+        <a href="javascript:history.back()" style="
+          display: inline-block;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 15px 30px;
+          text-decoration: none;
+          border-radius: 50px;
+          font-weight: bold;
+          transition: transform 0.3s ease;
+        ">Go Back</a>
+        <div style="margin-top: 30px; font-size: 12px; color: #999;">Single Order Limit Enforced</div>
+      </div>
+    </div>
+  `;
+
+  document.body.innerHTML = html;
+}
+
+/**
+ * Show error page when link is not found
+ */
+function showLinkNotFoundPage(message) {
+  const html = `
+    <div style="
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 99999;
+      font-family: Arial, sans-serif;
+    ">
+      <div style="
+        background: white;
+        border-radius: 20px;
+        padding: 40px;
+        text-align: center;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        max-width: 500px;
+        margin: 20px;
+      ">
+        <div style="font-size: 80px; margin-bottom: 20px; color: #ff6b6b;">🔗❌</div>
+        <h1 style="color: #333; margin-bottom: 15px; font-size: 28px;">Oops! Link Not Found</h1>
+        <p style="color: #666; line-height: 1.6; margin-bottom: 30px; font-size: 16px;">
+          ${message || 'The checkout link you\'re looking for doesn\'t exist or may have been removed.'}
+          <br><br>
+          This could happen if the link was deleted or if there was a typo in the URL.
+        </p>
+        <a href="javascript:history.back()" style="
+          display: inline-block;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+          padding: 15px 30px;
+          text-decoration: none;
+          border-radius: 50px;
+          font-weight: bold;
+          transition: transform 0.3s ease;
+        ">Go Back</a>
+        <div style="margin-top: 30px; font-size: 12px; color: #999;">Error Code: 404 - Link Not Found</div>
+      </div>
+    </div>
+  `;
+
+  document.body.innerHTML = html;
+}
+
 // Helper function to ensure theme editor disclaimer is present
 window.ensureThemeEditorDisclaimer = function (modalContent) {
   // Only add disclaimer in theme editor mode
@@ -876,12 +980,20 @@ document.addEventListener('DOMContentLoaded', function () {
         headers: baseHeaders
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-
       const data = await response.json();
       console.log('Fetched link data from API:', data);
+
+      // Check for single order limit reached error
+      if (!response.ok || data.error_type) {
+        if (data.error_type === 'single_order_limit_reached') {
+          showSingleOrderLimitPage(data.message);
+          return;
+        } else if (data.error_type === 'link_not_found') {
+          showLinkNotFoundPage(data.message);
+          return;
+        }
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
 
       if (data.success && data.link) {
         console.log('Valid link data received:', data.link);

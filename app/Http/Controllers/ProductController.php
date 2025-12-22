@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\OrderSyncJob;
+use App\Models\Orders\Order;
 use App\Models\Product;
 use App\Jobs\ProductSyncJob;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
@@ -106,11 +109,9 @@ class ProductController extends Controller
     public function syncProducts(Request $request)
     {
         $user = Auth::user();
-        
         try {
             // Dispatch the ProductSyncJob
             ProductSyncJob::dispatch($user->id);
-            
             Log::info('Product sync job dispatched for user ID: ' . $user->id);
             
             return response()->json([
@@ -125,5 +126,12 @@ class ProductController extends Controller
                 'message' => 'Failed to start product sync. Please try again.'
             ], 500);
         }
+    }
+    public function batchSyncAllUsers()
+    {
+        Log::info('Starting batch product sync for all users.');
+        // Dispatch jobs to sync all users - iteration happens inside the jobs
+        ProductSyncJob::dispatch(null, 10)->delay(now()->addSeconds(5));
+        // OrderSyncJob::dispatch(null, 10)->delay(now()->addSeconds(10));
     }
 }
