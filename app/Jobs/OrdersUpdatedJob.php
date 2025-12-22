@@ -19,7 +19,10 @@ use Osiset\ShopifyApp\Contracts\Queries\Shop as IShopQuery;
 class OrdersUpdatedJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels, ResponseTrait, ShopifyOrderTrait;
+    
 
+    public $timeout = 600;
+    public $tries = 3;
     /**
      * Create a new job instance.
      *  @var ShopDomain|string

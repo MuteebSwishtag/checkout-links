@@ -25,6 +25,8 @@ class ProductsUpdateJob implements ShouldQueue
 
     public $shopDomain;
     public $data;
+    public $timeout = 600;
+    public $tries = 3;
 
     public function __construct($shopDomain, $data)
     {

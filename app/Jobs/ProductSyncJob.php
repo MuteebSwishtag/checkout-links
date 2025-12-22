@@ -18,7 +18,9 @@ class ProductSyncJob implements ShouldQueue
      *
      * @var int
      */
-    public $timeout = 600; // 10 minutes
+    public $timeout = 600;
+     // 10 minutes
+    public $tries = 3;
 
     /**
      * Create a new job instance.
