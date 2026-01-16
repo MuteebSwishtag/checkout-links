@@ -10,6 +10,7 @@ use Osiset\ShopifyApp\Messaging\Jobs\WebhookInstaller;
 use Osiset\ShopifyApp\Objects\Values\ShopDomain;
 use Osiset\ShopifyApp\Util;
 use App\Models\User;
+use App\Http\Controllers\AppProxyController;
 
 
 Route::group(['middleware' => ['verify.embedded', 'verify.shopify']], function () {
@@ -41,6 +42,7 @@ Route::group(['middleware' => ['verify.embedded', 'verify.shopify']], function (
     Route::put('/links/{id}/update', [LinkController::class, 'update'])->name('links.update');
     Route::delete('/links/{id}/delete', [LinkController::class, 'destroy'])->name('links.delete');
     Route::post('/settings/save', [ProductController::class, 'save'])->name('settings.save');
+    
 
     // Route to fetch settings for the current user
     Route::get('/settings/get', [ProductController::class, 'settingsGet'])->name('settings.get');
@@ -58,7 +60,7 @@ Route::get('/batchSyncAllUsers', [ProductController::class, 'batchSyncAllUsers']
 // Route::get('/checkout', function () {
 //     Log::info('Checkout route accessed');
 // })->name('checkout');
-Route::get('/checkout/{id}', [LinkController::class, 'openCheckout'])->name('checkout.handle');
+Route::get('/checkout/{id}', [LinkController::class, 'openCheckoutLink'])->name('checkout.handle');
 
 // Reinstall webhooks for all users (excludes role_id filtering)
 Route::get('/jobs-result2', function (Shop $shopModel) {
@@ -110,6 +112,7 @@ Route::get('/jobs-result2', function (Shop $shopModel) {
         'results' => $results
     ]);
 });
+Route::get('/CheckoputLinksProxy', [AppProxyController::class, 'index'])->middleware('auth.proxy');
 
 
 require __DIR__ . '/auth.php';

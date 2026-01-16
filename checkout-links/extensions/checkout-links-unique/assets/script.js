@@ -291,7 +291,7 @@ function showLinkNotFoundPage(message) {
       width: 100%;
       height: 100%;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      display: flex;
+      display: flex; 
       align-items: center;
       justify-content: center;
       z-index: 99999;
@@ -479,9 +479,12 @@ function checkAndApplyStoredDiscount() {
 
             // Choose the appropriate discount URL format based on the discount code
             let redirectUrl;
+            const isFreeShipping = storedDiscount.free_shipping || storedDiscount.discount_code.includes('FREESHIP');
 
-            if (storedDiscount.discount_code.includes('FREESHIP') || storedDiscount.free_shipping) {
-              // For free shipping codes, use the /discount/CODE format which is more reliable
+            // IMPORTANT: Free shipping codes MUST use /checkout/discount/CODE format
+            // Query parameter format (?discount=CODE) does NOT work for shipping discounts in Shopify
+            if (isFreeShipping) {
+            // For free shipping codes, use the /discount/CODE format which is REQUIRED
               // First check if we're already at checkout
               if (window.location.pathname.startsWith('/checkout')) {
                 // We're at checkout, add the discount code to the path
@@ -510,7 +513,7 @@ function checkAndApplyStoredDiscount() {
                 }
               }
             } else {
-              // For regular discount codes, try the query parameter approach
+              // For regular percentage/fixed amount discount codes, query parameter works fine
               const separator = window.location.search ? '&' : '?';
               redirectUrl = `${window.location.href}${separator}discount=${encodeURIComponent(storedDiscount.discount_code)}`;
               if (hasSpecificProducts) {
@@ -518,7 +521,7 @@ function checkAndApplyStoredDiscount() {
               }
             }
 
-            console.log('Redirecting to apply discount:', redirectUrl);
+            console.log('Redirecting to apply discount:', { redirectUrl, isFreeShipping, discountCode: storedDiscount.discount_code });
             window.location.href = redirectUrl;
           } else {
             console.log('Discount already applied in URL or page');
@@ -639,6 +642,68 @@ function highlightSpecificProducts(productIds) {
 document.addEventListener('DOMContentLoaded', function () {
   // Check for stored discount and apply it if we're on the cart or checkout page
   checkAndApplyStoredDiscount();
+
+  /**
+   * Helper functions for tracking expired discounts per link
+   */
+  function getExpiredDiscountsKey() {
+    return 'checkout_links_expired_discounts';
+  }
+
+  function getExpiredDiscounts() {
+    try {
+      const stored = localStorage.getItem(getExpiredDiscountsKey());
+      return stored ? JSON.parse(stored) : {};
+    } catch (e) {
+      return {};
+    }
+  }
+
+  function isDiscountExpiredForLink(linkId) {
+    if (!linkId) return false;
+    const expiredDiscounts = getExpiredDiscounts();
+    return !!expiredDiscounts[linkId];
+  }
+
+  function markTimerAsEnded(linkId) {
+    if (!linkId) return;
+    try {
+      const expiredDiscounts = getExpiredDiscounts();
+      expiredDiscounts[linkId] = {
+        timerEnded: true,
+        endedAt: new Date().toISOString(),
+        // Keep for 30 days
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      };
+      localStorage.setItem(getExpiredDiscountsKey(), JSON.stringify(expiredDiscounts));
+      console.log('Marked timer as ended for link (discount still available):', linkId);
+    } catch (e) {
+      console.error('Failed to mark timer as ended:', e);
+    }
+  }
+
+  function clearDiscountFromConfig() {
+    if (window.checkoutConfig) {
+      window.checkoutConfig.discount = {
+        code: '',
+        value: 0,
+        freeShipping: false,
+        orderDiscount: false,
+        expired: true
+      };
+      // Also remove from localStorage
+      try {
+        localStorage.removeItem('checkout_links_discount');
+      } catch (e) { }
+    }
+  }
+
+  // Make these functions globally accessible
+  window.checkoutLinksExpiry = {
+    isExpired: isDiscountExpiredForLink,
+    markTimerEnded: markTimerAsEnded,
+    clearDiscount: clearDiscountFromConfig
+  };
 
   // Initialize modal behavior and hide any visible modals
   const initialModalElement = document.getElementById('orderSummaryModal');
@@ -890,7 +955,15 @@ document.addEventListener('DOMContentLoaded', function () {
     if (window.checkoutConfig) {
       if (linkId) {
         window.checkoutConfig.link_id = linkId;
-        // console.log('Updated checkoutConfig.link_id:', linkId);
+
+        // Check if discount was already expired for this link
+        if (window.checkoutLinksExpiry && window.checkoutLinksExpiry.isExpired(linkId)) {
+          console.log('Discount already expired for this link:', linkId);
+          // Clear any discount code from URL params
+          discountCode = null;
+          // Clear discount from config
+          window.checkoutLinksExpiry.clearDiscount();
+        }
       }
       if (backendUrl) {
         window.checkoutConfig.backendUrl = backendUrl;
@@ -899,37 +972,45 @@ document.addEventListener('DOMContentLoaded', function () {
 
       // Make sure we properly handle the discount code
       if (discountCode) {
+        // Detect if this is a free shipping code
+        const isFreeShipping = discountCode.toUpperCase().includes('FREESHIP');
+
         // Always create a proper discount object
         if (!window.checkoutConfig.discount) {
           window.checkoutConfig.discount = {
             code: discountCode,
-            value: parseFloat(discountCode) || 0,
-            freeShipping: discountCode.includes('FREESHIP'),
-            orderDiscount: true
+            value: 0, // Will be set from API data later
+            freeShipping: isFreeShipping,
+            orderDiscount: false // Will be set from API data later
           };
-          console.log('Created checkoutConfig.discount:', window.checkoutConfig.discount);
+          console.log('Created checkoutConfig.discount from URL:', window.checkoutConfig.discount);
         } else {
           window.checkoutConfig.discount.code = discountCode;
-          // Try to extract numeric value from discount code if it contains numbers
-          const numericMatch = discountCode.match(/(\d+(\.\d+)?)/);
-          if (numericMatch) {
-            window.checkoutConfig.discount.value = parseFloat(numericMatch[0]) || 0;
-          }
-          console.log('Updated checkoutConfig.discount:', window.checkoutConfig.discount);
+          window.checkoutConfig.discount.freeShipping = isFreeShipping;
+          // Don't try to extract value from code - it will come from API
+          console.log('Updated checkoutConfig.discount from URL:', window.checkoutConfig.discount);
         }
 
     // Store the discount in localStorage immediately for persistence
+        // BUT: Don't store free shipping codes - they should only apply via direct checkout URL
         try {
-          localStorage.setItem('checkout_links_discount', JSON.stringify({
-            link_id: window.checkoutConfig.link_id,
-            discount_code: discountCode,
-            discount_value: window.checkoutConfig.discount.value || 0,
-            order_discount: window.checkoutConfig.discount.orderDiscount || true,
-            free_shipping: window.checkoutConfig.discount.freeShipping || false,
-            specific_products: [], // Will be populated when products are added to cart
-            expires: new Date(new Date().getTime() + (24 * 60 * 60 * 1000)).toISOString() // 24 hours from now
-          }));
-          console.log('Stored initial discount in localStorage');
+          const isFreeShipping = window.checkoutConfig.discount.freeShipping || false;
+
+          if (!isFreeShipping) {
+          // Only store non-free-shipping discounts for cart persistence
+            localStorage.setItem('checkout_links_discount', JSON.stringify({
+              link_id: window.checkoutConfig.link_id,
+              discount_code: discountCode,
+              discount_value: window.checkoutConfig.discount.value || 0,
+              order_discount: window.checkoutConfig.discount.orderDiscount || true,
+              free_shipping: false,
+              specific_products: [], // Will be populated when products are added to cart
+              expires: new Date(new Date().getTime() + (24 * 60 * 60 * 1000)).toISOString() // 24 hours from now
+            }));
+            console.log('Stored initial discount in localStorage (non-free-shipping)');
+          } else {
+            console.log('Free shipping code detected - will only apply via direct checkout URL, not storing in localStorage');
+          }
         } catch (e) {
           console.error('Failed to store discount in localStorage:', e);
         }
@@ -1097,17 +1178,35 @@ document.addEventListener('DOMContentLoaded', function () {
       variants.forEach(item => {
         const variant = item.variant || {};
         const product = variant.product || {};
-        // console.log('Processing variant:', variant, 'Product:', product);
+
+        // Properly extract price - check multiple sources
+        // Priority: item.price -> variant.price -> product price -> default
+        let productPrice = '0.00';
+
+        if (item.price !== null && item.price !== undefined && item.price !== '') {
+          productPrice = item.price;
+        } else if (variant.price !== null && variant.price !== undefined && variant.price !== '') {
+          productPrice = variant.price;
+        } else if (product.price !== null && product.price !== undefined && product.price !== '') {
+          productPrice = product.price;
+        }
+
+        console.log('Processing variant:', {
+          itemPrice: item.price,
+          variantPrice: variant.price,
+          productPrice: product.price,
+          finalPrice: productPrice,
+          title: `${product.title || 'Product'} - ${variant.title || 'Variant'}`
+        });
 
         allVariants.push({
           id: variant.shopify_product_varient_id,
           title: `${product.title || 'Product'} - ${variant.title || 'Variant'}`,
-          price: item.price || variant.price || '0.00',
+          price: productPrice,
           image: product.media && product.media[0] ? product.media[0].src : '',
           quantity: 1,
           productId: product.id,
           linkVariantId: variant.shopify_product_varient_id
-
         });
       });
     }
@@ -1115,38 +1214,60 @@ document.addEventListener('DOMContentLoaded', function () {
     // Update products
     window.checkoutConfig.products = allVariants;
 
-    // Update discount - be more careful with this
-    console.log('Processing discount from link data:', {
-      discount_code: linkData.discount_code,
-      discount_value: linkData.discount_value,
-      free_shipping: linkData.free_shipping,
-      order_discount: linkData.order_discount
-    });
+    // Check if timer has already ended for this link
+    const linkId = linkData.id || window.checkoutConfig.link_id;
+    const timerAlreadyEnded = window.checkoutLinksExpiry && window.checkoutLinksExpiry.isExpired(linkId);
 
-    // Only update discount if we have a value and don't already have a discount code from URL params
-    if (linkData.discount_code || linkData.discount_value) {
-      const existingCode = window.checkoutConfig.discount?.code;
+    // Always process discount (timer ended doesn't remove discount)
+    {
+      // Update discount - be more careful with this
+      console.log('Processing discount from link data:', {
+        discount_code: linkData.discount_code,
+        discount_value: linkData.discount_value,
+        free_shipping: linkData.free_shipping,
+        order_discount: linkData.order_discount
+      });
 
-      // If we already have a discount code from the URL, keep that but update other properties
-      if (existingCode && existingCode !== linkData.discount_code) {
-        console.log('Keeping existing discount code from URL:', existingCode);
-        window.checkoutConfig.discount = {
-          code: existingCode, // Keep existing code
-          value: linkData.discount_value || window.checkoutConfig.discount?.value || 0,
-          freeShipping: !!linkData.free_shipping,
-          orderDiscount: !!linkData.order_discount
-        };
-      } else {
-        // No existing code or same code, use what's in the link data
-        window.checkoutConfig.discount = {
-          code: linkData.discount_code || existingCode || '',
-          value: linkData.discount_value || 0,
-          freeShipping: !!linkData.free_shipping,
-          orderDiscount: !!linkData.order_discount
-        };
+      // Handle discount code - check if we have one from URL or API
+      const urlDiscountCode = window.checkoutConfig.discount?.code;
+      const apiDiscountCode = linkData.discount_code && linkData.discount_code !== false && linkData.discount_code !== 'false'
+        ? linkData.discount_code
+        : null;
+
+      // Determine which discount code to use (URL takes precedence)
+      const finalDiscountCode = urlDiscountCode || apiDiscountCode;
+
+      // Only update discount if we have a discount code OR free shipping is enabled
+      if (finalDiscountCode || linkData.free_shipping || linkData.discount_value) {
+        const existingCode = window.checkoutConfig.discount?.code;
+
+        // If we already have a discount code from the URL, keep that but update other properties
+        if (existingCode && existingCode !== apiDiscountCode) {
+          console.log('Keeping existing discount code from URL:', existingCode);
+          window.checkoutConfig.discount = {
+            code: existingCode, // Keep existing code
+            value: parseFloat(linkData.discount_value) || 0,
+            freeShipping: !!linkData.free_shipping,
+            orderDiscount: !!linkData.order_discount
+          };
+        } else {
+          // No existing code or same code, use what's in the link data
+          window.checkoutConfig.discount = {
+            code: linkData.discount_code || existingCode || '',
+            value: linkData.discount_value || 0,
+            freeShipping: !!linkData.free_shipping,
+            orderDiscount: !!linkData.order_discount
+          };
+        }
+
+        // Mark if timer has already ended
+        if (timerAlreadyEnded) {
+          window.checkoutConfig.discount.timerEnded = true;
+          console.log('Timer already ended for this link, will show 00:00');
+        }
+
+        console.log('Updated discount config:', window.checkoutConfig.discount);
       }
-
-      console.log('Updated discount config:', window.checkoutConfig.discount);
     }
 
     // Update popup message
@@ -1273,25 +1394,40 @@ document.addEventListener('DOMContentLoaded', function () {
    * Initializes countdown timer
    */
   window.initializeCountdown = function (timerText) {
-    // Try to match minutes from text
-    const minutesMatch = timerText ? timerText.match(/(\d+)\s*minute/i) : null;
-
     // Check if we're in the Shopify theme editor
     const isThemeEditor = window.Shopify && window.Shopify.designMode;
+
+    // Check if timer has already ended
+    const timerEnded = window.checkoutConfig.discount?.timerEnded;
 
     // Get seconds from countdown configuration
     let secondsRemaining;
 
     // Priority order for countdown time:
     // 1. window.checkoutConfig.countdown_time (directly from link data)
-    // 2. Extract from timer_text
+    // 2. Extract from timer_text (supports seconds, minutes, hours)
     // 3. Default fallback (600 seconds/10 minutes)
 
     if (window.checkoutConfig.countdown_time) {
       secondsRemaining = parseInt(window.checkoutConfig.countdown_time);
-    } else if (minutesMatch && minutesMatch[1]) {
-      const minutes = parseInt(minutesMatch[1], 10);
-      secondsRemaining = !isNaN(minutes) ? minutes * 60 : 600;
+    } else if (timerText) {
+      // Try to match seconds, minutes, or hours from text
+      const secondsMatch = timerText.match(/(\d+)\s*seconds?/i);
+      const minutesMatch = timerText.match(/(\d+)\s*minutes?/i);
+      const hoursMatch = timerText.match(/(\d+)\s*hours?/i);
+
+      if (secondsMatch && secondsMatch[1]) {
+        const seconds = parseInt(secondsMatch[1], 10);
+        secondsRemaining = !isNaN(seconds) ? seconds : 600;
+      } else if (minutesMatch && minutesMatch[1]) {
+        const minutes = parseInt(minutesMatch[1], 10);
+        secondsRemaining = !isNaN(minutes) ? minutes * 60 : 600;
+      } else if (hoursMatch && hoursMatch[1]) {
+        const hours = parseInt(hoursMatch[1], 10);
+        secondsRemaining = !isNaN(hours) ? hours * 3600 : 600;
+      } else {
+        secondsRemaining = 600; // Default: 10 minutes
+      }
     } else {
       secondsRemaining = 600; // Default: 10 minutes
     }
@@ -1346,45 +1482,57 @@ document.addEventListener('DOMContentLoaded', function () {
     countdownLabel.style.color = '#666';
 
     function updateDisplay() {
-      const minutes = Math.floor(secondsRemaining / 60);
+      const hours = Math.floor(secondsRemaining / 3600);
+      const minutes = Math.floor((secondsRemaining % 3600) / 60);
       const seconds = secondsRemaining % 60;
 
-      countdownTimeEl.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+      // Format as HH:MM:SS if hours exist, otherwise MM:SS
+      if (hours > 0) {
+        countdownTimeEl.textContent = `${hours < 10 ? '0' : ''}${hours}:${minutes < 10 ? '0' : ''}${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+      } else {
+        countdownTimeEl.textContent = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+      }
+
       countdownTimeEl.style.display = 'block';
       countdownEl.style.display = 'flex';
     }
 
     function handleExpiration() {
-      // Remove the timer element
-      countdownTimeEl.style.display = 'none';
+      // Stop the timer and show 00:00
+      if (countdownTimeEl) {
+        countdownTimeEl.textContent = '00:00';
+        countdownTimeEl.style.display = 'block';
+      }
 
-      // We already have reference to countdownLabel
+      // Keep the countdown label visible
       if (countdownLabel) {
-        countdownLabel.style.display = 'none';
+        countdownLabel.style.display = 'block';
       }
 
-      // Show expiration message
-      expirationMessageEl.style.display = 'block';
+      // Hide expiration message (we're keeping discount)
+      expirationMessageEl.style.display = 'none';
 
-      // Remove any discount from the checkout config
+      // Mark timer as ended (but keep discount available)
       if (window.checkoutConfig.discount) {
-        window.checkoutConfig.discount.expired = true;
-        window.checkoutConfig.discount.value = 0;
+        window.checkoutConfig.discount.timerEnded = true;
       }
 
-      // Update UI to reflect discount removal
-      const discountRowEl = document.querySelector('.discount-row');
-      if (discountRowEl) {
-        discountRowEl.style.display = 'none';
+      // Mark this timer as ended for this link (persists in localStorage)
+      const linkId = window.checkoutConfig?.link_id;
+      if (linkId && window.checkoutLinksExpiry) {
+        window.checkoutLinksExpiry.markTimerEnded(linkId);
       }
 
-      // Update total calculation to remove discount
-      updateTotal();
+      // Keep discount info visible
+      const discountInfoEl = document.querySelector('.discount-info');
+      if (discountInfoEl) {
+        discountInfoEl.style.display = 'flex';
+      }
 
-      // Change the confirm button text
+      // Discount still applies, so keep the button text normal
       const confirmBtn = document.querySelector('.confirm-btn');
       if (confirmBtn) {
-        confirmBtn.textContent = "Proceed Without Discount";
+        confirmBtn.textContent = window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm';
       }
     }
 
@@ -1396,6 +1544,18 @@ document.addEventListener('DOMContentLoaded', function () {
       countdownTimeEl.style.fontSize = '18px';
       countdownTimeEl.style.fontWeight = 'bold';
       countdownTimeEl.style.color = '#000';
+    }
+
+    // If timer already ended, just show 00:00 and don't start countdown
+    if (timerEnded) {
+      countdownTimeEl.textContent = '00:00';
+      countdownTimeEl.style.display = 'block';
+      countdownEl.style.display = 'flex';
+      if (countdownLabel) {
+        countdownLabel.style.display = 'block';
+      }
+      console.log('Timer already ended, showing 00:00 (discount still available)');
+      return;
     }
 
     // Clear any existing intervals to prevent multiple timers
@@ -1442,32 +1602,41 @@ document.addEventListener('DOMContentLoaded', function () {
             <p style="margin-bottom: 15px; font-size: 16px;">No products linked with this link.</p>
             <p style="font-size: 14px; color: #666;">This link may be invalid or all products have been removed.</p>
           </div>
-          <a href="#" class="no-thanks">${window.checkoutConfig.popupMessage?.close_button_text || 'No thanks'}</a>
         </div>
       `;
-      // Add event listener for the close button
-      const closeBtn = modalContent.querySelector('.no-thanks');
-      if (closeBtn) {
-        closeBtn.addEventListener('click', function (e) {
-          e.preventDefault();
-          window.forceCloseModal();
-          return false;
-        });
-      }
       return;
     }
     // Calculate prices
-    let subtotal = window.checkoutConfig.products.reduce((sum, p) => sum + (parseFloat(p.price) || 0), 0) || 0;
+    let subtotal = window.checkoutConfig.products.reduce((sum, p) => {
+      const price = parseFloat(p.price) || 0;
+      const quantity = parseInt(p.quantity) || 1;
+      const lineTotal = price * quantity;
+      console.log(`Product: ${p.title}, Price: ${p.price}, Quantity: ${quantity}, Line Total: ${lineTotal}`);
+      return sum + lineTotal;
+    }, 0) || 0;
+
+    console.log('Subtotal calculation:', {
+      products: window.checkoutConfig.products,
+      subtotal: subtotal,
+      discount: window.checkoutConfig.discount
+    });
+
     let discountAmount = 0;
-    if (window.checkoutConfig.discount?.value) {
+    // Only calculate discount amount if we have a monetary discount (not just free shipping)
+    if (window.checkoutConfig.discount?.value && !window.checkoutConfig.discount?.freeShipping) {
       const discountValue = parseFloat(window.checkoutConfig.discount.value) || 0;
       discountAmount = window.checkoutConfig.discount.orderDiscount
         ? subtotal * (discountValue / 100)
         : discountValue;
       discountAmount = Math.min(discountAmount, subtotal);
+      console.log('Discount calculated:', { discountValue, discountAmount, orderDiscount: window.checkoutConfig.discount.orderDiscount });
+    } else if (window.checkoutConfig.discount?.freeShipping) {
+      console.log('Free shipping discount - no cart amount deduction, will be applied at checkout');
     }
     const total = subtotal - discountAmount;
     const currencyCode = window.checkoutConfig.currency_code || 'USD';
+
+    console.log('Final totals:', { subtotal, discountAmount, total });
 
     // Build modal HTML
     modalContent.innerHTML = `
@@ -1518,19 +1687,26 @@ document.addEventListener('DOMContentLoaded', function () {
              $<span class="total-value" style="font-weight: bold; font-size: 24px;" >${total.toFixed(2)}</span>
           </div>
         </div>
+        ${(window.checkoutConfig.discount?.code || window.checkoutConfig.discount?.freeShipping || window.checkoutConfig.discount?.value) ? `
         <div class="discount-info" style="font-size: 12px; color: #000; margin: 16px 0px; display: flex; align-items: center; gap: 5px;">
             <svg width="24" height="24" viewBox="0 0 32 32" id="tag">
             <path fill="none" stroke="#000" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M29 14.17V3H17.83a2 2 0 0 0-1.42.59L3 17l12 12 13.41-13.41a2 2 0 0 0 .59-1.42Z"></path>
             <circle cx="23" cy="9" r="2"></circle>
           </svg>
-            ${window.checkoutConfig.discount.code && window.checkoutConfig.discount.code.startsWith('FREESHIP')
+            ${window.checkoutConfig.discount.freeShipping || (window.checkoutConfig.discount.code && window.checkoutConfig.discount.code.toUpperCase().startsWith('FREESHIP'))
       ? 'Free Shipping'
-      : `Includes ${window.checkoutConfig.discount.orderDiscount ? window.checkoutConfig.discount.value + '% OFF' : '$' + window.checkoutConfig.discount.value + ' OFF'}`}
+      : (window.checkoutConfig.discount.value && window.checkoutConfig.discount.value > 0)
+        ? `Includes ${window.checkoutConfig.discount.orderDiscount ? window.checkoutConfig.discount.value + '% OFF' : '$' + window.checkoutConfig.discount.value + ' OFF'}`
+        : (window.checkoutConfig.discount.code && typeof window.checkoutConfig.discount.code === 'string' && window.checkoutConfig.discount.code.length > 0)
+          ? `Discount Code: <strong>${window.checkoutConfig.discount.code}</strong>`
+          : 'Discount Applied'}
           </div>
+        ` : ''}
         </div>
         ` : ''}
         <button class="confirm-btn">${window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm'}</button>
         <a href="${window.checkoutConfig.popupMessage?.close_button_link || '#'}" class="no-thanks">${window.checkoutConfig.popupMessage?.close_button_text || 'No thanks'}</a>
+        <div id="modal-error-container" style="display: none; margin-top: 15px; padding: 12px; background-color: #fee; border: 1px solid #fcc; border-radius: 4px; color: #c00; font-size: 14px; text-align: center; word-wrap: break-word;"></div>
       </div>
     `;
 
@@ -1658,27 +1834,34 @@ document.addEventListener('DOMContentLoaded', function () {
         }));
 
         // Also store discount information in localStorage for persistence
+        // BUT: Don't store free shipping codes - they only work via direct checkout URL
         if (window.checkoutConfig.discount && window.checkoutConfig.discount.code && !document.querySelector('.expiration-message')?.style.display === 'block') {
-          console.log('Storing discount in localStorage:', window.checkoutConfig.discount.code);
+          const isFreeShipping = window.checkoutConfig.discount.freeShipping || window.checkoutConfig.discount.code.includes('FREESHIP');
 
-          // Extract proper product IDs
-          const productIds = cartItems.map(item => {
-            // Make sure we have a valid number for the ID
-            const id = typeof item.id === 'string' && item.id.includes('-')
-              ? item.id.split('-')[0] // Handle potential key format like "123456-1"
-              : item.id;
-            return parseInt(id) || null;
-          }).filter(Boolean); // Remove any null values
+          if (!isFreeShipping) {
+            console.log('Storing discount in localStorage:', window.checkoutConfig.discount.code);
 
-          localStorage.setItem('checkout_links_discount', JSON.stringify({
-            link_id: window.checkoutConfig.link_id,
-            discount_code: window.checkoutConfig.discount.code,
-            discount_value: window.checkoutConfig.discount.value,
-            order_discount: window.checkoutConfig.discount.orderDiscount,
-            free_shipping: window.checkoutConfig.discount.freeShipping,
-            specific_products: productIds, // Store the specific product IDs
-            expires: new Date(new Date().getTime() + (24 * 60 * 60 * 1000)).toISOString() // 24 hours from now
-          }));
+            // Extract proper product IDs
+            const productIds = cartItems.map(item => {
+              // Make sure we have a valid number for the ID
+              const id = typeof item.id === 'string' && item.id.includes('-')
+                ? item.id.split('-')[0] // Handle potential key format like "123456-1"
+                : item.id;
+              return parseInt(id) || null;
+            }).filter(Boolean); // Remove any null values
+
+            localStorage.setItem('checkout_links_discount', JSON.stringify({
+              link_id: window.checkoutConfig.link_id,
+              discount_code: window.checkoutConfig.discount.code,
+              discount_value: window.checkoutConfig.discount.value,
+              order_discount: window.checkoutConfig.discount.orderDiscount,
+              free_shipping: false,
+              specific_products: productIds, // Store the specific product IDs
+              expires: new Date(new Date().getTime() + (24 * 60 * 60 * 1000)).toISOString() // 24 hours from now
+            }));
+          } else {
+            console.log('Free shipping code - not storing in localStorage, will only work via direct checkout URL');
+          }
         }
       }
 
@@ -1697,15 +1880,26 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // If we have a discount code and the timer hasn't expired, redirect to checkout with discount applied
         const discountCode = window.checkoutConfig.discount?.code || '';
-        console.log('Direct checkout enabled:', directCheckout, 'Discount code:', discountCode, 'Discount expired:', discountExpired);
+        const isFreeShipping = window.checkoutConfig.discount?.freeShipping || discountCode.includes('FREESHIP');
+
+        console.log('Redirect config:', {
+          directCheckout,
+          discountCode,
+          isFreeShipping,
+          discountExpired
+        });
 
         if (directCheckout) {
-          if (discountCode && !discountExpired) {
+          if (discountCode && !discountExpired && !isFreeShipping) {
+          // For regular percentage/fixed discounts, query parameter works
             window.location.href = `/checkout?discount=${encodeURIComponent(discountCode)}`;
           } else {
+            // For free shipping or no discount, just go to checkout
+            // Free shipping codes are NOT applied via URL (they don't work that way in cart context)
             window.location.href = '/checkout';
           }
         } else {
+          // Going to cart page - discount will be applied when user clicks checkout
           window.location.href = '/cart';
         }
       }, 300);
@@ -1713,6 +1907,11 @@ document.addEventListener('DOMContentLoaded', function () {
     } catch (error) {
       // Reset button state first
       confirmBtn.disabled = false;
+      confirmBtn.textContent = window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm';
+
+      // Get error container
+      const errorContainer = document.getElementById('modal-error-container');
+      let errorMessage = '';
 
       // Handle specific error cases
       if (error.status === 422) {
@@ -1720,30 +1919,31 @@ document.addEventListener('DOMContentLoaded', function () {
           // Handle maximum quantity error - try updating cart instead
           confirmBtn.textContent = 'Updating cart...';
           await handleMaxQuantityError(cartItems, confirmBtn);
+          return; // Exit early for this special case
         } else if (error.data && error.data.description) {
           // Show the specific error description from Shopify
-          confirmBtn.textContent = error.data.description;
-          setTimeout(() => {
-            confirmBtn.textContent = window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm';
-          }, 3000);
+          errorMessage = error.data.description;
         } else {
           // Generic 422 error
-          confirmBtn.textContent = 'Unable to add to cart';
-          setTimeout(() => {
-            confirmBtn.textContent = window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm';
-          }, 3000);
+          errorMessage = 'Unable to add to cart. Please try again.';
         }
       } else if (error.status === 404) {
-        confirmBtn.textContent = 'Product not found';
-        setTimeout(() => {
-          confirmBtn.textContent = window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm';
-        }, 3000);
+        errorMessage = 'Product not found. It may have been removed.';
       } else {
         // Generic error handling
-        confirmBtn.textContent = 'Failed! Try again';
+        errorMessage = error.message || 'Failed to add to cart. Please try again.';
+      }
+
+      // Display error in the error container
+      if (errorContainer && errorMessage) {
+        errorContainer.textContent = errorMessage;
+        errorContainer.style.display = 'block';
+
+      // Auto-hide error after 8 seconds
         setTimeout(() => {
-          confirmBtn.textContent = window.checkoutConfig.popupMessage?.checkout_button_text || 'Confirm';
-        }, 3000);
+          errorContainer.style.display = 'none';
+          errorContainer.textContent = '';
+        }, 8000);
       }
     }
   }
@@ -1784,6 +1984,13 @@ document.addEventListener('DOMContentLoaded', function () {
         if (selectedProducts.length === 0) {
           alert('Please select at least one product to continue');
           return;
+        }
+
+        // Clear any previous errors
+        const errorContainer = document.getElementById('modal-error-container');
+        if (errorContainer) {
+          errorContainer.style.display = 'none';
+          errorContainer.textContent = '';
         }
 
         confirmBtn.disabled = true;
@@ -1865,7 +2072,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const expirationMessage = document.querySelector('.expiration-message');
     const discountExpired = expirationMessage && expirationMessage.style.display === 'block';
 
-    if (window.checkoutConfig.discount?.value && !discountExpired) {
+    // Only apply monetary discount if we have a value AND it's not just free shipping
+    if (window.checkoutConfig.discount?.value && !discountExpired && !window.checkoutConfig.discount?.freeShipping) {
       hasValidDiscount = true;
       const discountValue = parseFloat(window.checkoutConfig.discount.value) || 0;
       discount = window.checkoutConfig.discount.orderDiscount
@@ -2038,6 +2246,12 @@ document.addEventListener('DOMContentLoaded', function () {
    * Global functions for external access
    */
   window.forceCloseModal = function () {
+    // When user closes modal (via X or No Thanks), mark timer as ended but keep discount
+    const linkId = window.checkoutConfig?.link_id;
+    if (linkId && window.checkoutLinksExpiry) {
+      window.checkoutLinksExpiry.markTimerEnded(linkId);
+      console.log('User closed modal - timer marked as ended (discount still available) for link:', linkId);
+    }
     closeModal();
     return false;
   };
@@ -2124,7 +2338,6 @@ document.addEventListener('DOMContentLoaded', function () {
       if (te.countdown_time) window.checkoutConfig.countdown_time = parseInt(te.countdown_time, 10);
       if (te.checkout_button_text) window.checkoutConfig.popupMessage.checkout_button_text = te.checkout_button_text;
       if (te.close_button_text) window.checkoutConfig.popupMessage.close_button_text = te.close_button_text;
-
       if (typeof te.show_countdown === 'boolean') window.checkoutConfig.popupMessage.countdown_active = te.show_countdown;
       if (typeof te.show_price === 'boolean') window.checkoutConfig.popupMessage.show_price = te.show_price;
       if (typeof te.show_order_total === 'boolean') window.checkoutConfig.popupMessage.show_order_total = te.show_order_total;
