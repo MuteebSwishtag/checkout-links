@@ -113,7 +113,7 @@ Route::get('/jobs-result2', function (Shop $shopModel) {
         'results' => $results
     ]);
 });
-Route::get('/checkout-link', [AppProxyController::class, 'index'])->middleware('auth.proxy');
+Route::get('/CheckoutLinksProxy', [AppProxyController::class, 'index'])->middleware('auth.proxy');
 
 
 require __DIR__ . '/auth.php';
