@@ -1,10 +1,9 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "01584217365a2ef71121e7aa927862c2"
-name = "Checkout Links"
-application_url = "https://abdulrahman.xoarhigh.info/"
+client_id = "14e87639cacba74180df195f526a8355"
+name = "Checkout Links Stagging"
+application_url = "https://phpstack-1035961-6145041.cloudwaysapps.com"
 embedded = true
-handle = "oneclickcheckoutlinks-dev"
 
 [webhooks]
 api_version = "2026-01"
@@ -15,7 +14,7 @@ scopes = "write_app_proxy,read_customers,read_inventory,read_locations,read_orde
 use_legacy_install_flow = true
 
 [auth]
-redirect_urls = [ "https://abdulrahman.xoarhigh.info/authenticate" ]
+redirect_urls = ["https://phpstack-1035961-6145041.cloudwaysapps.com/authenticate"]
 
 [app_proxy]
 url = "/CheckoutLinksProxy"
