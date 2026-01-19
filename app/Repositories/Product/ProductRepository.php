@@ -98,16 +98,39 @@ class ProductRepository implements ProductRepositoryInterface
     public function delete(int $id)
     {
         $product = $this->getById($id);
+        
+        if (!$product) {
+            Log::warning("Attempted to delete non-existent product with ID: {$id}");
+            return;
+        }
+        
         $variants = $this->productVarient->getByProductId($product->id);
         $medias = $this->productMedia->getByProductId($product->id);
+        
+        // First, remove all link associations for this product and its variants
+        // Clean up by product_id (covers all variants of this product)
+        $deletedByProductId = LinkProductVarient::where('product_id', $product->id)->delete();
+        if ($deletedByProductId > 0) {
+            Log::info("Removed {$deletedByProductId} link associations for product ID: {$product->id} (Shopify ID: {$product->shopify_product_id})");
+        }
+        
+        // Also clean up by variant_id to catch any edge cases
         foreach ($variants as $variant) {
-            $linkedProductVariant = LinkProductVarient::where('variant_id', $variant->shopify_product_varient_id)->delete();
+            $deletedByVariantId = LinkProductVarient::where('variant_id', $variant->shopify_product_varient_id)->delete();
+            if ($deletedByVariantId > 0) {
+                Log::info("Removed {$deletedByVariantId} link associations for variant ID: {$variant->shopify_product_varient_id}");
+            }
             $this->productVarient->delete($variant->id);
         }
+        
+        // Delete media
         foreach ($medias as $media) {
             $this->productMedia->delete($media->id);
         }
+        
+        // Finally delete the product
         $product->delete();
+        Log::info("Successfully deleted product ID: {$id} (Shopify ID: {$product->shopify_product_id})");
     }
 }
 

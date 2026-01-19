@@ -65,17 +65,32 @@ export default function Discount({
   };
 
   const handleDiscountValueChange = (value) => {
-    // Remove dashes
-    let removeDash = value.replace(/-/g, '');
+    // Remove dashes and any non-numeric characters except empty string
+    let cleanValue = value.replace(/-/g, '').replace(/[^0-9]/g, '');
+
+    // If empty, allow it (user might be clearing the field)
+    if (cleanValue === '') {
+      onDiscountValueChange('');
+      return;
+    }
+
+    // Remove leading zeros
+    cleanValue = cleanValue.replace(/^0+/, '');
+    
+    // If still empty after removing zeros, set to empty
+    if (cleanValue === '') {
+      onDiscountValueChange('');
+      return;
+    }
 
     // Convert to number to validate
-    const numericValue = Number(removeDash);
+    const numericValue = Number(cleanValue);
 
-    // If value is greater than 100, do not update
-    if (numericValue > 100) return;
+    // Only allow integers from 1 to 100
+    if (numericValue < 1 || numericValue > 100) return;
 
-    // Otherwise, update
-    onDiscountValueChange(removeDash);
+    // Update with the integer value
+    onDiscountValueChange(cleanValue);
   };
 
 
@@ -142,12 +157,11 @@ export default function Discount({
                   value={discountData.discountValue || ''}
                   onChange={handleDiscountValueChange}
                   suffix="%"
-                  placeholder='20'
-                  type="number"
+                  placeholder='Enter value 1-100'
+                  type="text"
                   autoComplete="off"
-                  min={0}
-                  max={100}
                   error={errors.discountValue || ''}
+                  helpText="Enter a whole number between 1 and 100"
                 />
               </Box>
             )}

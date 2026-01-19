@@ -1,6 +1,6 @@
 import Toggle from '@/Components/Toggle'
-import { Box, Card, InlineStack, Text, TextField, BlockStack, Banner } from '@shopify/polaris'
-import React from 'react'
+import { Box, Card, InlineStack, Text, TextField, BlockStack, Banner, Select } from '@shopify/polaris'
+import React, { useState, useEffect } from 'react'
 
 export default function PopupMessage({ 
     popupMessageData,
@@ -24,6 +24,68 @@ export default function PopupMessage({
     const handleAllowDeselectToggle = () => onAllowDeselectToggle(!popupMessageData.allowDeselect);
     const handleShowPriceToggle = () => onShowPriceToggle(!popupMessageData.showPrice);
     const handleShowOrderTotalToggle = () => onShowOrderTotalToggle(!popupMessageData.showOrderTotal);
+
+    // Parse timerText into number and unit
+    const parseTimerText = (timerText) => {
+        if (!timerText) return { number: '1', unit: 'minute' };
+        const match = timerText.match(/(\d+)\s*(second|minute|hour)s?/);
+        if (match) {
+            return { number: match[1], unit: match[2] };
+        }
+        return { number: '1', unit: 'minute' };
+    };
+
+    const [timerNumber, setTimerNumber] = useState(() => parseTimerText(popupMessageData.timerText).number);
+    const [timerUnit, setTimerUnit] = useState(() => parseTimerText(popupMessageData.timerText).unit);
+
+    // Update local state when popupMessageData.timerText changes from parent
+    useEffect(() => {
+        const parsed = parseTimerText(popupMessageData.timerText);
+        setTimerNumber(parsed.number);
+        setTimerUnit(parsed.unit);
+    }, [popupMessageData.timerText]);
+
+    const handleTimerNumberChange = (value) => {
+        // Only allow digits, no decimals
+        const cleanValue = value.replace(/[^0-9]/g, '');
+        
+        if (cleanValue === '') {
+            setTimerNumber('');
+            return;
+        }
+
+        // Remove leading zeros
+        const numValue = cleanValue.replace(/^0+/, '');
+        
+        if (numValue === '') {
+            setTimerNumber('');
+            return;
+        }
+
+        const number = parseInt(numValue);
+        
+        // Limit to reasonable range (1-999)
+        if (number < 1 || number > 999) return;
+
+        setTimerNumber(numValue);
+        // Format as "number unit" for backend
+        const formattedValue = `${numValue} ${timerUnit}`;
+        onTimerTextChange(formattedValue);
+    };
+
+    const handleTimerUnitChange = (value) => {
+        setTimerUnit(value);
+        // Format as "number unit" for backend, using current number or default to 1
+        const number = timerNumber || '1';
+        const formattedValue = `${number} ${value}`;
+        onTimerTextChange(formattedValue);
+    };
+
+    const timerUnitOptions = [
+        { label: 'Seconds', value: 'second' },
+        { label: 'Minutes', value: 'minute' },
+        { label: 'Hours', value: 'hour' },
+    ];
 
     return (
         <div>
@@ -117,12 +179,28 @@ export default function PopupMessage({
                                         {popupMessageData.countdownActive && (
                                             <BlockStack gap="400">
                                                 <Box>
-                                                    <TextField
-                                                        value={popupMessageData.timerText}
-                                                        onChange={onTimerTextChange}
-                                                        autoComplete="off"
-                                                        error={errors && errors.timerText}
-                                                    />
+                                                    <InlineStack gap="300" blockAlign="start">
+                                                        <Box minWidth="225px">
+                                                            <TextField
+                                                                label="Duration"
+                                                                value={timerNumber}
+                                                                onChange={handleTimerNumberChange}
+                                                                type="text"
+                                                                autoComplete="off"
+                                                                placeholder="1"
+                                                                error={errors && errors.timerText}
+                                                                helpText="Enter 1-999"
+                                                            />
+                                                        </Box>
+                                                        <Box minWidth="225px">
+                                                            <Select
+                                                                label="Unit"
+                                                                options={timerUnitOptions}
+                                                                value={timerUnit}
+                                                                onChange={handleTimerUnitChange}
+                                                            />
+                                                        </Box>
+                                                    </InlineStack>
                                                 </Box>
                                                 <Box>
                                                     <Text variant="bodyMd" fontWeight="medium">

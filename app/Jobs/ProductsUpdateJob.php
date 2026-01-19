@@ -96,13 +96,25 @@ class ProductsUpdateJob implements ShouldQueue
 
             ProductMedia::where('product_id', $product->id)->delete(); // ✅ delete all old
 
-            $firstMedia = $payload->media[0] ?? null; // ✅ get first one only
+            // Handle both 'media' (GraphQL) and 'images' (webhook) formats
+            $firstMedia = null;
+            if (isset($payload->media) && !empty($payload->media)) {
+                $firstMedia = $payload->media[0];
+            } elseif (isset($payload->images) && !empty($payload->images)) {
+                $firstImage = $payload->images[0];
+                $firstMedia = (object)[
+                    'id' => $firstImage->id ?? null,
+                    'preview_image' => (object)[
+                        'src' => $firstImage->src ?? null,
+                    ]
+                ];
+            }
 
             if ($firstMedia) {
                 ProductMedia::create([
                     'product_id' => $product->id,
                     'shopify_product_media_id' => $firstMedia->id,
-                    'src' => $firstMedia->preview_image->src ?? null,
+                    'src' => $firstMedia->preview_image->src ?? $firstMedia->src ?? null,
                 ]);
             }
         });

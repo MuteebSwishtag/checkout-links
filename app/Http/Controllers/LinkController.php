@@ -473,7 +473,7 @@ public function update(Request $request, $id)
     $link->linkedVariants()->delete(); // Delete associated linked variants
     $link->delete();
     return response()->json(['success'=>true,'message'=>'Link deleted successfully'],200);
-}
+    }
 
     /**
      * Public endpoint to get link data for the extension
@@ -576,9 +576,9 @@ public function update(Request $request, $id)
      * @param string $id The ID to encrypt
      * @return string The encrypted ID
      */
-  
+
     /**
-     * Public endpoint to decrypt a link  
+     * Public endpoint to decrypt a link
      *
      * @param string $encryptedId The encrypted ID from URL
      * @return \Illuminate\Http\JsonResponse
@@ -606,8 +606,6 @@ public function update(Request $request, $id)
         $shopUrl = "https://" . urlencode($user ? $user->name : 'Guest');
 
         // Increment clicks counter
-        
-
         // Check if popup message is active
         $popupMessageActive = $link->popupMessage && $link->popupMessage->is_active;
 
@@ -653,6 +651,73 @@ public function update(Request $request, $id)
         Log::info('Redirecting to: ' . $redirectUrl);
         // dd('Redirecting to: ' . $redirectUrl);
         return response()->json(['redirect_url' => $redirectUrl]);
+    }
+
+    public function openCheckoutLink($uniqueId): JsonResponse|RedirectResponse|Response
+    {
+        $link = Link::with('popupMessage', 'linkedVariants.variant.product')
+            ->where('link_url', $uniqueId)
+            ->first();
+
+        if (!$link) {
+            return $this->showLinkNotFoundPage();
+        }
+
+        // Check if single_order is enabled and if order has already been placed
+        if ($link->single_order && $link->placed_order > 0) {
+            return $this->showSingleOrderLimitReached();
+        }
+
+        $user = User::where('id', $link->user_id)->first();
+        $shopUrl = "https://" . urlencode($user ? $user->name : 'Guest');
+
+        // Increment clicks counter
+        $link->increment('clicks');
+
+        // Check if popup message is active
+        $popupMessageActive = $link->popupMessage && $link->popupMessage->is_active;
+
+        if (!$popupMessageActive) {
+            // If popup message is not active, create a draft order and redirect to invoice URL
+            $draftOrderResult = $this->createDraftOrder($link->id);
+            if ($draftOrderResult && isset($draftOrderResult['invoice_url'])) {
+                Log::info('Redirecting to draft order invoice: ' . $draftOrderResult['invoice_url']);
+                return redirect()->to($draftOrderResult['invoice_url']);
+            }
+        }
+
+        // Default behavior: show popup or redirect to shop
+        $backendUrl = env('APP_URL', '/checkout');
+        $discountCode = null;
+        if ($link->discount_code) {
+            // Use the existing discount code
+            $discountCode = $link->discount_code_value;
+        } elseif ($link->order_discount) {
+            // Create a discount on Shopify and retrieve the code
+            $discountResponse = $this->createDiscountOnShopify($link);
+            Log::info('Discount response from Shopify: ' . json_encode($discountResponse, JSON_PRETTY_PRINT));
+            if (isset($discountResponse->body->data->discountCodeBasicCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code)) {
+                $discountCode = $discountResponse->body->data->discountCodeBasicCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code;
+                Log::info('Discount code created: ' . $discountCode);
+            }
+        } elseif ($link->free_shipping) {
+            // Create a free shipping discount on Shopify and retrieve the code
+            $freeShippingResponse = $this->createFreeShippingOnShopify($link);
+            Log::info('Free shipping response from Shopify: ' . json_encode($freeShippingResponse, JSON_PRETTY_PRINT));
+            if (isset($freeShippingResponse->body->data->discountCodeFreeShippingCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code)) {
+                $discountCode = $freeShippingResponse->body->data->discountCodeFreeShippingCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code;
+            }
+            Log::info('Free shipping discount code created: ' . $discountCode);
+        }
+
+        // Add both the link_id and backend_url parameters to the URL for the extension to read
+        $redirectUrl = $shopUrl . '?link_id=' . $link->id . '&backend_url=' . urlencode($backendUrl);
+        if ($discountCode) {
+            Log::info('Adding discount code to redirect URL: ' . $discountCode);
+            $redirectUrl .= '&discount_code=' . urlencode($discountCode);
+        }
+        Log::info('Redirecting to: ' . $redirectUrl);
+        return redirect()->to($redirectUrl);
     }
     /**
      * Show a user-friendly error page when link is not found
@@ -871,5 +936,44 @@ public function update(Request $request, $id)
         Log::info('Order count incremented for link ID: ' . $data['link_id']);
         // Optionally, store the event in a separate table or log file
         return response()->json(['success' => true, 'message' => 'Order count recorded successfully']);
+    }
+
+    /**
+     * Reactivate all links for the authenticated user
+     * This resets the placed_order counter to 0, allowing single_order links to be used again
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function reactivateAllLinks(Request $request)
+    {
+        try {
+            $user = User::where('id',$request->id)->first();
+            
+            // Update all links for the user, resetting placed_order to 0
+            $links = Link::where('user_id', $user->id)->get();
+                foreach($links as $link){
+                     $updatedLink = $this->openCheckout($link->link_url);
+                     $updatedLinkData = json_decode($updatedLink->getContent(), true);
+                     $redirectUrl = $updatedLinkData['redirect_url'] ?? null;
+                     $link->update([
+                        'placed_order' => 0,
+                        'redirect_url' => $redirectUrl,
+                    ]);  
+                }
+            return response()->json([
+                'success' => true,
+                'message' => 'All links have been reactivated successfully',
+                'links_reactivated' => count($links)
+            ], 200);
+            } catch (\Exception $e) {
+            Log::error('Error reactivating links:', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return response()->json([
+                'success' => false,
+                'error' => 'Failed to reactivate links: ' . $e->getMessage()
+            ], 500);
+        }
     }
 }

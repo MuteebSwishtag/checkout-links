@@ -58,8 +58,44 @@ class ProductsCreateJob implements ShouldQueue
         $shop = $shopQuery->getByDomain($this->shopDomain);
         $user = User::where('name', $shop->name)->first();
         $payload = $this->data;
+        Log::info("Products Create Job Payload: " . json_encode($payload, JSON_PRETTY_PRINT));
 
         $this->getProductRepository(app(ProductRepositoryInterface::class));
+
+        // Enrich payload with inventory tracking information
+        if (isset($payload->variants) && is_array($payload->variants)) {
+            foreach ($payload->variants as &$variant) {
+                if (isset($variant->inventory_item_id)) {
+                    $inventoryItem = $this->fetchInventoryItemFromShopify($variant->inventory_item_id, $user);
+                    $variant->inventory_tracked = $inventoryItem->tracked ?? false;
+                    Log::info("Fetched inventory tracking for variant {$variant->id}: " . ($variant->inventory_tracked ? 'true' : 'false'));
+                }
+            }
+            unset($variant); // Break reference
+        }
+
+        // Shopify webhooks often don't include media in payload - fetch from API if empty
+        if ((empty($payload->media) || $payload->media == []) && (empty($payload->images) || $payload->images == [])) {
+            Log::info("Media is empty in webhook payload, fetching from Shopify API for product ID: " . $payload->id);
+            $productMedia = $this->fetchProductMediaFromShopify($payload->id, $user);
+            if ($productMedia) {
+                $payload->media = $productMedia;
+                Log::info("Fetched " . count($productMedia) . " media items from Shopify API");
+            } else {
+                Log::info("No media found for product ID: " . $payload->id);
+            }
+        } elseif (isset($payload->images) && is_array($payload->images) && !empty($payload->images)) {
+            // Transform webhook 'images' field to 'media' format if images exist
+            $payload->media = [];
+            $firstImage = $payload->images[0];
+            $payload->media[] = (object)[
+                'id' => $firstImage->id ?? null,
+                'preview_image' => (object)[
+                    'src' => $firstImage->src ?? null,
+                ]
+            ];
+            Log::info("Transformed images to media format for product: " . ($payload->title ?? 'unknown'));
+        }
 
         if($this->storeData($payload , $user )){
             Log::info("Product Create Job Successfull for shop: " . json_encode($payload, JSON_PRETTY_PRINT));
@@ -69,3 +105,4 @@ class ProductsCreateJob implements ShouldQueue
         }
     }
 }
+

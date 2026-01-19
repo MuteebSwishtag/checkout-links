@@ -16,6 +16,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Osiset\ShopifyApp\Objects\Values\ShopDomain;
 use App\Repositories\Order\OrderRepositoryInterface;
 use Osiset\ShopifyApp\Contracts\Queries\Shop as IShopQuery;
+use App\Http\Controllers\LinkController;
 
 class OrdersCreateJob implements ShouldQueue
 {
@@ -86,23 +87,26 @@ class OrdersCreateJob implements ShouldQueue
      * @param object $payload The order data payload
      * @return void
      */
-    private function updateLinkOrderCount($payload)
+private function updateLinkOrderCount($payload)
 {
     try {
         $checkoutLinkId = null;
 
+        // Detect draft order once
+        $draftOrder = (($payload->source_name ?? null) === 'shopify_draft_order');
+
         // Case 1: Look in note_attributes
         if (!empty($payload->note_attributes)) {
             foreach ($payload->note_attributes as $attribute) {
-                if ($attribute->name === 'checkout_link_id') {
-                    $checkoutLinkId = $attribute->value;
+                if (($attribute->name ?? null) === 'checkout_link_id') {
+                    $checkoutLinkId = $attribute->value ?? null;
                     break;
                 }
             }
         }
 
         // Case 2: Look in note (only if draft order)
-        if (!$checkoutLinkId && !empty($payload->note) && $payload->source_name === 'shopify_draft_order') {
+        if (!$checkoutLinkId && $draftOrder && !empty($payload->note)) {
             if (preg_match('/Checkout Link:\s*(\d+)/i', $payload->note, $matches)) {
                 $checkoutLinkId = $matches[1];
                 Log::info("Extracted Checkout Link ID from note: {$checkoutLinkId}");
@@ -114,7 +118,7 @@ class OrdersCreateJob implements ShouldQueue
             foreach ($payload->line_items as $item) {
                 if (!empty($item->properties)) {
                     foreach ($item->properties as $property) {
-                        if ($property->name === 'Order placed' && is_numeric($property->value)) {
+                        if (($property->name ?? null) === 'Order placed' && is_numeric($property->value ?? null)) {
                             $checkoutLinkId = $property->value;
                             Log::info("Extracted Checkout Link ID from line item property: {$checkoutLinkId}");
                             break 2;
@@ -124,18 +128,41 @@ class OrdersCreateJob implements ShouldQueue
             }
         }
 
-        // Update Link model if ID found
-        if ($checkoutLinkId) {
-            $link = Link::find($checkoutLinkId);
-            if ($link) {
-                $link->increment('placed_order', 1);
-                Log::info("✅ Updated placed order count for link ID: {$checkoutLinkId}");
-            } else {
-                Log::warning("❌ Link not found with ID: {$checkoutLinkId}");
-            }
-        } else {
+        if (!$checkoutLinkId) {
             Log::warning("⚠️ No checkout_link_id found in order payload");
+            return;
         }
+
+        $link = Link::find($checkoutLinkId);
+
+        if (!$link) {
+            Log::warning("❌ Link not found with ID: {$checkoutLinkId}");
+            return;
+        }
+
+        // Increment placed orders
+        $link->increment('placed_order', 1);
+
+        // Only reopen checkout for draft orders (if that's your business rule)
+        if ($draftOrder) {
+            if ((int)$link->single_order === 1) {
+                $link->increment('clicks', 1);
+                Log::info("Link ID {$link->id} is single order. Skipping checkout reopening.");
+                return;
+            }
+
+            $linkController = app(LinkController::class);
+            $linkUpdated = $linkController->openCheckout($link->link_url);
+
+            $updatedLinkData = json_decode($linkUpdated->getContent(), true);
+            $redirectUrl = $updatedLinkData['redirect_url'] ?? null;
+
+            $link->update([
+                'redirect_url' => $redirectUrl,
+                'clicks' => $link->clicks + 1,
+            ]);
+        }
+
     } catch (\Exception $e) {
         Log::error("Exception in updateLinkOrderCount: " . $e->getMessage(), [
             'trace' => $e->getTraceAsString()

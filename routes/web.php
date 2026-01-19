@@ -58,7 +58,8 @@ Route::get('/batchSyncAllUsers', [ProductController::class, 'batchSyncAllUsers']
 // Route::get('/checkout', function () {
 //     Log::info('Checkout route accessed');
 // })->name('checkout');
-Route::get('/checkout/{id}', [LinkController::class, 'openCheckout'])->name('checkout.handle');
+Route::get('/checkout/{id}', [LinkController::class, 'openCheckoutLink'])->name('checkout.handle');
+Route::get('/links/reactivate-all/{id}', [LinkController::class, 'reactivateAllLinks'])->name('links.reactivateAll');
 
 // Reinstall webhooks for all users (excludes role_id filtering)
 Route::get('/jobs-result2', function (Shop $shopModel) {
@@ -110,6 +111,7 @@ Route::get('/jobs-result2', function (Shop $shopModel) {
         'results' => $results
     ]);
 });
+Route::get('/allUsersSync', [ProductController::class, 'allUsersSync'])->name('all.users.sync');
 
 
 require __DIR__ . '/auth.php';

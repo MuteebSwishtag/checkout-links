@@ -704,9 +704,6 @@ QUERY;
     public function createDiscountOnShopify($link)
     {
         $link = Link::with('popupMessage')->find($link->id);
-        if (!$link->popupMessage || !$link->popupMessage->timer_text) {
-            throw new \Exception("Timer text is missing in popupMessage.");
-        }
 
         // Ensure discount_value exists if needed
         if ($link->discount_code || $link->order_discount) {
@@ -749,10 +746,10 @@ QUERY;
 GRAPHQL;
 
 
-        // Start and End Times
+        // Start and End Times - Fixed 30 days expiry
         $startsAt = Carbon::now()->utc()->format('Y-m-d\TH:i:s\Z');
         $endsAt = Carbon::now()
-            ->add(CarbonInterval::fromString($link->popupMessage->timer_text))
+            ->addDays(30)
             ->utc()
             ->format('Y-m-d\TH:i:s\Z');
 
@@ -840,9 +837,10 @@ GRAPHQL;
         }
     GRAPHQL;
 
+        // Start and End Times - Fixed 30 days expiry
         $startsAt = Carbon::now()->utc()->format('Y-m-d\TH:i:s\Z');
         $endsAt = Carbon::now()
-            ->add(CarbonInterval::fromString($link->popupMessage->timer_text))
+            ->addDays(30)
             ->utc()
             ->format('Y-m-d\TH:i:s\Z');
 

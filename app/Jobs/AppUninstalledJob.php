@@ -20,6 +20,7 @@ use Osiset\ShopifyApp\Messaging\Events\AppUninstalledEvent;
 use Osiset\ShopifyApp\Objects\Values\ShopDomain;
 use Osiset\ShopifyApp\Util;
 use stdClass;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Webhook job responsible for handling when the app is uninstalled.
@@ -93,6 +94,7 @@ class AppUninstalledJob implements ShouldQueue
             });
             Link::where('user_id', $user->id)->delete();
 
+
             // Delete products and their variants/media
             Product::where('user_id', $user->id)->with(['variants', 'media'])->get()->each(function ($product) {
                 $product->variants()->delete();
@@ -117,6 +119,7 @@ class AppUninstalledJob implements ShouldQueue
 
         // Soft delete the shop.
         $shopCommand->softDelete($shopId);
+        Log::info("Shop with ID  has been soft deleted.");
 
         event(new AppUninstalledEvent($shop));
 

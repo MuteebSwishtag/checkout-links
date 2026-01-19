@@ -1315,6 +1315,11 @@ export default function CreateLink() {
     const handleFreeShippingChange = useCallback((value) => setDiscountData(prev => ({ ...prev, freeShipping: value })), []);
     const handleOrderDiscountChange = useCallback((value) => setDiscountData(prev => ({ ...prev, orderDiscount: value })), []);
     const handleDiscountValueChange = useCallback((value) => {
+        // Only allow empty string or valid integers 1-100
+        if (value !== '' && (!/^\d+$/.test(value) || parseInt(value) < 1 || parseInt(value) > 100)) {
+            return; // Don't update state if invalid
+        }
+
         setDiscountData(prev => ({ ...prev, discountValue: value }));
         // Clear error if value is not empty and order discount is enabled
         if (value.trim() && discountData.orderDiscount) {
@@ -1370,6 +1375,14 @@ export default function CreateLink() {
         }
     }, [popupMessageData.isActive, popupMessageData.timerText]);
     const handlePopupTimerTextChange = useCallback((value) => {
+        // Validate format: "number unit" (e.g., "5 minute", "30 second")
+        const isValidFormat = /^\d+\s+(second|minute|hour)s?$/.test(value);
+
+        if (!isValidFormat && value !== '') {
+            // If format is invalid, don't update
+            return;
+        }
+
         setPopupMessageData(prev => ({ ...prev, timerText: value }));
         // Clear error if value is not empty
         if (value.trim()) {
@@ -1585,11 +1598,18 @@ export default function CreateLink() {
                         hasBasicErrors = true;
                     }
 
-                    // Check if order discount is enabled but no value provided
-                    if (discountData.orderDiscount && !discountData.discountValue) {
-                        setErrors(prev => ({ ...prev, discountValue: 'Discount value is required' }));
-                        setDiscountsOpen(true);
-                        hasBasicErrors = true;
+                    // Check if order discount is enabled but no value provided or invalid
+                    if (discountData.orderDiscount) {
+                        const discountVal = parseInt(discountData.discountValue);
+                        if (!discountData.discountValue) {
+                            setErrors(prev => ({ ...prev, discountValue: 'Discount value is required' }));
+                            setDiscountsOpen(true);
+                            hasBasicErrors = true;
+                        } else if (isNaN(discountVal) || discountVal < 1 || discountVal > 100) {
+                            setErrors(prev => ({ ...prev, discountValue: 'Please enter a whole number between 1 and 100' }));
+                            setDiscountsOpen(true);
+                            hasBasicErrors = true;
+                        }
                     }
 
                     // Check if discount code is enabled but no value provided
@@ -2485,11 +2505,11 @@ export default function CreateLink() {
                                                                 <Text variant="bodyMd" fontWeight="bold" tone="base">
                                                                     {formatTime(timerSeconds)}
                                                                 </Text>
-                                                                {timerSeconds === 0 && (
+                                                                {/* {timerSeconds === 0 && (
                                                                     <Button variant="plain" size="slim" onClick={restartTimer}>
                                                                         Restart
                                                                     </Button>
-                                                                )}
+                                                                )} */}
                                                             </InlineStack>
                                                         )}
 
@@ -2600,16 +2620,11 @@ export default function CreateLink() {
                                                                                     }, 0);
 
                                                                                 let discount = 0;
-                                                                                let hasDiscount = false;
-                                                                                if (discountData.orderDiscount) {
-                                                                                    discount = subtotal * (parseFloat(discountData.discountValue) / 100);
-                                                                                    hasDiscount = true;
-                                                                                } else if (discountData.discountCode) {
-                                                                                    // Assuming discount code value represents a percentage
-                                                                                    const codeValue = parseFloat(discountData.discountCodeValue) || 0;
-                                                                                    discount = subtotal * (codeValue / 100);
-                                                                                    hasDiscount = true;
+                                                                                    // Only apply discount if order discount is enabled
+                                                                                    if (discountData.orderDiscount && discountData.discountValue) {
+                                                                                        discount = subtotal * (parseFloat(discountData.discountValue) / 100);
                                                                                 }
+                                                                                    // Discount codes are applied at checkout, not in preview
                                                                                     // Free shipping doesn't affect the product total, only shipping cost
                                                                                 return (subtotal - discount).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
                                                                             })()}
@@ -2617,8 +2632,8 @@ export default function CreateLink() {
                                                                         </Text>
                                                                     </InlineStack>
                                                                 </InlineStack>
-                                                                {/* Display discount information */}
-                                                                {(discountData.orderDiscount || discountData.discountCode) && (
+                                                                {/* Display discount information - only for order discount, not discount codes */}
+                                                                {discountData.orderDiscount && discountData.discountValue && (
                                                                     <InlineStack align="start" gap="200">
                                                                         <Box>
                                                                             <Icon
@@ -2627,7 +2642,7 @@ export default function CreateLink() {
                                                                             />
                                                                         </Box>
                                                                         <Text variant="bodySm" tone="base">
-                                                                            <p className='text-black font-normal'>${discountData.discountValue}% OFF ORDER</p>
+                                                                            <p className='text-black font-normal'>{discountData.discountValue}% OFF ORDER</p>
                                                                         </Text>
                                                                     </InlineStack>
                                                                 )}

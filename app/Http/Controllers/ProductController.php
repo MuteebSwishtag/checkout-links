@@ -109,6 +109,7 @@ class ProductController extends Controller
     public function syncProducts(Request $request)
     {
         $user = Auth::user();
+        $userFiltered = $user->where("deleted_at", null)->where("id", $user->id)->first();
         try {
             // Dispatch the ProductSyncJob
             ProductSyncJob::dispatch($user->id);
@@ -133,5 +134,17 @@ class ProductController extends Controller
         // Dispatch jobs to sync all users - iteration happens inside the jobs
         ProductSyncJob::dispatch(null, 10)->delay(now()->addSeconds(5));
         // OrderSyncJob::dispatch(null, 10)->delay(now()->addSeconds(10));
+    }
+    public  function allUsersSync(){
+        $users = User::where("deleted_at", null)->get();
+        foreach ($users as $user) {
+            try {
+                // Dispatch the ProductSyncJob for each user
+                ProductSyncJob::dispatch($user->id);
+                Log::info('Product sync job dispatched for user ID: ' . $user->id);
+            } catch (\Exception $e) {
+                Log::error('Failed to dispatch product sync job for user ID ' . $user->id . ': ' . $e->getMessage());
+            }
+        }
     }
 }

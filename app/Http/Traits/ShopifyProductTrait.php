@@ -18,23 +18,43 @@ trait ShopifyProductTrait
         $syncType = $minutes ? "incremental (last {$minutes} minutes)" : "full";
         Log::info("Starting {$syncType} product sync for user ID: " . $user->id);
 
+        // Get initial product count from Shopify for verification
+        $expectedProductCount = $this->getProductsCountFromShopify($user);
+        Log::info("Expected total products from Shopify: {$expectedProductCount}");
+
         try {
+            // Disable query logging to improve performance
+            DB::connection()->disableQueryLog();
+            
             $cursor = 'null';
             $hasErrors = false;
             $processedCount = 0;
+            $syncedProductIds = []; // Track all product IDs from Shopify
+            $failedProducts = []; // Track failed products for detailed reporting
+            
+            // Calculate timestamp ONCE at the start for incremental sync
+            $syncTimestamp = null;
+            if ($minutes) {
+                $syncTimestamp = \Carbon\Carbon::now()->subMinutes($minutes)->toIso8601ZuluString();
+                Log::info("Incremental sync timestamp (fixed for entire sync): {$syncTimestamp}");
+            }
 
-            // For incremental sync, we don't need product count - just fetch updated products
+            // For full sync, calculate expected loops based on product count
             if (!$minutes) {
-                $productCount = $this->getProductsCountFromShopify($user);
-                Log::info('Total Products Count: ' . $productCount);
-                $loop = ceil($productCount / 250);
+                $loop = ceil($expectedProductCount / 250);
+                Log::info("Expected API calls for full sync: {$loop} (250 products per page)");
             } else {
                 // For incremental sync, loop until no more pages
                 $loop = PHP_INT_MAX;
             }
 
+            // Batch size for commits
+            $batchSize = 50;
+            $currentBatch = [];
+            $totalProcessed = 0;
+
             for ($i = 1; $i <= $loop; $i++) {
-                [$products, $nextCursor] = $this->shopifyGraphqlProductQuery($user, $cursor, $minutes);
+                [$products, $nextCursor] = $this->shopifyGraphqlProductQuery($user, $cursor, $syncTimestamp);
 
                 // Break if no products returned
                 if (!$products || count($products) === 0) {
@@ -44,25 +64,92 @@ trait ShopifyProductTrait
 
                 Log::info("Processing batch {$i}: " . count($products) . " products");
 
-                if ($products && $nextCursor !== null) {
-                    $cursor = '"' . $nextCursor . '"';
-                    foreach ($products as $product) {
-                        $product = $this->transformShopifyProductData($product);
-                        if (!$this->storeData($this->arrayToObject($product), $user)) {
+                // Track successes and failures in this batch
+                $batchSuccessCount = 0;
+                $batchFailCount = 0;
+
+                // Process all products in this batch (regardless of whether there's a next page)
+                foreach ($products as $product) {
+                    $product = $this->transformShopifyProductData($product);
+                    // Track the product ID
+                    $syncedProductIds[] = $product['id'];
+                    
+                    // Add to current batch for processing
+                    $currentBatch[] = $this->arrayToObject($product);
+                    
+                    // When batch size is reached, process the batch with a single transaction
+                    if (count($currentBatch) >= $batchSize) {
+                        $result = $this->processBatch($currentBatch, $user, $failedProducts);
+                        $processedCount += $result['success'];
+                        $batchSuccessCount += $result['success'];
+                        $batchFailCount += $result['failed'];
+                        if ($result['failed'] > 0) {
                             $hasErrors = true;
-                        } else {
-                            $processedCount++;
                         }
+                        $totalProcessed += count($currentBatch);
+                        $currentBatch = []; // Reset batch
+                        
+                        Log::info("Committed batch of {$batchSize} products. Total processed: {$totalProcessed}");
                     }
                 }
 
-                // For incremental sync, check if there's a next page
-                if ($minutes && !$nextCursor) {
+                Log::info("Batch {$i} completed: {$batchSuccessCount} succeeded, {$batchFailCount} failed");
+
+                // If there's a next page, update cursor for the next iteration
+                if ($nextCursor !== null) {
+                    $cursor = '"' . $nextCursor . '"';
+                } else {
+                    // No more pages, exit the loop
+                    Log::info('Reached last page of products');
                     break;
                 }
             }
+            
+            // Process any remaining products in the last batch
+            if (count($currentBatch) > 0) {
+                $result = $this->processBatch($currentBatch, $user, $failedProducts);
+                $processedCount += $result['success'];
+                if ($result['failed'] > 0) {
+                    $hasErrors = true;
+                }
+                Log::info("Committed final batch of " . count($currentBatch) . " products");
+            }
 
-            Log::info("Completed {$syncType} sync. Processed {$processedCount} products");
+            // Verify product count for full sync
+            $totalSyncedFromShopify = count($syncedProductIds);
+            Log::info("Completed {$syncType} sync. Fetched {$totalSyncedFromShopify} products from Shopify, Processed {$processedCount} successfully");
+            
+            // Check if we got all products from Shopify
+            if (!$minutes && $totalSyncedFromShopify < $expectedProductCount) {
+                $missingCount = $expectedProductCount - $totalSyncedFromShopify;
+                Log::warning("Product count mismatch! Expected: {$expectedProductCount}, Fetched: {$totalSyncedFromShopify}, Missing: {$missingCount}");
+                Log::warning("This may indicate Shopify is still processing bulk updates. The products will be synced in the next sync cycle.");
+                // Don't throw error - this is expected with bulk operations
+            } elseif (!$minutes && $totalSyncedFromShopify === $expectedProductCount) {
+                Log::info("✓ Product count verified: All {$expectedProductCount} products were fetched from Shopify");
+            }
+            
+            // Log summary
+            $failedCount = count($syncedProductIds) - $processedCount;
+            if ($hasErrors) {
+                Log::warning("Sync completed with errors: {$processedCount} succeeded, {$failedCount} failed out of " . count($syncedProductIds) . " total products");
+                if (!empty($failedProducts)) {
+                    Log::warning("Failed product IDs: " . implode(', ', array_slice($failedProducts, 0, 10)) . (count($failedProducts) > 10 ? '... and ' . (count($failedProducts) - 10) . ' more' : ''));
+                }
+            } else {
+                Log::info("Sync completed successfully: All {$processedCount} products synced without errors");
+            }
+
+            // Delete products that are no longer in Shopify
+            if (!$minutes) {
+                // Full sync: Delete products not in the synced list
+                $deletedCount = $this->deleteRemovedProducts($user, $syncedProductIds);
+                Log::info("Deleted {$deletedCount} products that no longer exist in Shopify");
+            } else {
+                // Incremental sync: Verify and delete products that no longer exist in Shopify
+                $deletedCount = $this->verifyAndDeleteRemovedProducts($user);
+                Log::info("Verified and deleted {$deletedCount} products that no longer exist in Shopify");
+            }
 
             if($hasErrors) {
                 throw new \Exception("Some products could not be stored.");
@@ -84,22 +171,35 @@ trait ShopifyProductTrait
                 }
             }
         QUERY;
+        
+        // Let network exceptions bubble up to be handled by the caller
+        // This allows for proper retry logic with exponential backoff
         $result = $this->arrayToObject($user->api()->graph($query));
+        
         if ($result->errors) {
+            Log::warning("GraphQL errors getting product count for user {$user->name}: " . json_encode($result->errors));
             return 0;
         } else {
             return $result->body->data->productsCount->count;
         }
     }
-    public function shopifyGraphqlProductQuery($user, $cursor, $minutes = null)
+    public function shopifyGraphqlProductQuery($user, $cursor, $syncTimestamp = null)
     {
-        // Build query filter for incremental sync
-        $queryFilter = '';
-        if ($minutes) {
-            $timestamp = \Carbon\Carbon::now()->subMinutes($minutes)->toIso8601ZuluString();
-            $queryFilter = ', query: "updated_at:>\'' . $timestamp . '\'"';
-            Log::info('Incremental sync query filter: ' . $queryFilter);
+        // Build query filter to fetch ALL products (active, draft, archived)
+        // CRITICAL: Without explicit status filter, Shopify defaults to status:active only!
+        $queryFilter = ', query: "status:active,draft,archived';
+        
+        if ($syncTimestamp) {
+            // Incremental sync: combine status filter with updated_at filter
+            $queryFilter .= ' AND updated_at:>\'' . $syncTimestamp . '\'';
+            Log::info('Incremental sync with status and timestamp filters');
+        } else {
+            // Full sync: just include all statuses
+            Log::info('Full sync with all statuses (active, draft, archived)');
         }
+        
+        $queryFilter .= '"';
+        Log::info('Query filter: ' . $queryFilter);
 
         // Fetch ALL products (active, draft, archived) to properly sync status changes
         $query = <<<QUERY
@@ -162,22 +262,70 @@ QUERY;
     }
     public function storeData($product, User $user)
     {
-        // Disable query logging to improve performance
-        DB::connection()->disableQueryLog();
+        try {
+            $formatedData = $this->formateProductdata($product, $user);
+            $result = $this->product->updateOrCreate($formatedData);
+            
+            // Log successful update with status
+            Log::debug("Successfully stored product ID: {$product->id}, Title: {$product->title}, Status: {$product->status}");
+            return true;
+        } catch (\Exception $e) {
+            Log::error("Failed to store product ID: " . ($product->id ?? 'unknown'));
+            Log::error("Product Title: " . ($product->title ?? 'unknown'));
+            Log::error("Exception Type: " . get_class($e));
+            Log::error("Exception Message: " . $e->getMessage());
+            Log::error("Stack Trace: " . $e->getTraceAsString());
+            return false;
+        }
+    }
+    /**
+     * Process a batch of products within a single transaction
+     * 
+     * @param array $batch Array of products to process
+     * @param User $user The user
+     * @param array &$failedProducts Reference to array tracking failed product IDs
+     * @return array Array with 'success' and 'failed' counts
+     */
+    protected function processBatch(array $batch, User $user, array &$failedProducts): array
+    {
+        $successCount = 0;
+        $failedCount = 0;
         
         DB::beginTransaction();
         try {
-            $formatedData = $this->formateProductdata($product, $user);
-            $this->product->updateOrCreate($formatedData);
+            foreach ($batch as $product) {
+                try {
+                    if ($this->storeData($product, $user)) {
+                        $successCount++;
+                    } else {
+                        $failedCount++;
+                        $failedProducts[] = $product->id ?? 'unknown';
+                    }
+                } catch (\Exception $e) {
+                    // Log individual product error but continue processing batch
+                    Log::error("Error processing product in batch: " . ($product->id ?? 'unknown') . " - " . $e->getMessage());
+                    $failedCount++;
+                    $failedProducts[] = $product->id ?? 'unknown';
+                }
+            }
+            
+            // Commit the entire batch
+            DB::commit();
+            
+            return ['success' => $successCount, 'failed' => $failedCount];
         } catch (\Exception $e) {
+            // If batch commit fails, rollback and mark all as failed
             DB::rollBack();
-            Log::error("Failed to store product ID: " . ($product->id ?? 'unknown'));
-            Log::error("Exception: " . $e->getMessage());
-            return false;
+            Log::error("Batch commit failed: " . $e->getMessage());
+            
+            foreach ($batch as $product) {
+                $failedProducts[] = $product->id ?? 'unknown';
+            }
+            
+            return ['success' => 0, 'failed' => count($batch)];
         }
-        DB::commit();
-        return true;
     }
+
     public function formateProductdata($product, $user)
     {
         $formatedProduct = [
@@ -238,6 +386,165 @@ QUERY;
         }
         DB::commit();
         return true;
+    }
+
+    /**
+     * Delete products from database that no longer exist in Shopify (Full Sync)
+     * 
+     * @param User $user The user whose products to check
+     * @param array $syncedProductIds Array of product IDs that exist in Shopify
+     * @return int Number of products deleted
+     */
+    public function deleteRemovedProducts(User $user, array $syncedProductIds)
+    {
+        DB::beginTransaction();
+        try {
+            // Get all products for this user from the database
+            $dbProducts = $this->product->getByUserId($user->id);
+            
+            $deletedCount = 0;
+            foreach ($dbProducts as $dbProduct) {
+                // If the product ID is not in the synced list, it means it was deleted from Shopify
+                if (!in_array($dbProduct->shopify_product_id, $syncedProductIds)) {
+                    Log::info("Deleting product ID {$dbProduct->shopify_product_id} (DB ID: {$dbProduct->id}) - no longer exists in Shopify");
+                    $this->product->delete($dbProduct->id);
+                    $deletedCount++;
+                }
+            }
+            
+            DB::commit();
+            return $deletedCount;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error("Error deleting removed products: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Verify and delete products from database that no longer exist in Shopify (Incremental Sync)
+     * This method queries Shopify to verify if products still exist before deleting
+     * 
+     * @param User $user The user whose products to check
+     * @return int Number of products deleted
+     */
+    public function verifyAndDeleteRemovedProducts(User $user)
+    {
+        $deletedCount = 0;
+        
+        try {
+            // Get all products for this user from the database
+            $dbProducts = $this->product->getByUserId($user->id);
+            $totalProducts = count($dbProducts);
+            
+            if ($totalProducts === 0) {
+                return 0;
+            }
+            
+            Log::info("Verifying {$totalProducts} products against Shopify for user ID: {$user->id}");
+            
+            // Build product IDs for batch verification
+            $productIds = $dbProducts->pluck('shopify_product_id')->toArray();
+            
+            // Query Shopify in batches to check which products still exist
+            $batchSize = 50; // Process 50 products at a time
+            $batches = array_chunk($productIds, $batchSize);
+            
+            foreach ($batches as $batchIndex => $batch) {
+                $existingIds = $this->verifyProductsExistInShopify($user, $batch);
+                
+                // Find products that don't exist in Shopify
+                $missingIds = array_diff($batch, $existingIds);
+                
+                if (!empty($missingIds)) {
+                    DB::beginTransaction();
+                    try {
+                        foreach ($missingIds as $missingId) {
+                            $dbProduct = $dbProducts->firstWhere('shopify_product_id', $missingId);
+                            if ($dbProduct) {
+                                Log::info("Deleting product ID {$missingId} (DB ID: {$dbProduct->id}) - verified as deleted from Shopify");
+                                $this->product->delete($dbProduct->id);
+                                $deletedCount++;
+                            }
+                        }
+                        DB::commit();
+                    } catch (\Exception $e) {
+                        DB::rollBack();
+                        Log::error("Error deleting batch of products: " . $e->getMessage());
+                    }
+                }
+                
+                Log::info("Verified batch " . ($batchIndex + 1) . "/" . count($batches) . " - Found {$deletedCount} deleted products so far");
+            }
+            
+            return $deletedCount;
+        } catch (\Exception $e) {
+            Log::error("Error verifying and deleting removed products: " . $e->getMessage());
+            return $deletedCount;
+        }
+    }
+
+    /**
+     * Verify which products from a list still exist in Shopify
+     * 
+     * @param User $user The user
+     * @param array $productIds Array of product IDs to verify
+     * @return array Array of product IDs that still exist
+     */
+    public function verifyProductsExistInShopify(User $user, array $productIds)
+    {
+        try {
+            // Build the query filter with product IDs
+            $idFilters = array_map(function($id) {
+                return "id:{$id}";
+            }, $productIds);
+            $queryFilter = implode(' OR ', $idFilters);
+            
+            $query = <<<QUERY
+                query {
+                    products(first: 250, query: "$queryFilter") {
+                        edges {
+                            node {
+                                id
+                            }
+                        }
+                    }
+                }
+QUERY;
+            
+            $result = $this->arrayToObject($user->api()->graph($query));
+            
+            // Check for errors in the response
+            if (isset($result->errors) && $result->errors) {
+                $errorDetails = is_bool($result->errors) ? 'Query returned error flag' : json_encode($result->errors);
+                Log::error("Error verifying products in Shopify for user {$user->id}: " . $errorDetails);
+                Log::error("Query attempted with " . count($productIds) . " product IDs");
+                
+                // Return empty array instead of assuming all exist, to be safer during incremental deletes
+                return [];
+            }
+            
+            // Check if response body exists
+            if (!isset($result->body->data->products)) {
+                Log::error("Invalid response structure when verifying products for user {$user->id}");
+                return [];
+            }
+            
+            // Extract the product IDs that exist
+            $existingIds = [];
+            if (isset($result->body->data->products->edges)) {
+                foreach ($result->body->data->products->edges as $edge) {
+                    if (isset($edge->node->id)) {
+                        $existingIds[] = $this->extractId($edge->node->id);
+                    }
+                }
+            }
+            
+            return $existingIds;
+        } catch (\Exception $e) {
+            Log::error("Exception verifying products in Shopify: " . $e->getMessage());
+            return $productIds; // Assume all exist if query fails
+        }
     }
     public function transformShopifyProductData($data): array
     {
@@ -376,6 +683,54 @@ QUERY;
             return $result->body->data->inventoryItem ?? null;
         }
 
+        return null;
+    }
+
+    public function fetchProductMediaFromShopify($productId, User $user)
+    {
+        $query = <<<GQL
+        query {
+            product(id: "gid://shopify/Product/{$productId}") {
+                id
+                media(first: 1) {
+                    edges {
+                        node {
+                            ... on MediaImage {
+                                id
+                                image {
+                                    url
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        GQL;
+
+        $result = $this->arrayToObject($user->api()->graph($query));
+        Log::info("Fetched product media for product ID {$productId}: " . json_encode($result, JSON_PRETTY_PRINT)); 
+        
+        if (!isset($result->errors) && isset($result->body->data->product->media->edges)) {
+            $mediaEdges = $result->body->data->product->media->edges;
+            
+            if (!empty($mediaEdges)) {
+                $media = [];
+                foreach ($mediaEdges as $edge) {
+                    if (isset($edge->node)) {
+                        $media[] = (object)[
+                            'id' => $this->extractId($edge->node->id ?? ''),
+                            'preview_image' => (object)[
+                                'src' => $edge->node->image->url ?? null,
+                            ]
+                        ];
+                    }
+                }
+                return $media;
+            }
+        }
+
+        Log::warning("Failed to fetch product media for product ID: {$productId}");
         return null;
     }
 }
