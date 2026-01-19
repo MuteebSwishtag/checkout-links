@@ -60,6 +60,7 @@ Route::get('/batchSyncAllUsers', [ProductController::class, 'batchSyncAllUsers']
 // Route::get('/checkout', function () {
 //     Log::info('Checkout route accessed');
 // })->name('checkout');
+
 Route::get('/checkout/{id}', [LinkController::class, 'openCheckoutLink'])->name('checkout.handle');
 
 // Reinstall webhooks for all users (excludes role_id filtering)
@@ -112,7 +113,7 @@ Route::get('/jobs-result2', function (Shop $shopModel) {
         'results' => $results
     ]);
 });
-Route::get('/CheckoputLinksProxy', [AppProxyController::class, 'index'])->middleware('auth.proxy');
+Route::get('/checkout-link', [AppProxyController::class, 'index'])->middleware('auth.proxy');
 
 
 require __DIR__ . '/auth.php';

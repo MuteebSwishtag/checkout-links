@@ -485,95 +485,95 @@ QUERY;
      */
     // ...existing code...
     public function createDraftOrder($linkId, $customerData = [])
-{
-    try {
-        $link = Link::with(['linkedVariants.variant.product', 'user'])->findOrFail($linkId);
+    {
+        try {
+            $link = Link::with(['linkedVariants.variant.product', 'user'])->findOrFail($linkId);
 
-        if (!$link || !$link->user) {
-            Log::error("Link not found or has no associated user", ['link_id' => $linkId]);
-            return null;
-        }
+            if (!$link || !$link->user) {
+                Log::error("Link not found or has no associated user", ['link_id' => $linkId]);
+                return null;
+            }
 
-        $lineItemsInput = [];
-        $totalProductPrice = 0;
+            $lineItemsInput = [];
+            $totalProductPrice = 0;
 
-        foreach ($link->linkedVariants as $linkedVariant) {
-            $variant = $linkedVariant->variant;
-            if (!$variant) continue;
+            foreach ($link->linkedVariants as $linkedVariant) {
+                $variant = $linkedVariant->variant;
+                if (!$variant)
+                    continue;
 
-            $price = $linkedVariant->price ?? $variant->price ?? 0;
-            $totalProductPrice += floatval($price);
+                $price = $linkedVariant->price ?? $variant->price ?? 0;
+                $totalProductPrice += floatval($price);
 
-            $lineItemsInput[] = [
-                "variantId" => "gid://shopify/ProductVariant/" . $linkedVariant->variant_id,
-                "quantity" => $linkedVariant->quantity ?? 1,
-                "customAttributes" => [
-                    ["key" => "Order placed", "value" => (string) $link->id]
-                ]
-            ];
-        }
+                $lineItemsInput[] = [
+                    "variantId" => "gid://shopify/ProductVariant/" . $linkedVariant->variant_id,
+                    "quantity" => $linkedVariant->quantity ?? 1,
+                    "customAttributes" => [
+                        ["key" => "Order placed", "value" => (string) $link->id]
+                    ]
+                ];
+            }
 
-        if (empty($lineItemsInput)) {
-            Log::error("No valid line items found for link", ['link_id' => $linkId]);
-            return null;
-        }
+            if (empty($lineItemsInput)) {
+                Log::error("No valid line items found for link", ['link_id' => $linkId]);
+                return null;
+            }
 
-        $actualDiscountValue = 0;
-        if (!empty($link->discount_value)) {
-            $percentage = floatval($link->discount_value);
-            $actualDiscountValue = ($totalProductPrice * $percentage) / 100;
-        }
-        $linkId = $link->id; // Ensure $linkId is defined
+            $actualDiscountValue = 0;
+            if (!empty($link->discount_value)) {
+                $percentage = floatval($link->discount_value);
+                $actualDiscountValue = ($totalProductPrice * $percentage) / 100;
+            }
+            $linkId = $link->id; // Ensure $linkId is defined
 
-        $mutation = $this->buildDraftOrderCreateMutation(
-            $lineItemsInput,
-            $link->link_name,
-            $customerData,
-            $link->discount_code,
-            $actualDiscountValue,
-            $link->free_shipping,
-            $link->order_discount,
-            $linkId
-        );
+            $mutation = $this->buildDraftOrderCreateMutation(
+                $lineItemsInput,
+                $link->link_name,
+                $customerData,
+                $link->discount_code,
+                $actualDiscountValue,
+                $link->free_shipping,
+                $link->order_discount,
+                $linkId
+            );
 
             // Log the mutation string before sending to Shopify
             Log::info("Draft Order Mutation", ["mutation" => $mutation]);
-
             $result = $this->arrayToObject($link->user->api()->graph($mutation));
-        Log::info("Draft Order Create Response", ['response' => json_encode($result, JSON_PRETTY_PRINT)]);
+            Log::info("Draft Order Create Response", ['response' => json_encode($result, JSON_PRETTY_PRINT)]);
 
-        if (!empty($result->errors)) {
-            Log::error("Failed to create draft order via GraphQL", [
-                'errors' => $result->errors,
-                'link_id' => $linkId
+            if (!empty($result->errors)) {
+                Log::error("Failed to create draft order via GraphQL", [
+                    'errors' => $result->errors,
+                    'link_id' => $linkId
+                ]);
+                return null;
+            }
+
+            $draftOrder = $result->body->data->draftOrderCreate->draftOrder ?? null;
+            if (!$draftOrder) {
+                Log::error("Draft order creation failed but no error returned", ['result' => $result, 'link_id' => $linkId]);
+                return null;
+            }
+
+            return [
+                'draft_order_id' => $this->extractId($draftOrder->id),
+                'invoice_url' => $draftOrder->invoiceUrl,
+                'status' => $draftOrder->status,
+                'total_price' => is_object($draftOrder->totalPrice) ? $draftOrder->totalPrice->amount : $draftOrder->totalPrice
+            ];
+        } catch (\Exception $e) {
+            Log::error("Exception when creating draft order: " . $e->getMessage(), [
+                'link_id' => $linkId,
+                'trace' => $e->getTraceAsString()
             ]);
             return null;
         }
-
-        $draftOrder = $result->body->data->draftOrderCreate->draftOrder ?? null;
-        if (!$draftOrder) {
-            Log::error("Draft order creation failed but no error returned", ['result' => $result, 'link_id' => $linkId]);
-            return null;
-        }
-
-        return [
-            'draft_order_id' => $this->extractId($draftOrder->id),
-            'invoice_url' => $draftOrder->invoiceUrl,
-            'status' => $draftOrder->status,
-            'total_price' => is_object($draftOrder->totalPrice) ? $draftOrder->totalPrice->amount : $draftOrder->totalPrice
-        ];
-    } catch (\Exception $e) {
-        Log::error("Exception when creating draft order: " . $e->getMessage(), [
-            'link_id' => $linkId,
-            'trace' => $e->getTraceAsString()
-        ]);
-        return null;
     }
-}
 
-/**
- * Build the GraphQL mutation for creating a draft order
- */
+    /**
+     * Build the GraphQL mutation for creating a draft order
+     */
     private function buildDraftOrderCreateMutation(
         $lineItems,
         $linkName,
@@ -584,13 +584,13 @@ QUERY;
         $orderDiscount,
         $linkId
     ) {
-    $input = [];
-    $input['lineItems'] = $lineItems;
-    $input['note'] = "Created from Checkout Link: $linkId";
+        $input = [];
+        $input['lineItems'] = $lineItems;
+        $input['note'] = "Created from Checkout Link: $linkId";
 
-    if (!empty($customerData)) {
-        $input['customerId'] = $customerData['id'] ?? null;
-    }
+        if (!empty($customerData)) {
+            $input['customerId'] = $customerData['id'] ?? null;
+        }
 
         if ($freeShipping) {
             $input['shippingLine'] = [
@@ -603,17 +603,17 @@ QUERY;
             ];
         }
 
-    if ($orderDiscount && $orderDiscount > 0) {
-        $floatDiscountValue = (float) ($discountValue ?? 0);
-        $input['appliedDiscount'] = [
-            "description" => "Order Discount",
-            "value" => $floatDiscountValue,
-            "valueType" => "FIXED_AMOUNT"
-        ];
-    }
+        if ($orderDiscount && $orderDiscount > 0) {
+            $floatDiscountValue = (float) ($discountValue ?? 0);
+            $input['appliedDiscount'] = [
+                "description" => "Order Discount",
+                "value" => $floatDiscountValue,
+                "valueType" => "FIXED_AMOUNT"
+            ];
+        }
 
         // --- Convert array to GraphQL ---
-    $inputParams = [];
+        $inputParams = [];
         foreach ($input as $key => $value) {
             if ($key === 'lineItems') {
                 // handle line items
@@ -674,9 +674,9 @@ QUERY;
             }
         }
 
-    $inputString = implode(", ", $inputParams);
+        $inputString = implode(", ", $inputParams);
 
-    return <<<GRAPHQL
+        return <<<GRAPHQL
     mutation {
         draftOrderCreate(input: {
             $inputString
@@ -697,7 +697,7 @@ QUERY;
         }
     }
     GRAPHQL;
-}
+    }
 
 
 

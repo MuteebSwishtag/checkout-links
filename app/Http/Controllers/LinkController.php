@@ -614,7 +614,7 @@ public function update(Request $request, $id)
         if (!$popupMessageActive) {
             // If popup message is not active, create a draft order and redirect to invoice URL
             // Create the redirect URL in the format: https://shop-name.myshopify.com/apps/LinkId?link_id=12345
-            $redirectUrl = $shopUrl . '/apps/LinkId' . $uniqueId . '?link_id=' . $link->id;
+            $redirectUrl = $shopUrl . '/apps/LinkId' . '?link_id=' . $link->id;
             Log::info('Draft order failed, redirecting to app URL: ' . $redirectUrl);
             return response()->json(['redirect_url' => $redirectUrl]);
         }

@@ -13,9 +13,9 @@ class AppProxyController extends Controller
     public function index(Request $request)
     {
         Log::info('App Proxy Request:', $request->all());
-        
+
         $linkId = $request->query('link_id');
-        
+
         if (!$linkId) {
             return response()->json([
                 'success' => false,
@@ -29,10 +29,10 @@ class AppProxyController extends Controller
         if ($customerId) {
             $customerData['id'] = "gid://shopify/Customer/" . $customerId;
         }
-
+        
         // Create draft order using the trait method
         $draftOrderResult = $this->createDraftOrder($linkId, $customerData);
-        
+
         if ($draftOrderResult && isset($draftOrderResult['invoice_url'])) {
             Log::info('Draft order created successfully:', [
                 'link_id' => $linkId,
@@ -43,7 +43,7 @@ class AppProxyController extends Controller
         }
 
         Log::error('Failed to create draft order:', ['link_id' => $linkId]);
-        
+
         return response('Failed to create draft order', 500);
     }
 }

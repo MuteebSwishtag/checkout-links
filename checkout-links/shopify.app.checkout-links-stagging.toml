@@ -1,0 +1,25 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "14e87639cacba74180df195f526a8355"
+name = "Checkout Links Stagging"
+application_url = "https://phpstack-1035961-6145041.cloudwaysapps.com"
+embedded = true
+
+[webhooks]
+api_version = "2026-01"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "write_app_proxy,read_customers,read_inventory,read_locations,read_orders,read_products,write_customers,write_discounts,write_draft_orders,write_orders,write_products"
+use_legacy_install_flow = true
+
+[auth]
+redirect_urls = [ "https://phpstack-1035961-6145041.cloudwaysapps.com/authenticate" ]
+
+[app_proxy]
+url = "/CheckoutLinksProxy"
+prefix = "apps"
+subpath = "LinkId"
+
+[pos]
+embedded = false
