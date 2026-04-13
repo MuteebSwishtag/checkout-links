@@ -34,9 +34,9 @@ redirect_urls = [
 ]
 
 [app_proxy]
-url = "/my-app-proxy"
+url = "/CheckoutLinksProxy"
 prefix = "apps"
-subpath = "my-custom-path"
+subpath = "LinkId"
 
 [pos]
 embedded = false

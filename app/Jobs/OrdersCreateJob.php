@@ -129,7 +129,7 @@ private function updateLinkOrderCount($payload)
         }
 
         if (!$checkoutLinkId) {
-            Log::warning("⚠️ No checkout_link_id found in order payload");
+            Log::info("ℹ️ No checkout_link_id found - order was not placed through a checkout link (normal customer checkout)");
             return;
         }
 

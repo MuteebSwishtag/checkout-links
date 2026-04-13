@@ -55,7 +55,12 @@ Route::get('/debug/link/{id}', [LinkController::class, 'getLinkData']);
 Route::get('/debug/test', function () {
     return response()->json(['success' => true, 'message' => 'Debug route is working']);
 });
-Route::get('/batchSyncAllUsers', [ProductController::class, 'batchSyncAllUsers'])->name('batch.sync.all.users');
+
+// Protected sync routes - require API token and rate limiting
+Route::middleware(['verify.sync', 'throttle:10,1440'])->group(function () {
+    Route::get('/batchSyncAllUsers', [ProductController::class, 'batchSyncAllUsers'])->name('batch.sync.all.users');
+    Route::get('/allUsersSync', [ProductController::class, 'allUsersSync'])->name('all.users.sync');
+});
 
 // Route::get('/checkout', function () {
 //     Log::info('Checkout route accessed');
@@ -113,7 +118,7 @@ Route::get('/jobs-result2', function (Shop $shopModel) {
         'results' => $results
     ]);
 });
-Route::get('/allUsersSync', [ProductController::class, 'allUsersSync'])->name('all.users.sync');
+
 Route::get('/CheckoutLinksProxy', [AppProxyController::class, 'index'])->middleware('auth.proxy');
 
 

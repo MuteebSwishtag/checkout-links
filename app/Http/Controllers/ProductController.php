@@ -57,6 +57,8 @@ class ProductController extends Controller
             $perPage
         )->values();
 
+        // Log::info('hey how are  you  Abdullah', json_encode($paginated->toArray(), JSON_PRETTY_PRINT));
+
         return response()->json([
             'success' => true,
             'message' => 'Products retrieved successfully',
@@ -111,8 +113,9 @@ class ProductController extends Controller
         $user = Auth::user();
         $userFiltered = $user->where("deleted_at", null)->where("id", $user->id)->first();
         try {
-            // Dispatch the ProductSyncJob
-            ProductSyncJob::dispatch($user->id);
+            // Dispatch the ProductSyncJob (uses 'top' queue for highest priority)
+            // Manual syncs should be processed immediately
+            ProductSyncJob::dispatch($user->id); // Uses 'top' queue by default
             Log::info('Product sync job dispatched for user ID: ' . $user->id);
             
             return response()->json([
@@ -131,20 +134,49 @@ class ProductController extends Controller
     public function batchSyncAllUsers()
     {
         Log::info('Starting batch product sync for all users.');
+        
+        // Get total user count
+        $totalUsers = User::where("deleted_at", null)->count();
+        
         // Dispatch jobs to sync all users - iteration happens inside the jobs
-        ProductSyncJob::dispatch(null, 10)->delay(now()->addSeconds(5));
+        // Use 'high' queue for batch syncs (lower than 'top' but higher than 'default')
+        ProductSyncJob::dispatch(null, 10)->onQueue('high')->delay(now()->addSeconds(5));
         // OrderSyncJob::dispatch(null, 10)->delay(now()->addSeconds(10));
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Batch sync initiated for all users',
+            'total_users' => $totalUsers,
+            'sync_type' => 'incremental (10 minutes)',
+            'queue' => 'high'
+        ]);
     }
     public  function allUsersSync(){
         $users = User::where("deleted_at", null)->get();
+        $dispatched = 0;
+        $failed = 0;
+        
         foreach ($users as $user) {
             try {
                 // Dispatch the ProductSyncJob for each user
-                ProductSyncJob::dispatch($user->id);
+                // Use 'high' queue for batch syncs
+                ProductSyncJob::dispatch($user->id)->onQueue('high');
                 Log::info('Product sync job dispatched for user ID: ' . $user->id);
+                $dispatched++;
             } catch (\Exception $e) {
                 Log::error('Failed to dispatch product sync job for user ID ' . $user->id . ': ' . $e->getMessage());
+                $failed++;
             }
         }
+        
+        return response()->json([
+            'success' => true,
+            'message' => 'Full sync jobs dispatched for all users',
+            'total_users' => $users->count(),
+            'dispatched' => $dispatched,
+            'failed' => $failed,
+            'sync_type' => 'full',
+            'queue' => 'high'
+        ]);
     }
 }

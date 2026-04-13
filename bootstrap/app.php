@@ -31,6 +31,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'verified' => \Illuminate\Auth\Middleware\EnsureEmailIsVerified::class,
             'verify.embedded' => \App\Http\Middleware\VerifyEmbedded::class,
             'guest' => \App\Http\Middleware\RedirectIfAuthenticated::class,
+            'verify.sync' => \App\Http\Middleware\VerifySyncToken::class,
         ]);
         $middleware->validateCsrfTokens(except: [
             '*'

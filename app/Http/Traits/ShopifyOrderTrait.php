@@ -508,9 +508,6 @@ QUERY;
                 $lineItemsInput[] = [
                     "variantId" => "gid://shopify/ProductVariant/" . $linkedVariant->variant_id,
                     "quantity" => $linkedVariant->quantity ?? 1,
-                    "customAttributes" => [
-                        ["key" => "Order placed", "value" => (string) $link->id]
-                    ]
                 ];
             }
 

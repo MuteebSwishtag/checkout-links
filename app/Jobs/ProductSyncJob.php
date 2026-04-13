@@ -32,6 +32,46 @@ class ProductSyncJob implements ShouldQueue
      * @var int
      */
     private $retryDelay = 30; // 30 seconds between retries
+    
+    /**
+     * Maximum consecutive network failures before aborting the entire job
+     * This prevents wasting time when there's a systemic network issue
+     * @var int
+     */
+    private $maxConsecutiveNetworkFailures = 3;
+    
+    /**
+     * Counter for consecutive network failures across users
+     * @var int
+     */
+    private $consecutiveNetworkFailures = 0;
+    
+    /**
+     * Test DNS resolution for a Shopify domain
+     * This helps warm up the DNS cache and detect issues early
+     * 
+     * @param string $domain The Shopify domain to test
+     * @return bool True if DNS resolves successfully, false otherwise
+     */
+    private function testDnsResolution(string $domain): bool
+    {
+        try {
+            $this->logInfo("Testing DNS resolution for {$domain}...");
+            $ip = gethostbyname($domain);
+            
+            // gethostbyname returns the input string if resolution fails
+            if ($ip === $domain) {
+                $this->logInfo("⚠ DNS resolution failed for {$domain}");
+                return false;
+            }
+            
+            $this->logInfo("✓ DNS resolved {$domain} to {$ip}");
+            return true;
+        } catch (\Exception $e) {
+            $this->logInfo("⚠ DNS test exception for {$domain}: " . $e->getMessage());
+            return false;
+        }
+    }
 
     /**
      * Create a new job instance.
@@ -48,6 +88,9 @@ class ProductSyncJob implements ShouldQueue
     {
         $this->userId = $userId;
         $this->minutes = $minutes;
+        // Install/manual syncs use 'top' queue (highest priority)
+        // Batch syncs override to 'high' queue at dispatch time
+        $this->onQueue('top');
     }
 
     /**
@@ -64,22 +107,36 @@ class ProductSyncJob implements ShouldQueue
             $this->logInfo("{$syncType} product sync started for all users. Total users: " . $users->count());
 
             foreach ($users as $index => $user) {
+                // Check if we've hit too many consecutive network failures (systemic issue)
+                if ($this->consecutiveNetworkFailures >= $this->maxConsecutiveNetworkFailures) {
+                    \Illuminate\Support\Facades\Log::error(
+                        "Aborting {$syncType} product sync: {$this->consecutiveNetworkFailures} consecutive network failures detected. " .
+                        "This indicates a systemic network issue (DNS/connectivity). Processed {$index}/{$users->count()} users before abort."
+                    );
+                    return; // Exit the job early to avoid wasting time
+                }
+                
                 try {
                     // Skip partner development stores
                     if ($this->isPartnerDevelopmentStore($user)) {
                         $this->logInfo("Skipping partner development store: {$user->name}");
                         continue;
                     }
-                    
                     $this->syncUserWithRetries($user, $syncType);
                 } catch (\Exception $e) {
                     \Illuminate\Support\Facades\Log::error("Error syncing user {$user->name}: " . $e->getMessage());
                 }
                 
-                // Add a small delay between users to prevent DNS thread exhaustion
+                // Add a delay between users to prevent DNS thread exhaustion
                 // This helps avoid "getaddrinfo() thread failed to start" errors
                 if ($index < $users->count() - 1) {
-                    usleep(100000); // 100ms delay between users
+                    usleep(500000); // 500ms delay between users (increased from 100ms)
+                }
+                
+                // Add a longer pause every 20 users to allow DNS thread pool to recover
+                if (($index + 1) % 20 === 0) {
+                    $this->logInfo("Processed {$index}/{$users->count()} users. Pausing for DNS thread pool recovery...");
+                    sleep(2); // 2 second pause every 20 users
                 }
             }
 
@@ -113,6 +170,11 @@ class ProductSyncJob implements ShouldQueue
      */
     private function isPartnerDevelopmentStore(User $user): bool
     {
+        // Skip dev store check for user 353
+        if ($user->id == 354) {
+            return false;
+        }
+
         try {
             $query = <<<QUERY
                 query CheckStorePlan {
@@ -143,8 +205,13 @@ class ProductSyncJob implements ShouldQueue
                 $this->logInfo("Store {$user->name} is a partner development store (Plan: " . ($result->body->data->shop->plan->displayName ?? 'Unknown') . ")");
             }
             
+            // Reset consecutive network failures on successful API call
+            $this->consecutiveNetworkFailures = 0;
+            
             return (bool) $partnerDevelopment;
         } catch (\GuzzleHttp\Exception\ConnectException $e) {
+            // Increment consecutive network failures counter
+            $this->consecutiveNetworkFailures++;
             \Illuminate\Support\Facades\Log::warning("Network error checking store plan for user {$user->name}: " . $e->getMessage());
             return false; // Default to processing if network error
         } catch (\Exception $e) {
@@ -163,9 +230,26 @@ class ProductSyncJob implements ShouldQueue
     {
         $this->logInfo("{$syncType} product sync started for user: " . $user->name);
         
+        // Add initial warmup delay to allow DNS thread pool recovery
+        // This is critical when DNS resolver is under heavy load
+        sleep(1);
+        
+        // Test DNS resolution before attempting sync
+        // This helps identify DNS issues early and warms up the DNS cache
+        if (!$this->testDnsResolution($user->name)) {
+            $this->logInfo("⚠ DNS pre-check failed for {$user->name}. Waiting 10s before proceeding...");
+            sleep(10); // Give DNS more time to recover
+            
+            // Try one more time
+            if (!$this->testDnsResolution($user->name)) {
+                \Illuminate\Support\Facades\Log::error("DNS resolution failed for {$user->name} after warmup. Skipping sync.");
+                return;
+            }
+        }
+        
         $retryCount = 0;
         $syncSuccess = false;
-        $maxNetworkRetries = 3; // Separate retry counter for network errors
+        $maxNetworkRetries = 5; // Increased from 3 to 5 for better DNS recovery
         
         while ($retryCount <= $this->maxSyncRetries && !$syncSuccess) {
             if ($retryCount > 0) {
@@ -180,13 +264,21 @@ class ProductSyncJob implements ShouldQueue
             for ($networkRetry = 0; $networkRetry < $maxNetworkRetries; $networkRetry++) {
                 try {
                     $expectedCount = $this->getProductsCountFromShopify($user);
+                    // Reset consecutive network failures on success
+                    $this->consecutiveNetworkFailures = 0;
                     break; // Success, exit retry loop
                 } catch (\GuzzleHttp\Exception\ConnectException $e) {
                     // Handle DNS/network errors (cURL error 6, etc.)
                     $this->logInfo("Network error (attempt {$networkRetry}/{$maxNetworkRetries}) for user {$user->name}: " . $e->getMessage());
                     if ($networkRetry < $maxNetworkRetries - 1) {
-                        sleep(2 * ($networkRetry + 1)); // Exponential backoff: 2s, 4s, 6s
+                        // Aggressive exponential backoff for DNS thread pool recovery
+                        // Using longer delays: 5s, 10s, 20s, 40s
+                        $sleepTime = 5 * pow(2, $networkRetry);
+                        $this->logInfo("Waiting {$sleepTime}s for DNS thread pool recovery before retry...");
+                        sleep($sleepTime);
                     } else {
+                        // Increment consecutive network failures counter
+                        $this->consecutiveNetworkFailures++;
                         \Illuminate\Support\Facades\Log::error("Max network retries reached for user {$user->name}. Skipping this user.");
                         return; // Skip this user and move to the next
                     }
@@ -231,7 +323,6 @@ class ProductSyncJob implements ShouldQueue
             } else {
                 \Illuminate\Support\Facades\Log::error("{$syncType} product sync failed for user: " . $user->name);
             }
-            
             $retryCount++;
         }
     }

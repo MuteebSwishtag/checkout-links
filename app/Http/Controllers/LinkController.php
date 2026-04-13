@@ -282,8 +282,8 @@ public function getLinks(Request $request)
 
 
     public function edit($id) {
-    $link = Link::findOrFail($id);
-    $link->load(['popupMessage', 'linkedVariants.variant.product.media']);
+        $link = Link::findOrFail($id);
+        $link->load(['popupMessage', 'linkedVariants.variant.product.media']);
 
         // Transform the data to include quantity for frontend
         if ($link->linkedVariants) {
@@ -294,8 +294,8 @@ public function getLinks(Request $request)
         }
 
         Log::info(json_encode($link, JSON_PRETTY_PRINT));
-    return inertia('Embedded/Links/CreateLink', ['link' => $link]);
-}
+        return inertia('Embedded/Links/CreateLink', ['link' => $link]);
+    }
 public function update(Request $request, $id)
 {
     
@@ -466,14 +466,14 @@ public function update(Request $request, $id)
 }
 
     public function destroy($id)
-    {
-    $user=Auth::user();
-    $link=Link::where('user_id',$user->id)->findOrFail($id);
-    $link->popupMessage()->delete(); // Delete associated popup message
-    $link->linkedVariants()->delete(); // Delete associated linked variants
-    $link->delete();
-    return response()->json(['success'=>true,'message'=>'Link deleted successfully'],200);
-    }
+        {
+        $user=Auth::user();
+        $link=Link::where('user_id',$user->id)->findOrFail($id);
+        $link->popupMessage()->delete(); // Delete associated popup message
+        $link->linkedVariants()->delete(); // Delete associated linked variants
+        $link->delete();
+        return response()->json(['success'=>true,'message'=>'Link deleted successfully'],200);
+        }
 
     /**
      * Public endpoint to get link data for the extension
@@ -610,10 +610,10 @@ public function update(Request $request, $id)
         $popupMessageActive = $link->popupMessage && $link->popupMessage->is_active;
 
         if (!$popupMessageActive) {
-            // If popup message is not active, create a draft order and redirect to invoice URL
+            // If popup message is not active, redirect directly to app URL with link_id
             // Create the redirect URL in the format: https://shop-name.myshopify.com/apps/LinkId?link_id=12345
             $redirectUrl = $shopUrl . '/apps/LinkId' . '?link_id=' . $link->id;
-            Log::info('Draft order failed, redirecting to app URL: ' . $redirectUrl);
+            Log::info('Popup inactive, redirecting to app URL: ' . $redirectUrl);
             return response()->json(['redirect_url' => $redirectUrl]);
         }
 

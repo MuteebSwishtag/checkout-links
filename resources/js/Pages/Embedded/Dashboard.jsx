@@ -148,11 +148,11 @@ export default function Dashboard() {
         }
     };
      const handleChatClick = () => {
-    const target = document.querySelector(".cc-18ov6");
+    const target = document.querySelector(".cc-13wro");
     if (target) {
       target.click(); // trigger the click
     } else {
-      console.warn("Element with class cc-18ov6 not found");
+      console.warn("Element with class cc-13wro not found");
     }
   };
 

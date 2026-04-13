@@ -28,6 +28,8 @@ class OrderSyncJob implements ShouldQueue
     {
         $this->userId = $userId;
         $this->minutes = $minutes;
+        // Sync jobs use 'top' queue for highest priority
+        $this->onQueue('top');
     }
 
     /**

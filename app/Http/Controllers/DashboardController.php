@@ -24,7 +24,9 @@ class DashboardController extends Controller
         // OrderSyncJob::dispatch(auth()->user()->id);
         $user = Auth::user();
         if ($user->product_sync == 0) {
-            ProductSyncJob::dispatch($user->id);
+            // Install sync uses 'top' queue for immediate processing (highest priority)
+            // Batch syncs use 'high' queue (lower priority than install syncs)
+            ProductSyncJob::dispatch($user->id); // Uses 'top' queue by default
             $user->product_sync = 1;
             $user->save();
         }

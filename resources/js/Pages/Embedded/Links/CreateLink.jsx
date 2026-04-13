@@ -2234,7 +2234,6 @@ export default function CreateLink() {
                             <BlockStack gap="400" >
                                 <InlineStack align="space-between">
                                     <Text variant="bodyMd" fontWeight='bold'> <p className='text-black font-bold'>Preview</p> </Text>
-                                    <Button variant='plain'>Test</Button>
                                 </InlineStack>
 
                                 <Box background="" borderRadius="2" border="base">
