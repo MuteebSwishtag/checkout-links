@@ -166,7 +166,7 @@ trait ShopifyProductTrait
     {
         $query = <<<QUERY
             query{
-                productsCount{
+                productsCount(limit:null){
                     count
                 }
             }
