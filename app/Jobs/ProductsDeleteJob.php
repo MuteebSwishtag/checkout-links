@@ -56,7 +56,7 @@ class ProductsDeleteJob implements ShouldQueue
         if($this->deleteProduct($payload->id)){
             $this->logInfo("Product Delete Job Sucessfull.");
         }else{
-            $this->logInfo("Product Delete Job Failed! ");
+            \Illuminate\Support\Facades\Log::error("Product Delete Job Failed! ");
         }
     }
 }

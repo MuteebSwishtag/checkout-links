@@ -56,7 +56,7 @@ class OrdersDeleteJob implements ShouldQueue
         if($this->deleteOrder($payload->id)){
             $this->logInfo("Order Delete Job Sucessfull.");
         }else{
-            $this->logInfo("Order Delete Job Failed! ");
+            \Illuminate\Support\Facades\Log::error("Order Delete Job Failed! ");
         }
     }
 }

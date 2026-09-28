@@ -20,6 +20,9 @@
         <a href="/links">Links</a>
         <a href="/how-it-works">How it Works</a>
         <a href="/settings">Settings</a>
+        @if (auth()->user()?->isFreemium() === false)
+            <a href="{{ route('plans') }}">Plans</a>
+        @endif
         <!-- <a href="/">FAQs</a> -->
     </ui-nav-menu>
 

@@ -22,8 +22,6 @@ class LinkController extends Controller
     {
         $user = auth()->user();
         $data = $request->all();
-        Log::info('Data received for saving link:', ['data' => $data]);
-        Log::info('Additional Settings Data received:', ['additionalSettingsData' => $data['additionalSettingsData'] ?? 'NOT_FOUND']);
 
         // Use the Link model's validation rules with per-user uniqueness
         $validator = Validator::make($data, [
@@ -48,7 +46,6 @@ class LinkController extends Controller
         ]);
 
         if ($validator->fails()) {
-            Log::info('Validation failed:', ['errors' => $validator->errors()]);
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors()
@@ -119,21 +116,14 @@ class LinkController extends Controller
 
             // 3. Save Selected Product Variants
             if (!empty($data['selectedProductItems']) && is_array($data['selectedProductItems'])) {
-                Log::info('Processing product items for link:', ['items_count' => count($data['selectedProductItems'])]);
 
                 // Process variants in chunks to avoid memory issues
                 $chunks = array_chunk($data['selectedProductItems'], 100);
 
                 foreach ($chunks as $chunk) {
                     foreach ($chunk as $item) {
-                        Log::info('Processing item:', ['item' => $item]);
                         // Prioritize shopify_variant_id if available, then fall back to variantId
                         $variantId = $item['variantId'];
-                        // Only log in debug mode to reduce log size
-                        Log::debug('Processing variant:', [
-                            'variant_id' => $variantId,
-                            'product_id' => $item['productId'] ?? null
-                        ]);
 
                         $link->linkedVariants()->create([
                             'link_id' => $link->id,
@@ -153,7 +143,6 @@ class LinkController extends Controller
             $response = $this->openCheckout($linkUrl, true);
             $responseData = json_decode($response->getContent(), true);
             $redirectUrl = $responseData['redirect_url'] ?? null;
-            Log::info('Generated redirect URL for new link:', ['redirect_url' => $redirectUrl]);
 
             // Update the link with the redirect_url    
             if ($redirectUrl) {
@@ -176,7 +165,6 @@ class LinkController extends Controller
 public function getLinks(Request $request)
 {
     $user = Auth::user();
-    Log::info('Link listing request:', $request->all());
     $baseUrl = config('app.url') . '/checkout/';
 
     // Helper to clean link_url
@@ -293,7 +281,6 @@ public function getLinks(Request $request)
             }
         }
 
-        Log::info(json_encode($link, JSON_PRETTY_PRINT));
         return inertia('Embedded/Links/CreateLink', ['link' => $link]);
     }
 public function update(Request $request, $id)
@@ -301,8 +288,6 @@ public function update(Request $request, $id)
     
     $user = auth()->user();
     $data = $request->all();
-        Log::info('Data received for updating link:', ['data' => $data, 'link_id' => $id]);
-        Log::info('Additional Settings Data received for update:', ['additionalSettingsData' => $data['additionalSettingsData'] ?? 'NOT_FOUND']);
 
         // Validate the request with per-user uniqueness (ignore current link)
         $validator = Validator::make($data, [
@@ -328,7 +313,6 @@ public function update(Request $request, $id)
         ]);
 
         if ($validator->fails()) {
-            Log::info('Update validation failed:', ['errors' => $validator->errors()]);
             return response()->json([
                 'success' => false,
                 'errors' => $validator->errors()
@@ -408,7 +392,6 @@ public function update(Request $request, $id)
             $link->linkedVariants()->delete();
 
             if (!empty($data['selectedProductItems']) && is_array($data['selectedProductItems'])) {
-                Log::info('Updating product items for link:', ['items_count' => count($data['selectedProductItems'])]);
 
                 // Store IDs that we've already processed to avoid duplicates
                 $processedIds = [];
@@ -421,11 +404,6 @@ public function update(Request $request, $id)
                         // Prioritize shopify_variant_id if available, then fall back to shopifyVariantId or variantId
                         $variantId = $item['shopify_variant_id'] ?? $item['shopifyVariantId'] ?? $item['variantId'] ?? null;
 
-                        // Only log in debug mode to reduce log size
-                        Log::debug('Updating variant:', [
-                            'variant_id' => $variantId,
-                            'product_id' => $item['productId'] ?? null
-                        ]);
 
                         $link->linkedVariants()->create([
                             'link_id' => $link->id,
@@ -445,7 +423,6 @@ public function update(Request $request, $id)
             $response = $this->openCheckout($linkUrl, true);
             $responseData = json_decode($response->getContent(), true);
             $redirectUrl = $responseData['redirect_url'] ?? null;
-            Log::info('Generated redirect URL for updated link:', ['redirect_url' => $redirectUrl]);
 
             // Update the link with the redirect_url    
             if ($redirectUrl) {
@@ -491,7 +468,6 @@ public function update(Request $request, $id)
 
             // Check if single_order is enabled and if order has already been placed
             if ($link->single_order && $link->placed_order > 0) {
-                Log::info('Single order limit reached for link ID: ' . $id);
                 return response()->json([
                     'success' => false,
                     'error_type' => 'single_order_limit_reached',
@@ -514,13 +490,10 @@ public function update(Request $request, $id)
                 $linkedVariant->quantity = $linkedVariant->quantity ?? 1;
             }
 
-            // Log the loaded data for debugging
-            Log::info('Link data loaded for ID: ' . $id, ['link_data' => $link->toArray()]);
 
             // Track the link view (optional)
             // $link->increment('clicks');
 
-            Log::info('Link data fetched successfully', ['link_data' => $link]);
 
             return response()->json([
                 'success' => true,
@@ -613,7 +586,6 @@ public function update(Request $request, $id)
             // If popup message is not active, redirect directly to app URL with link_id
             // Create the redirect URL in the format: https://shop-name.myshopify.com/apps/LinkId?link_id=12345
             $redirectUrl = $shopUrl . '/apps/LinkId' . '?link_id=' . $link->id;
-            Log::info('Popup inactive, redirecting to app URL: ' . $redirectUrl);
             return response()->json(['redirect_url' => $redirectUrl]);
         }
 
@@ -626,28 +598,22 @@ public function update(Request $request, $id)
         } elseif ($link->order_discount) {
             // Create a discount on Shopify and retrieve the code
             $discountResponse = $this->createDiscountOnShopify($link);
-            Log::info('Discount response from Shopify: ' . json_encode($discountResponse, JSON_PRETTY_PRINT));
             if (isset($discountResponse->body->data->discountCodeBasicCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code)) {
                 $discountCode = $discountResponse->body->data->discountCodeBasicCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code;
-                Log::info('Discount code created: ' . $discountCode);
             }
         } elseif ($link->free_shipping) {
             // Create a free shipping discount on Shopify and retrieve the code
             $freeShippingResponse = $this->createFreeShippingOnShopify($link);
-            Log::info('Free shipping response from Shopify: ' . json_encode($freeShippingResponse, JSON_PRETTY_PRINT));
             if (isset($freeShippingResponse->body->data->discountCodeFreeShippingCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code)) {
                 $discountCode = $freeShippingResponse->body->data->discountCodeFreeShippingCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code;
             }
-            Log::info('Free shipping discount code created: ' . $discountCode);
         }
 
         // Add both the link_id and backend_url parameters to the URL for the extension to read
         $redirectUrl = $shopUrl . '?link_id=' . $link->id . '&backend_url=' . urlencode($backendUrl);
         if ($discountCode) {
-            Log::info('Adding discount code to redirect URL: ' . $discountCode);
             $redirectUrl .= '&discount_code=' . urlencode($discountCode);
         }
-        Log::info('Redirecting to: ' . $redirectUrl);
         // dd('Redirecting to: ' . $redirectUrl);
         return response()->json(['redirect_url' => $redirectUrl]);
     }
@@ -681,7 +647,6 @@ public function update(Request $request, $id)
             // If popup message is not active, create a draft order and redirect to invoice URL
             $draftOrderResult = $this->createDraftOrder($link->id);
             if ($draftOrderResult && isset($draftOrderResult['invoice_url'])) {
-                Log::info('Redirecting to draft order invoice: ' . $draftOrderResult['invoice_url']);
                 return redirect()->to($draftOrderResult['invoice_url']);
             }
         }
@@ -695,28 +660,22 @@ public function update(Request $request, $id)
         } elseif ($link->order_discount) {
             // Create a discount on Shopify and retrieve the code
             $discountResponse = $this->createDiscountOnShopify($link);
-            Log::info('Discount response from Shopify: ' . json_encode($discountResponse, JSON_PRETTY_PRINT));
             if (isset($discountResponse->body->data->discountCodeBasicCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code)) {
                 $discountCode = $discountResponse->body->data->discountCodeBasicCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code;
-                Log::info('Discount code created: ' . $discountCode);
             }
         } elseif ($link->free_shipping) {
             // Create a free shipping discount on Shopify and retrieve the code
             $freeShippingResponse = $this->createFreeShippingOnShopify($link);
-            Log::info('Free shipping response from Shopify: ' . json_encode($freeShippingResponse, JSON_PRETTY_PRINT));
             if (isset($freeShippingResponse->body->data->discountCodeFreeShippingCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code)) {
                 $discountCode = $freeShippingResponse->body->data->discountCodeFreeShippingCreate->codeDiscountNode->codeDiscount->codes->nodes[0]->code;
             }
-            Log::info('Free shipping discount code created: ' . $discountCode);
         }
 
         // Add both the link_id and backend_url parameters to the URL for the extension to read
         $redirectUrl = $shopUrl . '?link_id=' . $link->id . '&backend_url=' . urlencode($backendUrl);
         if ($discountCode) {
-            Log::info('Adding discount code to redirect URL: ' . $discountCode);
             $redirectUrl .= '&discount_code=' . urlencode($discountCode);
         }
-        Log::info('Redirecting to: ' . $redirectUrl);
         return redirect()->to($redirectUrl);
     }
 
@@ -929,12 +888,10 @@ public function update(Request $request, $id)
             'page_url' => 'nullable|url'
         ]);
         // Log the incoming request data
-        Log::info('Order count request received:', $data);
         // Process the order count logic heres
         // For example, increment the order count for the link
         $link = Link::findOrFail($data['link_id']);
         $link->increment('placed_order');
-        Log::info('Order count incremented for link ID: ' . $data['link_id']);
         // Optionally, store the event in a separate table or log file
         return response()->json(['success' => true, 'message' => 'Order count recorded successfully']);
     }

@@ -13,7 +13,7 @@ use App\Models\User;
 use App\Http\Controllers\AppProxyController;
 
 
-Route::group(['middleware' => ['verify.embedded', 'verify.shopify']], function () {
+Route::group(['middleware' => ['verify.embedded', 'verify.shopify','billable']], function () {
 
     Route::get('/', [DashboardController::class, 'index'])->name('home');
     // Route::get('/products-approvals', inertia('Products/Approvals'))->name('products.approvals');
@@ -29,6 +29,11 @@ Route::group(['middleware' => ['verify.embedded', 'verify.shopify']], function (
     Route::get('/settings', function () {
         return Inertia::render('Embedded/Settings');
     })->name('settings');
+    Route::get('/plans', function () {
+        abort_unless(auth()->user()->isFreemium() === false, 403);
+
+        return Inertia::render('Embedded/Plans');
+    })->name('plans');
     Route::get('/search', [DashboardController::class, 'orderSeacrhfilter'])->name('search');
     Route::get('/theme-status', [DashboardController::class, 'theme_setting_status'])->name('theme.status');
     Route::get('/api/theme-status-check', [DashboardController::class, 'checkThemeStatus'])->name('theme.status.check');

@@ -22,7 +22,6 @@ trait ShopifyOrderTrait
     public function getOrdersFromShopify(User $user, $minutes = null)
     {
         $syncType = $minutes ? "incremental (last {$minutes} minutes)" : "full";
-        Log::info("Starting {$syncType} order sync for user ID: " . $user->id);
 
         try {
             $cursor = 'null';
@@ -32,7 +31,6 @@ trait ShopifyOrderTrait
             // For incremental sync, we don't need order count - just fetch updated orders
             if (!$minutes) {
                 $orderCount = $this->getOrdersCountFromShopify($user);
-                Log::info('Total Orders Count: ' . $orderCount);
                 $loop = ceil($orderCount / 250);
             } else {
                 // For incremental sync, loop until no more pages
@@ -44,17 +42,14 @@ trait ShopifyOrderTrait
 
                 // Break if no orders returned
                 if (!$orders || count($orders) === 0) {
-                    Log::info('No more orders to sync');
                     break;
                 }
 
-                Log::info("Processing batch {$i}: " . count($orders) . " orders");
 
                 if ($orders && $nextCursor !== null) {
                     $cursor = '"' . $nextCursor . '"';
                     foreach ($orders as $order) {
                         $order = $this->transformShopifyOrderData($order);
-                        Log::info("Order Data: " . json_encode($order, JSON_PRETTY_PRINT));
                         if (!$this->storeData($this->arrayToObject($order), $user)) {
                             $hasErrors = true;
                         } else {
@@ -91,7 +86,6 @@ trait ShopifyOrderTrait
             }
         QUERY;
         $result = $this->arrayToObject($user->api()->graph($query));
-        Log::info("Orders Count Query Result: " . json_encode($result, JSON_PRETTY_PRINT));
         if ($result->errors) {
             return 0;
         } else {
@@ -105,7 +99,6 @@ trait ShopifyOrderTrait
         if ($minutes) {
             $timestamp = \Carbon\Carbon::now()->subMinutes($minutes)->toIso8601ZuluString();
             $queryFilter = ', query: "updated_at:>\'' . $timestamp . '\'"';
-            Log::info('Incremental order sync query filter: ' . $queryFilter);
         }
 
         $query = <<<QUERY
@@ -244,15 +237,17 @@ QUERY;
             if ($update) {
                 $order = $this->order->getByShopifyId($order->id);
                 if (!$order) {
-                    Log::info("Order May be deleted: " . json_encode($order, JSON_PRETTY_PRINT));
                     return true;
                 }
             }
             $this->order->updateOrCreate($formatedData);
         } catch (\Exception $e) {
             DB::rollBack();
-            Log::error("Failed to store Order: " . json_encode($order));
-            Log::error("Exception: " . json_encode($e->getMessage(), JSON_PRETTY_PRINT));
+            Log::error('Failed to store order', [
+                'user_id' => $user->id,
+                'order_id' => $order->id ?? null,
+                'message' => $e->getMessage(),
+            ]);
             return false;
         }
         DB::commit();
@@ -534,10 +529,7 @@ QUERY;
                 $linkId
             );
 
-            // Log the mutation string before sending to Shopify
-            Log::info("Draft Order Mutation", ["mutation" => $mutation]);
             $result = $this->arrayToObject($link->user->api()->graph($mutation));
-            Log::info("Draft Order Create Response", ['response' => json_encode($result, JSON_PRETTY_PRINT)]);
 
             if (!empty($result->errors)) {
                 Log::error("Failed to create draft order via GraphQL", [
@@ -549,7 +541,7 @@ QUERY;
 
             $draftOrder = $result->body->data->draftOrderCreate->draftOrder ?? null;
             if (!$draftOrder) {
-                Log::error("Draft order creation failed but no error returned", ['result' => $result, 'link_id' => $linkId]);
+                Log::error("Draft order creation failed but no error returned", ['user_errors' => $result->body->data->draftOrderCreate->userErrors ?? [], 'link_id' => $linkId]);
                 return null;
             }
 

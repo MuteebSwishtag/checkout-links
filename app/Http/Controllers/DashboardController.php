@@ -64,18 +64,12 @@ class DashboardController extends Controller
 
         // Execute GraphQL query
         $response = $shop->api()->graph($query);
-        Log::info('GraphQL Response: ' . print_r($response, true));
-        Log::info('Store Name: ' . $storeName);
-        Log::info('Theme Status: ' . $shop->theme_status);
-        Log::info('Response Body: ' . print_r($response['body'], true));
 
         if (isset($response['body']['data']['themes']['edges']) && !empty($response['body']['data']['themes']['edges'])) {
             // Update theme status if it was 0
             if ($shop->theme_status == 0) {
                 $previousStatus = $shop->theme_status;
                 $updateResult = $shop->update(['theme_status' => 1]);
-                Log::info('Theme status updated: ' . ($updateResult ? 'Success' : 'Failed') .
-                    ' (Previous: ' . $previousStatus . ', Current: ' . $shop->theme_status . ')');
             }
 
             // Find the main theme
@@ -86,7 +80,6 @@ class DashboardController extends Controller
                     $themeIdParts = explode('/', $theme['id']);
                     $themeId = end($themeIdParts);
 
-                    Log::info('Found main theme: ' . $theme['name'] . ' with ID: ' . $themeId);
 
                     // Make sure we have a valid numeric ID
                     if (is_numeric($themeId)) {
@@ -100,7 +93,7 @@ class DashboardController extends Controller
         }
 
         // If we reached here, no main theme was found
-        Log::info('Theme setup failed: No main theme found');
+        Log::warning('Theme setup failed: No main theme found');
         return response()->json(['error' => 'No main theme found'], 404);
     }
 
