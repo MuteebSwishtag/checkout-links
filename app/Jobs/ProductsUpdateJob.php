@@ -118,7 +118,6 @@ class ProductsUpdateJob implements ShouldQueue
                 ]);
             }
         });
-        Log::info("Product sync completed successfully for Shopify product ID: {$productId}");
     }
 
     private function fetchInventoryItemFromShopify($inventoryItemId, User $user)
@@ -134,7 +133,6 @@ class ProductsUpdateJob implements ShouldQueue
                 GQL;
 
         $result = $this->arrayToObject($user->api()->graph($query));
-        Log::info("Fetched inventory item for ID {$inventoryItemId}: " . json_encode($result));
         if (empty($result->errors)) {
             return $result->body->data->inventoryItem ?? null;
         }

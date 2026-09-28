@@ -13,7 +13,6 @@ class AppProxyController extends Controller
 
     public function index(Request $request)
     {
-        Log::info('App Proxy Request:', $request->all());
 
         $linkId = $request->query('link_id');
         $link = Link::where('id', $linkId)->first();
@@ -45,10 +44,6 @@ class AppProxyController extends Controller
         $draftOrderResult = $this->createDraftOrder($linkId, $customerData);
 
         if ($draftOrderResult && isset($draftOrderResult['invoice_url'])) {
-            Log::info('Draft order created successfully:', [
-                'link_id' => $linkId,
-                'invoice_url' => $draftOrderResult['invoice_url']
-            ]);
             
             return redirect()->to($draftOrderResult['invoice_url']);
         }

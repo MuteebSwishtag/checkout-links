@@ -83,7 +83,6 @@ class ProductController extends Controller
             'custom_css' => 'nullable|string',
         ]);
 
-        Log::info('Settings data received: ', $request->all());
 
         // Example: Save to DB in a `settings` table per user/shop
         $user = Auth::user();
@@ -116,7 +115,6 @@ class ProductController extends Controller
             // Dispatch the ProductSyncJob (uses 'top' queue for highest priority)
             // Manual syncs should be processed immediately
             ProductSyncJob::dispatch($user->id); // Uses 'top' queue by default
-            Log::info('Product sync job dispatched for user ID: ' . $user->id);
             
             return response()->json([
                 'success' => true,
@@ -133,7 +131,6 @@ class ProductController extends Controller
     }
     public function batchSyncAllUsers()
     {
-        Log::info('Starting batch product sync for all users.');
         
         // Get total user count
         $totalUsers = User::where("deleted_at", null)->count();
@@ -161,7 +158,6 @@ class ProductController extends Controller
                 // Dispatch the ProductSyncJob for each user
                 // Use 'high' queue for batch syncs
                 ProductSyncJob::dispatch($user->id)->onQueue('high');
-                Log::info('Product sync job dispatched for user ID: ' . $user->id);
                 $dispatched++;
             } catch (\Exception $e) {
                 Log::error('Failed to dispatch product sync job for user ID ' . $user->id . ': ' . $e->getMessage());

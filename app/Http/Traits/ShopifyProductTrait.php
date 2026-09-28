@@ -16,11 +16,9 @@ trait ShopifyProductTrait
     public function getProductsFromShopify(User $user, $minutes = null)
     {
         $syncType = $minutes ? "incremental (last {$minutes} minutes)" : "full";
-        Log::info("Starting {$syncType} product sync for user ID: " . $user->id);
 
         // Get initial product count from Shopify for verification
         $expectedProductCount = $this->getProductsCountFromShopify($user);
-        Log::info("Expected total products from Shopify: {$expectedProductCount}");
 
         try {
             // Disable query logging to improve performance
@@ -36,13 +34,11 @@ trait ShopifyProductTrait
             $syncTimestamp = null;
             if ($minutes) {
                 $syncTimestamp = \Carbon\Carbon::now()->subMinutes($minutes)->toIso8601ZuluString();
-                Log::info("Incremental sync timestamp (fixed for entire sync): {$syncTimestamp}");
             }
 
             // For full sync, calculate expected loops based on product count
             if (!$minutes) {
                 $loop = ceil($expectedProductCount / 250);
-                Log::info("Expected API calls for full sync: {$loop} (250 products per page)");
             } else {
                 // For incremental sync, loop until no more pages
                 $loop = PHP_INT_MAX;
@@ -58,11 +54,9 @@ trait ShopifyProductTrait
 
                 // Break if no products returned
                 if (!$products || count($products) === 0) {
-                    Log::info('No more products to sync');
                     break;
                 }
 
-                Log::info("Processing batch {$i}: " . count($products) . " products");
 
                 // Track successes and failures in this batch
                 $batchSuccessCount = 0;
@@ -89,18 +83,15 @@ trait ShopifyProductTrait
                         $totalProcessed += count($currentBatch);
                         $currentBatch = []; // Reset batch
                         
-                        Log::info("Committed batch of {$batchSize} products. Total processed: {$totalProcessed}");
                     }
                 }
 
-                Log::info("Batch {$i} completed: {$batchSuccessCount} succeeded, {$batchFailCount} failed");
 
                 // If there's a next page, update cursor for the next iteration
                 if ($nextCursor !== null) {
                     $cursor = '"' . $nextCursor . '"';
                 } else {
                     // No more pages, exit the loop
-                    Log::info('Reached last page of products');
                     break;
                 }
             }
@@ -112,21 +103,16 @@ trait ShopifyProductTrait
                 if ($result['failed'] > 0) {
                     $hasErrors = true;
                 }
-                Log::info("Committed final batch of " . count($currentBatch) . " products");
             }
 
             // Verify product count for full sync
             $totalSyncedFromShopify = count($syncedProductIds);
-            Log::info("Completed {$syncType} sync. Fetched {$totalSyncedFromShopify} products from Shopify, Processed {$processedCount} successfully");
             
             // Check if we got all products from Shopify
             if (!$minutes && $totalSyncedFromShopify < $expectedProductCount) {
                 $missingCount = $expectedProductCount - $totalSyncedFromShopify;
                 Log::warning("Product count mismatch! Expected: {$expectedProductCount}, Fetched: {$totalSyncedFromShopify}, Missing: {$missingCount}");
-                Log::warning("This may indicate Shopify is still processing bulk updates. The products will be synced in the next sync cycle.");
                 // Don't throw error - this is expected with bulk operations
-            } elseif (!$minutes && $totalSyncedFromShopify === $expectedProductCount) {
-                Log::info("✓ Product count verified: All {$expectedProductCount} products were fetched from Shopify");
             }
             
             // Log summary
@@ -136,26 +122,27 @@ trait ShopifyProductTrait
                 if (!empty($failedProducts)) {
                     Log::warning("Failed product IDs: " . implode(', ', array_slice($failedProducts, 0, 10)) . (count($failedProducts) > 10 ? '... and ' . (count($failedProducts) - 10) . ' more' : ''));
                 }
-            } else {
-                Log::info("Sync completed successfully: All {$processedCount} products synced without errors");
             }
 
             // Delete products that are no longer in Shopify
             if (!$minutes) {
                 // Full sync: Delete products not in the synced list
                 $deletedCount = $this->deleteRemovedProducts($user, $syncedProductIds);
-                Log::info("Deleted {$deletedCount} products that no longer exist in Shopify");
             } else {
                 // Incremental sync: Verify and delete products that no longer exist in Shopify
                 $deletedCount = $this->verifyAndDeleteRemovedProducts($user);
-                Log::info("Verified and deleted {$deletedCount} products that no longer exist in Shopify");
             }
 
             if($hasErrors) {
                 throw new \Exception("Some products could not be stored.");
             }
             
-            Log::info("Product sync completed: $processedCount products processed");
+            Log::info('Product sync completed', [
+                'user_id' => $user->id,
+                'sync_type' => $syncType,
+                'processed' => $processedCount,
+                'deleted' => $deletedCount,
+            ]);
         } catch (\Exception $e) {
             Log::error("Product sync error: " . $e->getMessage());
             return false;
@@ -192,14 +179,11 @@ trait ShopifyProductTrait
         if ($syncTimestamp) {
             // Incremental sync: combine status filter with updated_at filter
             $queryFilter .= ' AND updated_at:>\'' . $syncTimestamp . '\'';
-            Log::info('Incremental sync with status and timestamp filters');
         } else {
             // Full sync: just include all statuses
-            Log::info('Full sync with all statuses (active, draft, archived)');
         }
         
         $queryFilter .= '"';
-        Log::info('Query filter: ' . $queryFilter);
 
         // Fetch ALL products (active, draft, archived) to properly sync status changes
         $query = <<<QUERY
@@ -255,7 +239,6 @@ QUERY;
             return [null, null];
         } else {
             $products = $result->body->data->products->edges;
-            Log::info("Fetched Products: " . json_encode($products, JSON_PRETTY_PRINT));
             $cursor = $result->body->data->products->pageInfo->endCursor;
             return [$products, $cursor];
         }
@@ -266,15 +249,16 @@ QUERY;
             $formatedData = $this->formateProductdata($product, $user);
             $result = $this->product->updateOrCreate($formatedData);
             
-            // Log successful update with status
-            Log::debug("Successfully stored product ID: {$product->id}, Title: {$product->title}, Status: {$product->status}");
             return true;
         } catch (\Exception $e) {
-            Log::error("Failed to store product ID: " . ($product->id ?? 'unknown'));
-            Log::error("Product Title: " . ($product->title ?? 'unknown'));
-            Log::error("Exception Type: " . get_class($e));
-            Log::error("Exception Message: " . $e->getMessage());
-            Log::error("Stack Trace: " . $e->getTraceAsString());
+            Log::error('Failed to store product', [
+                'user_id' => $user->id,
+                'product_id' => $product->id ?? null,
+                'exception_type' => get_class($e),
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+            ]);
             return false;
         }
     }
@@ -361,7 +345,6 @@ QUERY;
     public function formateProductMedia($media)
     {
         $productMedia = [];
-        Log::info(json_encode($media, JSON_PRETTY_PRINT));
         foreach ($media as $image) {
             $productMedia[] = [
                 'product_id' => $image->product_id ?? null, // optional, set if available
@@ -406,7 +389,6 @@ QUERY;
             foreach ($dbProducts as $dbProduct) {
                 // If the product ID is not in the synced list, it means it was deleted from Shopify
                 if (!in_array($dbProduct->shopify_product_id, $syncedProductIds)) {
-                    Log::info("Deleting product ID {$dbProduct->shopify_product_id} (DB ID: {$dbProduct->id}) - no longer exists in Shopify");
                     $this->product->delete($dbProduct->id);
                     $deletedCount++;
                 }
@@ -441,7 +423,6 @@ QUERY;
                 return 0;
             }
             
-            Log::info("Verifying {$totalProducts} products against Shopify for user ID: {$user->id}");
             
             // Build product IDs for batch verification
             $productIds = $dbProducts->pluck('shopify_product_id')->toArray();
@@ -462,7 +443,6 @@ QUERY;
                         foreach ($missingIds as $missingId) {
                             $dbProduct = $dbProducts->firstWhere('shopify_product_id', $missingId);
                             if ($dbProduct) {
-                                Log::info("Deleting product ID {$missingId} (DB ID: {$dbProduct->id}) - verified as deleted from Shopify");
                                 $this->product->delete($dbProduct->id);
                                 $deletedCount++;
                             }
@@ -474,7 +454,6 @@ QUERY;
                     }
                 }
                 
-                Log::info("Verified batch " . ($batchIndex + 1) . "/" . count($batches) . " - Found {$deletedCount} deleted products so far");
             }
             
             return $deletedCount;
@@ -590,7 +569,6 @@ QUERY;
             }
         }
         
-        Log::info("Transformed variants count: " . count($productVariants));
         
         $productMedia = [];
         
@@ -635,7 +613,6 @@ QUERY;
             'media' => $productMedia,
         ];
         
-        Log::info("Transformed product: " . $product['title'] . " with " . count($productVariants) . " variants");
         
         return $product;
     }
@@ -709,7 +686,6 @@ QUERY;
         GQL;
 
         $result = $this->arrayToObject($user->api()->graph($query));
-        Log::info("Fetched product media for product ID {$productId}: " . json_encode($result, JSON_PRETTY_PRINT)); 
         
         if (!isset($result->errors) && isset($result->body->data->product->media->edges)) {
             $mediaEdges = $result->body->data->product->media->edges;

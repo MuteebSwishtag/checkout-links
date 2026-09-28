@@ -77,7 +77,6 @@ class OrdersCreateJob implements ShouldQueue
         // else{
         //     $this->logInfo("Order Create Job Failed");
         // }
-        Log::info("payload: " . json_encode($payload, JSON_PRETTY_PRINT));
         $this->updateLinkOrderCount($payload);
     }
 
@@ -109,7 +108,6 @@ private function updateLinkOrderCount($payload)
         if (!$checkoutLinkId && $draftOrder && !empty($payload->note)) {
             if (preg_match('/Checkout Link:\s*(\d+)/i', $payload->note, $matches)) {
                 $checkoutLinkId = $matches[1];
-                Log::info("Extracted Checkout Link ID from note: {$checkoutLinkId}");
             }
         }
 
@@ -120,7 +118,6 @@ private function updateLinkOrderCount($payload)
                     foreach ($item->properties as $property) {
                         if (($property->name ?? null) === 'Order placed' && is_numeric($property->value ?? null)) {
                             $checkoutLinkId = $property->value;
-                            Log::info("Extracted Checkout Link ID from line item property: {$checkoutLinkId}");
                             break 2;
                         }
                     }
@@ -129,7 +126,6 @@ private function updateLinkOrderCount($payload)
         }
 
         if (!$checkoutLinkId) {
-            Log::info("ℹ️ No checkout_link_id found - order was not placed through a checkout link (normal customer checkout)");
             return;
         }
 
@@ -147,7 +143,6 @@ private function updateLinkOrderCount($payload)
         if ($draftOrder) {
             if ((int)$link->single_order === 1) {
                 $link->increment('clicks', 1);
-                Log::info("Link ID {$link->id} is single order. Skipping checkout reopening.");
                 return;
             }
 

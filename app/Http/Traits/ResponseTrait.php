@@ -22,12 +22,12 @@ trait ResponseTrait
     }
     protected function logData($data)
     {
-        Log::info(json_encode($data, JSON_PRETTY_PRINT));
+        Log::debug(json_encode($data, JSON_PRETTY_PRINT));
 
     }
     protected function logInfo($data)
     {
-        Log::info($data);
+        Log::debug($data);
     }
 
 
