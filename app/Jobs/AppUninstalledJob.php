@@ -18,7 +18,6 @@ use Osiset\ShopifyApp\Contracts\Commands\Shop as IShopCommand;
 use Osiset\ShopifyApp\Contracts\Queries\Shop as IShopQuery;
 use Osiset\ShopifyApp\Messaging\Events\AppUninstalledEvent;
 use Osiset\ShopifyApp\Objects\Values\ShopDomain;
-use Osiset\ShopifyApp\Util;
 use stdClass;
 use Illuminate\Support\Facades\Log;
 
@@ -111,11 +110,9 @@ class AppUninstalledJob implements ShouldQueue
         // Purge shop of token, plan, etc.
         $shopCommand->clean($shopId);
 
-        // Check freemium mode
-        if (Util::getShopifyConfig('billing_freemium_enabled') === true) {
-            // Add the freemium flag to the shop
-            $shopCommand->setAsFreemium($shopId);
-        }
+        // Always clear freemium access when the app is uninstalled.
+        $shop->shopify_freemium = false;
+        $shop->save();
 
         // Soft delete the shop.
         $shopCommand->softDelete($shopId);
