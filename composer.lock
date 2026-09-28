@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "6731d22f4add148bdb8d624563f494c4",
+    "content-hash": "fac7aa8db746ca207f3e5e0aaeb13c8c",
     "packages": [
         {
             "name": "beberlei/assert",
@@ -1700,16 +1700,16 @@
         },
         {
             "name": "kyon147/laravel-shopify",
-            "version": "v23.0.0",
+            "version": "v27.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Kyon147/laravel-shopify.git",
-                "reference": "9d2e75e05b0bef2b59c7ad012fd1b6d3f3db5cbc"
+                "reference": "15fbedd02d1c944c7a798d86d61549110e294cb6"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Kyon147/laravel-shopify/zipball/9d2e75e05b0bef2b59c7ad012fd1b6d3f3db5cbc",
-                "reference": "9d2e75e05b0bef2b59c7ad012fd1b6d3f3db5cbc",
+                "url": "https://api.github.com/repos/Kyon147/laravel-shopify/zipball/15fbedd02d1c944c7a798d86d61549110e294cb6",
+                "reference": "15fbedd02d1c944c7a798d86d61549110e294cb6",
                 "shasum": ""
             },
             "require": {
@@ -1717,18 +1717,17 @@
                 "funeralzone/valueobjects": "^0.5",
                 "gnikyt/basic-shopify-api": "^9.0 || ^10.0 || ^11.0",
                 "jenssegers/agent": "^2.6",
-                "laravel/framework": "^8.0 || ^9.0 || ^10.0 || ^11.0 || ^12.0",
-                "php": "^8.0 || ^8.1 || ^8.2 || ^8.3 || ^8.4"
+                "laravel/framework": "^12.0 || ^13.0",
+                "php": "^8.2"
             },
             "require-dev": {
                 "ergebnis/composer-normalize": "^2.8",
                 "friendsofphp/php-cs-fixer": "^3.0",
-                "laravel/legacy-factories": "^v1.3.0",
+                "laravel/legacy-factories": "^1.3.0",
                 "mockery/mockery": "^1.0",
-                "orchestra/database": "~3.8 || ~4.0 || ~5.0 || ~6.0 || ~7.0 || ~8.0 || ~9.0",
-                "orchestra/testbench": "~3.8 || ~4.0 || ~5.0 || ~6.0 || ~7.0 || ~8.0 || ~9.0",
-                "phpstan/phpstan": "^0.12",
-                "phpunit/phpunit": "~8.0 || ^9.0 || ^10.0 || ^11.0"
+                "orchestra/testbench": "^10.0 || ^11.0",
+                "phpstan/phpstan": "^2.1",
+                "phpunit/phpunit": "^8.0 || ^9.0 || ^10.0 || ^11.0"
             },
             "type": "library",
             "extra": {
@@ -1789,7 +1788,7 @@
                     "type": "open_collective"
                 }
             ],
-            "time": "2025-03-25T12:23:46+00:00"
+            "time": "2026-07-14T09:10:34+00:00"
         },
         {
             "name": "laravel/framework",
