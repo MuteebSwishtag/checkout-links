@@ -17,7 +17,7 @@ export default function Plans() {
             <div className="mb-8 rounded-3xl border border-gray-200 bg-white px-4 py-8 sm:p-10">
                 <section aria-labelledby="plan-name" className="mx-auto w-full max-w-sm rounded-2xl bg-[#303030] px-6 py-8 text-white shadow-xl sm:px-8">
                     <h2 id="plan-name" className="text-center text-sm font-semibold uppercase tracking-widest">Basic Plan</h2>
-                    <p className="mt-8 text-center text-6xl font-semibold tracking-tight">$5</p>
+                    <p className="mt-8 text-center text-6xl font-semibold tracking-tight">$4.99</p>
                     <p className="mt-5 text-center text-sm font-medium uppercase tracking-wide">Every 30 days</p>
                     <p className="mt-2 text-center text-xs text-gray-300">Recurring billing · No trial period</p>
 

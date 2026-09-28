@@ -22,7 +22,7 @@ class DatabaseSeeder extends Seeder
 
         Plan::create([
             'name' => 'Basic Plan',
-            'price' => 5,
+            'price' => 4.99,
             'type' => 'RECURRING',
             'interval' => 'EVERY_30_DAYS',
             'trial_days' => 0,
