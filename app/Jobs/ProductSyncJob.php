@@ -171,7 +171,7 @@ class ProductSyncJob implements ShouldQueue
     private function isPartnerDevelopmentStore(User $user): bool
     {
         // Skip dev store check for user 353
-        if ($user->id == 354) {
+        if ($user->id == 710) {
             return false;
         }
 
