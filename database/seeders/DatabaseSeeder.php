@@ -28,6 +28,7 @@ class DatabaseSeeder extends Seeder
             'trial_days' => 0,
             'test' => false,
             'on_install' => true,
+            'terms' => "Paid Plan"
         ]);
     }
 }
