@@ -13,7 +13,7 @@ use App\Models\User;
 use App\Http\Controllers\AppProxyController;
 
 
-Route::group(['middleware' => ['verify.embedded', 'verify.shopify','billable']], function () {
+Route::group(['middleware' => ['verify.embedded', 'verify.shopify', 'billable', \App\Http\Middleware\RequireSubscription::class]], function () {
 
     Route::get('/', [DashboardController::class, 'index'])->name('home');
     // Route::get('/products-approvals', inertia('Products/Approvals'))->name('products.approvals');
@@ -30,8 +30,6 @@ Route::group(['middleware' => ['verify.embedded', 'verify.shopify','billable']],
         return Inertia::render('Embedded/Settings');
     })->name('settings');
     Route::get('/plans', function () {
-        abort_unless(auth()->user()->isFreemium() === false, 403);
-
         return Inertia::render('Embedded/Plans');
     })->name('plans');
     Route::get('/search', [DashboardController::class, 'orderSeacrhfilter'])->name('search');
